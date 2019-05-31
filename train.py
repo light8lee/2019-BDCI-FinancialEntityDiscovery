@@ -149,8 +149,8 @@ def train(args):
                         pbar.set_postfix(rank=args.local_rank, mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'], lr=curr_lr)
                     else:
                         pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'], lr=curr_lr)
-                elif phase == 'dev':
-                    pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=running_results['tp']/running_results['total'])
+                else:
+                    pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'])
             epoch_loss = running_loss / running_results['total']
             epoch_precision = Precision(running_results['tp'], running_results['fp'])
             epoch_recall = Recall(running_results['tp'], running_results['fn'])
