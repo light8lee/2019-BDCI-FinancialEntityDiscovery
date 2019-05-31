@@ -3,7 +3,7 @@ import models
 from proj_utils.files import save_ckpt, load_ckpt, load_config_from_json
 from proj_utils.configuration import Config
 from proj_utils.logs import log_info
-from datasets import GraphDataset, collect_multigraph
+from dataset import GraphDataset, collect_multigraph
 import sys
 from tqdm import tqdm
 import os
@@ -25,15 +25,16 @@ F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 def infer(data, model, criterion, seq_len, cuda):
     features, targets = data
     batch_ids, batch_masks, batch_laps = features
+    labels = targets.numpy()
 
     if cuda:
         batch_ids = batch_ids.cuda()
         batch_masks = batch_masks.cuda()
         batch_laps = batch_laps.cuda()
+        targets = targets.cuda()
     log_pred = model(batch_ids, batch_masks, batch_laps)
     loss = criterion(log_pred, targets)
-    predictions = log_pred.argmax(1).numpy()
-    labels = targets.numpy()
+    predictions = log_pred.argmax(1).cpu().numpy()
     tn, fp, fn, tp = confusion_matrix(labels, predictions).ravel()
     result = Counter({
         'tn': tn,
@@ -83,8 +84,8 @@ def train(args):
     sampler = None
     for phase in ['train', 'dev', 'test']:
         fea_file = open(os.path.join(args.data, '{}.fea'.format(phase)), 'rb')
-        tgt_filename = open(os.path.join(args.data, '{}.tgt'.format(phase)), 'rb')
-        pos_filename = open(os.path.join(args.data, '{}.pos'.format(phase)), 'rb')
+        tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
+        pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
         with open(tgt_filename, 'r') as f:
             targets = [int(v.strip()) for v in f]
         with open(pos_filename, 'r') as f:
@@ -129,7 +130,7 @@ def train(args):
             running_loss = 0.
             running_results = Counter()
 
-            pbar = tqdm(dataloader[phase], position=args.local_rank)
+            pbar = tqdm(dataloaders[phase], position=args.local_rank)
             pbar.set_description("[{} Epoch {}]".format(phase, epoch))
             for data in pbar:
                 optimizer.zero_grad()
@@ -160,27 +161,25 @@ def train(args):
                     best_f1 = epoch_f1
                     if args.multi_gpu:
                         if args.local_rank == 0:
-                            Log('Epoch {}: Saving Rank({}) New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                            Log('Dev Epoch {}: Saving Rank({}) New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                                 epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                             save_ckpt(os.path.join(args.save_dir, 'model.rank{}.epoch{}.pt.tar'.format(args.local_rank, epoch)),
                                                 epoch, model.module.state_dict(), optimizer.state_dict())
-                            unit_embedding = model.module.unit_embedding.weight.data.cpu().numpy()
-                            pickle.dump(unit_embedding, open(os.path.join(args.save_dir, 'embedding.rank{}.epoch{}.dat'.format(args.local_rank, epoch)), 'wb'))
                     else:
-                        Log('Epoch {}: Saving New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                        Log('Dev Epoch {}: Saving New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                             epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                         save_ckpt(os.path.join(args.save_dir, 'model.epoch{}.pt.tar'.format(epoch)),
                                                epoch, model.state_dict(), optimizer.state_dict())
-                        unit_embedding = model.unit_embedding.weight.data.cpu().numpy()
-                        pickle.dump(unit_embedding, open(os.path.join(args.save_dir, 'embedding.epoch{}.dat'.format(epoch)), 'wb'))
-
                 else:
                     if args.multi_gpu:
-                        Log('Epoch {}:  Rank({}) Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                        Log('Dev Epoch {}:  Rank({}) Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                             epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                     else:
-                        Log('Epoch {}: Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                        Log('Dev Epoch {}: Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                             epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+            elif phase == 'test':
+                Log('Test Epoch {}: Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                    epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
 
 
 if __name__ == '__main__':

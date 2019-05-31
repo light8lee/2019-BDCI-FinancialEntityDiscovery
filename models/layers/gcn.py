@@ -25,5 +25,5 @@ class GCNLayer(nn.Module):
     def forward(self, A, X):
         output = torch.matmul(X, self.weight)  # [b, 2t, h2]
         output = torch.bmm(A, output) + self.bias  # [b, 2t, h2]
-        output = self.activation(outout)
+        output = self.activation(output)
         return output

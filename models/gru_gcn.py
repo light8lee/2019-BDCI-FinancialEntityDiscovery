@@ -43,9 +43,9 @@ class GRU_GCN(nn.Module):
                             padding_idx=padding_idx)
         if init_weight is None:
             vecs.weight = nn.Parameter(
-                t.cat([
-                    t.zeros(1, self.embedding_dim),  # [PAD]
-                    t.FloatTensor(self.vocab_size-1, self.embedding_dim).uniform_(-0.5 / \
+                torch.cat([
+                    torch.zeros(1, self.embedding_dim),  # [PAD]
+                    torch.FloatTensor(self.vocab_size-1, self.embedding_dim).uniform_(-0.5 / \
                                                                              self.embedding_dim, 0.5/self.embedding_dim)
                 ])
             )
@@ -66,7 +66,7 @@ class GRU_GCN(nn.Module):
         """
         outputs = self.embedding(input_ids)  # [2b, t, e]
         outputs, hn = self.bigru(outputs)  # [2b, t, h1]
-        outputs = outputs * input_masks  # [2b, t, h1]
+        outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h1]
         outputs = outputs.view(-1, 2*self.max_seq_len, self.hidden_dims[0])  # [b, 2t, h1]
         pooled_outputs = []
         for layer in self.gcn_layers:
@@ -78,7 +78,7 @@ class GRU_GCN(nn.Module):
         pooled_outputs = torch.stack(pooled_outputs)  # [num_gcn_layer, b, 2h2]
         pooled_outputs = self.sum_pool(pooled_outputs)  # [b, 2h2]
         num_nodes = torch.sum(input_masks.view(-1, 2*self.max_seq_len), 1)  # [2b, t] -> [b, 2t] -> [b]
-        pooled_outputs = pooled_outputs / num_nodes
+        pooled_outputs = pooled_outputs / num_nodes.unsqueeze(-1)
 
         outputs = self.dense(pooled_outputs)  # [b, 2]
         outputs = torch.log_softmax(outputs, 1)
