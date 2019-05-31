@@ -43,7 +43,7 @@ def infer(data, model, criterion, seq_len, cuda):
         'total': tn+fp+fn+tp
     })
 
-    return result, pred
+    return result, loss
 
 
 def train(args):

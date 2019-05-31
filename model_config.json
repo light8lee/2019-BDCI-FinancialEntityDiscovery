@@ -1,0 +1,18 @@
+
+{
+    "optimizer": {
+        "name": "Adam",
+        "lr": 1e-3
+    },
+    "model": {
+        "name": "GRU_GCN",
+        "drop_rate": 0.1,
+        "activation": "tanh",
+        "vocab_size": 21128,
+        "max_seq_len": 50,
+        "embedding_dim": 300,
+        "num_gru_layer": 2,
+        "hidden_dims": [400, 300],
+        "num_gcn_layer": 1
+    }
+}
