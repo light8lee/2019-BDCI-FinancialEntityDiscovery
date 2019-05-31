@@ -17,6 +17,11 @@ import torch.optim as optim
 from sklearn.metrics import confusion_matrix
 from collections import Counter
 
+Precision = lambda tp, fp: tp / (tp + fp)
+Recall = lambda tp, fn: tp / (tp + fn)
+F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
+
+
 def infer(data, model, criterion, seq_len, cuda):
     features, targets = data
     batch_ids, batch_masks, batch_laps = features
@@ -140,27 +145,30 @@ def train(args):
                 if phase == 'train':
                     curr_lr = optimizer.param_groups[0]['lr']
                     if args.multi_gpu:
-                        pbar.set_postfix(rank=args.local_rank, mean_loss=running_loss/running_results['total'], mean_acc=running_results['tp']/running_results['total'], lr=curr_lr)
+                        pbar.set_postfix(rank=args.local_rank, mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'], lr=curr_lr)
                     else:
-                        pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=running_results['tp']/running_results['total'], lr=curr_lr)
+                        pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'], lr=curr_lr)
                 elif phase == 'dev':
                     pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=running_results['tp']/running_results['total'])
             epoch_loss = running_loss / running_results['total']
-            epoch_precision = 
-            epoch_recall = 
-            epoch_f1 = 
+            epoch_precision = Precision(running_results['tp'], running_results['fp'])
+            epoch_recall = Recall(running_results['tp'], running_results['fn'])
+            epoch_acc = (running_results['tp'] + running_results['tn']) / running_results['total']
+            epoch_f1 = F1(epoch_precision, epoch_recall)
             if phase == 'dev':
                 if epoch_f1 > best_f1:
                     best_f1 = epoch_f1
                     if args.multi_gpu:
                         if args.local_rank == 0:
-                            Log('Epoch {}: Saving Rank({}) New Record... Acc: {}, Loss: {}'.format(epoch, args.local_rank, best_acc, epoch_loss))  # TODO
+                            Log('Epoch {}: Saving Rank({}) New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                                epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                             save_ckpt(os.path.join(args.save_dir, 'model.rank{}.epoch{}.pt.tar'.format(args.local_rank, epoch)),
                                                 epoch, model.module.state_dict(), optimizer.state_dict())
                             unit_embedding = model.module.unit_embedding.weight.data.cpu().numpy()
                             pickle.dump(unit_embedding, open(os.path.join(args.save_dir, 'embedding.rank{}.epoch{}.dat'.format(args.local_rank, epoch)), 'wb'))
                     else:
-                        Log('Epoch {}: Saving New Record... Acc: {}, Loss: {}'.format(epoch, best_acc, epoch_loss))  # TODO
+                        Log('Epoch {}: Saving New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                            epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                         save_ckpt(os.path.join(args.save_dir, 'model.epoch{}.pt.tar'.format(epoch)),
                                                epoch, model.state_dict(), optimizer.state_dict())
                         unit_embedding = model.unit_embedding.weight.data.cpu().numpy()
@@ -168,9 +176,11 @@ def train(args):
 
                 else:
                     if args.multi_gpu:
-                        Log('Epoch: {}: Rank({}) Not Improved. Acc: {}, Loss: {}'.format(epoch, args.local_rank, epoch_acc, epoch_loss))  # TODO
+                        Log('Epoch {}:  Rank({}) Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                            epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                     else:
-                        Log('Epoch: {}: Not Improved. Acc: {}, Loss: {}'.format(epoch, epoch_acc, epoch_loss))  # TODO
+                        Log('Epoch {}: Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                            epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
 
 
 if __name__ == '__main__':
