@@ -126,10 +126,10 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
 
         inputs_a, input_mask_a = get_padded_tokens(instance.tokens_a, tokenizer, max_seq_length)
         inputs_b, input_mask_b = get_padded_tokens(instance.tokens_b, tokenizer, max_seq_length)
-        feature["inputs_a"] = create_int_feature(inputs_a)  # 输入ids
-        feature["input_mask_a"] = create_int_feature(input_mask_a)  # mask ids的padding部分
-        feature["inputs_b"] = create_int_feature(inputs_b)  # 输入ids
-        feature["input_mask_b"] = create_int_feature(input_mask_b)  # mask ids的padding部分
+        feature["inputs_a"] = inputs_a  # 输入ids
+        feature["input_mask_a"] = input_mask_a  # mask ids的padding部分
+        feature["inputs_b"] = inputs_b  # 输入ids
+        feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
         feature['rows'], feature['cols'] = create_adj_from_tokens(instance, max_seq_length)
 
         feature = tuple(feature.values())
@@ -143,16 +143,6 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
     fea_writer.close()
     fea_pos_writer.close()
 
-
-def create_int_feature(values):
-    # feature = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
-    feature = np.array(values, dtype=np.int32)
-    return feature
-
-
-def create_float_feature(values):
-    feature = np.array(values, dtype=np.float32)
-    return feature
 
 
 def create_training_instances(input_file, tokenizer, max_seq_length, rng):
