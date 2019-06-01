@@ -47,7 +47,6 @@ def load_ckpt(ckpt_path, model, optimizer=None, scheduler=None):
     return checkpoint['optimizer_state']['param_groups'][0]['lr']
 
 
-
 def cut_sent(para):
     para = re.sub('([。！？\?])([^”’])', r"\1\n\2", para)  # 单字符断句符
     para = re.sub('(\.{6})([^”’])', r"\1\n\2", para)  # 英文省略号
@@ -63,3 +62,23 @@ def load_config_from_json(json_filename):
         model_config = obj['model']
         optimizer_config = obj['optimizer']
         return model_config, optimizer_config
+
+
+def create_embedding(additional_words, embedding_filename, embedding_dim=300):
+    vocabs = []
+    vocabs.extend(additional_words)
+    embeddings = np.random.uniform(-1/embedding_dim, 1/embedding_dim, (len(additional_words), embedding_dim))
+    pretrained_embeddings = []
+    with open(embedding_filename, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            cn_word, *values = line.split('\t')
+            assert len(values) == embedding_dim
+            values = [int(value) for value in values]
+            pretrained_embeddings.append(values)
+            vocabs.append(cn_word)
+    pretrained_embeddings = np.array(pretrained_embeddings)
+    embeddings = np.append(embeddings, pretrained_embeddings, axis=0)
+    return embeddings, vocabs
