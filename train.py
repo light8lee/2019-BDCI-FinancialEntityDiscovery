@@ -24,15 +24,15 @@ F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 def infer(data, model, criterion, seq_len, cuda):
     features, targets = data
-    batch_ids, batch_masks, batch_laps = features
+    batch_ids, batch_masks, batch_adjs = features
     labels = targets.numpy()
 
     if cuda:
         batch_ids = batch_ids.cuda()
         batch_masks = batch_masks.cuda()
-        batch_laps = batch_laps.cuda()
+        batch_adjs = batch_adjs.cuda()
         targets = targets.cuda()
-    log_pred = model(batch_ids, batch_masks, batch_laps)
+    log_pred = model(batch_ids, batch_masks, batch_adjs)
     loss = criterion(log_pred, targets)
     predictions = log_pred.argmax(1).cpu().numpy()
     tn, fp, fn, tp = confusion_matrix(labels, predictions, labels=[0, 1]).ravel()
@@ -82,6 +82,7 @@ def train(args):
     dataloaders = {}
     datasets = {}
     sampler = None
+    collect_fn = lambda batch: collect_multigraph(model_config.need_norm, batch)
     for phase in ['train', 'dev', 'test']:
         fea_file = open(os.path.join(args.data, '{}.fea'.format(phase)), 'rb')
         tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
@@ -94,10 +95,10 @@ def train(args):
         if args.multi_gpu and phase == 'train':
             sampler = t.utils.data.distributed.DistributedSampler(dataset)
             dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
-                                                collate_fn=collect_multigraph, sampler=sampler, num_workers=1)
+                                                collate_fn=collect_fn, sampler=sampler, num_workers=1)
         else:
             dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                                shuffle=(phase=='train'), collate_fn=collect_multigraph, num_workers=1)
+                                                shuffle=(phase=='train'), collate_fn=collate_fn, num_workers=1)
         dataloaders[phase] = dataloader
         datasets[phase] = dataset
 

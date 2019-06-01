@@ -22,7 +22,7 @@ class GraphDataset(Dataset):
         return feature, target
 
 
-def collect_multigraph(batch):
+def collect_multigraph(need_norm, batch):
     batch_size = len(batch)
     features, targets = zip(*batch)
     batch_inputs_a, batch_mask_a, batch_inputs_b, batch_mask_b, batch_rows, batch_cols = zip(*features)
@@ -42,20 +42,21 @@ def collect_multigraph(batch):
     batch_inputs = t.from_numpy(np.array(batch_inputs)).long()
     batch_masks = t.from_numpy(np.array(batch_masks)).float()
 
-    batch_laps = []
+    batch_adjs = []
     for rows, cols in zip(batch_rows, batch_cols):
         data = np.ones_like(rows)
         mtx = sp.coo_matrix((data, (rows, cols)), shape=shape)
         mtx = mtx.transpose() + mtx  # 下三角加上上三角构成完整的邻接矩阵
-        mtx = get_laplacian(mtx)
+        if need_norm:
+            mtx = get_laplacian(mtx)
         mtx = sparse_scipy2torch(mtx)
-        batch_laps.append(mtx)
-    batch_laps = t.stack(batch_laps, 0)
-    batch_laps = batch_laps.to_dense()
+        batch_adjs.append(mtx)
+    batch_adjs = t.stack(batch_adjs, 0)
+    batch_adjs = batch_adjs.to_dense().float()
 
     targets = t.from_numpy(np.array(targets)).long()
 
-    return (batch_inputs, batch_masks, batch_laps), targets
+    return (batch_inputs, batch_masks, batch_adjs), targets
 
 
 if __name__ == '__main__':
