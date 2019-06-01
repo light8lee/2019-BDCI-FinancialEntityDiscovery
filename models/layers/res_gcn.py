@@ -37,5 +37,5 @@ class ResGCNLayer(nn.Module):
         output = torch.bmm(A, output) + self.bias  # [b, 2t, h2]
         skip_conn = torch.matmul(X, self.weight2)
         output = output + skip_conn
-        output = self.activation(outout)
+        output = self.activation(output)
         return output
