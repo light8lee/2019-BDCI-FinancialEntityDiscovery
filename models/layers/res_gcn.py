@@ -19,18 +19,17 @@ class ResGCNLayer(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        std_div = 1. / math.sqrt(self.weight.size(-1))
-        self.weight1.data.uniform_(-std_div, std_div)
-        self.weight2.data.uniform_(-std_div, std_div)
-        self.bias.data.uniform_(-std_div, std_div)
+        for weight in self.parameters():
+            std_div = 1. / math.sqrt(weight.size(-1))
+            weight.data.uniform_(-std_div, std_div)
 
     def forward(self, A, X):
         """[summary]
-        
+
         Arguments:
             A [b, 2t, 2t] -- [description]
             X [b, 2t, h1] -- [description]
-        
+
         Returns:
             [b, 2t, h2] -- [description]
         """
