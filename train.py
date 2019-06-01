@@ -35,7 +35,7 @@ def infer(data, model, criterion, seq_len, cuda):
     log_pred = model(batch_ids, batch_masks, batch_laps)
     loss = criterion(log_pred, targets)
     predictions = log_pred.argmax(1).cpu().numpy()
-    tn, fp, fn, tp = confusion_matrix(labels, predictions).ravel()
+    tn, fp, fn, tp = confusion_matrix(labels, predictions, labels=[0, 1]).ravel()
     result = Counter({
         'tn': tn,
         'fp': fp,
