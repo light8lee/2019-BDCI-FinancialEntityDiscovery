@@ -76,7 +76,7 @@ def create_embedding(additional_words, embedding_filename, embedding_dim=300):
                 continue
             cn_word, *values = line.split('\t')
             assert len(values) == embedding_dim
-            values = [int(value) for value in values]
+            values = [float(value) for value in values]
             pretrained_embeddings.append(values)
             vocabs.append(cn_word)
     pretrained_embeddings = np.array(pretrained_embeddings)
