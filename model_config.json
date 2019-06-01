@@ -13,6 +13,7 @@
         "embedding_dim": 300,
         "num_gru_layer": 2,
         "hidden_dims": [400, 300],
-        "num_gcn_layer": 1
+        "num_gcn_layer": 1,
+        "need_norm": true
     }
 }
