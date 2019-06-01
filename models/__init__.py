@@ -1,1 +1,1 @@
-from .gru_gcn import GRU_GCN
+from .rnn_gcn import GRU_GCN, GRU_ResGCN, LSTM_GCN, LSTM_ResGCN
