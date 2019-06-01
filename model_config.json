@@ -5,15 +5,16 @@
         "lr": 1e-3
     },
     "model": {
-        "name": "GRU_GCN",
+        "name": "GRU_ResGCN",
         "drop_rate": 0.1,
         "activation": "tanh",
-        "vocab_size": 21128,
+        "vocab_size": 2458,
         "max_seq_len": 50,
         "embedding_dim": 300,
-        "num_gru_layer": 2,
+        "num_rnn_layer": 2,
         "hidden_dims": [400, 300],
         "num_gcn_layer": 1,
-        "need_norm": true
+        "need_norm": true,
+        "init_weight_path": "data/med.vec"
     }
 }
