@@ -57,7 +57,7 @@ def train(args):
     if model_config.init_weight_path is None:
         model_config.init_weight = None
     else:
-        model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb')))
+        model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
     if model_config.activation == 'identical':
         model_config.activation = lambda v: v
