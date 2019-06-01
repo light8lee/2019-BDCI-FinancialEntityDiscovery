@@ -82,7 +82,7 @@ def train(args):
     dataloaders = {}
     datasets = {}
     sampler = None
-    collect_fn = lambda batch: collect_multigraph(model_config.need_norm, batch)
+    collate_fn = lambda batch: collect_multigraph(model_config.need_norm, batch)
     for phase in ['train', 'dev', 'test']:
         fea_file = open(os.path.join(args.data, '{}.fea'.format(phase)), 'rb')
         tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
@@ -95,7 +95,7 @@ def train(args):
         if args.multi_gpu and phase == 'train':
             sampler = t.utils.data.distributed.DistributedSampler(dataset)
             dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
-                                                collate_fn=collect_fn, sampler=sampler, num_workers=1)
+                                                collate_fn=collate_fn, sampler=sampler, num_workers=1)
         else:
             dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                                 shuffle=(phase=='train'), collate_fn=collate_fn, num_workers=1)
