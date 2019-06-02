@@ -6,30 +6,30 @@ import math
 
 
 class GATLayer(nn.Module):
-    def __init__(self, in_dim, out_dim, num_heads, activation=None, residual=False, last_layer=False):
+    def __init__(self, in_dim, out_dim, num_head, activation=None, residual=False, last_layer=False):
         super(GATLayer, self).__init__()
-        assert out_dim % num_heads == 0
+        assert out_dim % num_head == 0
         self.in_dim = in_dim
         self.out_dim = out_dim
-        self.num_heads = num_heads
-        self.support_dim = out_dim / num_heads
+        self.num_head = num_head
+        self.support_dim = out_dim / num_head
         self.activation = activation if activation is not None else torch.relu
         self.residual = residual
         self.last_layer = last_layer
 
         self.weights = nn.ParameterList([
-            nn.Parameter(torch.FloatTensor(self.in_dim, self.support_dim)) for _ in range(self.num_heads)
+            nn.Parameter(torch.FloatTensor(self.in_dim, self.support_dim)) for _ in range(self.num_head)
         ])
         self.fc1s = nn.ParameterList([
-            nn.Linear(self.support_dim, 1) for _ in range(self.num_heads)
+            nn.Linear(self.support_dim, 1) for _ in range(self.num_head)
         ])
         self.fc2s = nn.ParameterList([
-            nn.Linear(self.support_dim, 1) for _ in range(self.num_heads)
+            nn.Linear(self.support_dim, 1) for _ in range(self.num_head)
         ])
 
         if self.residual:
             self.res_weights = nn.ParameterList([
-                nn.Parameter(torch.FloatTensor(self.in_dim, self.support_dim)) for _ in range(self.num_heads)
+                nn.Parameter(torch.FloatTensor(self.in_dim, self.support_dim)) for _ in range(self.num_head)
             ])
 
         self.reset_parameters()
@@ -42,7 +42,7 @@ class GATLayer(nn.Module):
     def forward(self, A, X):
         head_outputs = []
         mask = (-1e9 * (1.0 - A))
-        for i in range(self.num_heads):
+        for i in range(self.num_head):
             inputs = torch.matmul(X, self.weights[i])  # [b, t, h]
             self_fc = self.fc1s[i](inputs)  # [b, t, 1]
             neigh_fc = self.fc2s[i](inputs).transpose(-1, -2)  # [b, t, 1]
