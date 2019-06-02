@@ -9,11 +9,10 @@ from .layers.pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
 class RNN_GAT(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 num_gcn_layer=1, init_weight=None, activation=None, **kwargs):
+                 init_weight=None, activation=None, **kwargs):
 
         super(RNN_GAT, self).__init__()
         assert hidden_dims[0] % 2 == 0
-        assert num_gcn_layer > 0
         assert num_rnn_layer > 0
         self.vocab_size = vocab_size
         self.max_seq_len = max_seq_len
@@ -21,7 +20,6 @@ class RNN_GAT(nn.Module):
         self.embedding_dim = embedding_dim
         self.hidden_dims = hidden_dims
         self.num_rnn_layer = num_rnn_layer
-        self.num_gcn_layer = num_gcn_layer
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.birnn = None  # to be replaced in subclass
@@ -70,7 +68,7 @@ class RNN_GAT(nn.Module):
             pooled_output = [self.max_pool(outputs), self.mean_pool(outputs)]
             pooled_output = torch.cat(pooled_output, 1)  # [b, 2h2]
             pooled_outputs.append(pooled_output)
-        pooled_outputs = torch.stack(pooled_outputs)  # [num_gcn_layer, b, 2h2]
+        pooled_outputs = torch.stack(pooled_outputs)  # [num_layers, b, 2h2]
         pooled_outputs = self.sum_pool(pooled_outputs)  # [b, 2h2]
         num_nodes = torch.sum(input_masks.view(-1, 2*self.max_seq_len), 1)  # [2b, t] -> [b, 2t] -> [b]
         pooled_outputs = pooled_outputs / num_nodes.unsqueeze(-1)
@@ -84,11 +82,11 @@ class RNN_GAT(nn.Module):
 class GRU_GAT(RNN_GAT):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 num_gcn_layer=1, init_weight=None, activation=None,
+                 init_weight=None, activation=None,
                  num_heads=None, residual=False, **kwargs):
         super(GRU_GAT, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      num_gcn_layer, init_weight, activation, **kwargs)
+                                      init_weight, activation, **kwargs)
         num_heads = num_heads if num_heads else [4, 2]
         self.num_heads = num_heads
         self.birnn = nn.GRU(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
@@ -106,11 +104,11 @@ class GRU_GAT(RNN_GAT):
 class LSTM_GAT(RNN_GAT):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 num_gcn_layer=1, init_weight=None, activation=None,
+                 init_weight=None, activation=None,
                  num_heads=None, residual=False, **kwargs):
         super(LSTM_GAT, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      num_gcn_layer, init_weight, activation, **kwargs)
+                                      init_weight, activation, **kwargs)
         num_heads = num_heads if num_heads else [4, 2]
         self.num_heads = num_heads
         self.birnn = nn.LSTM(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
