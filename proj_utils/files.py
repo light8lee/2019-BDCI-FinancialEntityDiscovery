@@ -66,8 +66,10 @@ def load_config_from_json(json_filename):
 
 def create_embedding(additional_words, embedding_filename, embedding_dim=300):
     vocabs = []
+    assert additional_words[0] == '[PAD]'
     vocabs.extend(additional_words)
     embeddings = np.random.uniform(-1/embedding_dim, 1/embedding_dim, (len(additional_words), embedding_dim))
+    embeddings[0] = 0
     pretrained_embeddings = []
     with open(embedding_filename, 'r', encoding='utf-8') as f:
         for line in f:

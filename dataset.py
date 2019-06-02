@@ -49,6 +49,8 @@ def collect_multigraph(need_norm, batch):
         mtx = mtx.transpose() + mtx  # 下三角加上上三角构成完整的邻接矩阵
         if need_norm:
             mtx = get_laplacian(mtx)
+        else:
+            mtx = mtx + sp.eye(2*seq_len)
         mtx = sparse_scipy2torch(mtx)
         batch_adjs.append(mtx)
     batch_adjs = t.stack(batch_adjs, 0)
