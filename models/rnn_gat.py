@@ -94,11 +94,13 @@ class GRU_GAT(RNN_GAT):
         self.birnn = nn.GRU(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
                             bidirectional=True, batch_first=True)
 
+        in_dim = self.hidden_dims[0]
         for num_head in num_heads:
             self.gcn_layers.append(
-                GATLayer(self.hidden_dims[0], self.hidden_dims[1],
+                GATLayer(in_dim, self.hidden_dims[1],
                          num_head, activation=activation, residual=residual, last_layer=False)
             )
+            in_dim = self.hidden_dims[1]
 
 
 class LSTM_GAT(RNN_GAT):
@@ -114,8 +116,10 @@ class LSTM_GAT(RNN_GAT):
         self.birnn = nn.LSTM(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
                             bidirectional=True, batch_first=True)
 
+        in_dim = self.hidden_dims[0]
         for num_head in num_heads:
             self.gcn_layers.append(
-                GATLayer(self.hidden_dims[0], self.hidden_dims[1],
+                GATLayer(in_dim, self.hidden_dims[1],
                          num_head, activation=activation, residual=residual, last_layer=False)
             )
+            in_dim = self.hidden_dims[1]

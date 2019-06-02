@@ -12,7 +12,7 @@ class GATLayer(nn.Module):
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.num_head = num_head
-        self.support_dim = out_dim / num_head
+        self.support_dim = out_dim // num_head
         self.activation = activation if activation is not None else torch.relu
         self.residual = residual
         self.last_layer = last_layer
@@ -20,10 +20,10 @@ class GATLayer(nn.Module):
         self.weights = nn.ParameterList([
             nn.Parameter(torch.FloatTensor(self.in_dim, self.support_dim)) for _ in range(self.num_head)
         ])
-        self.fc1s = nn.ParameterList([
+        self.fc1s = nn.ModuleList([
             nn.Linear(self.support_dim, 1) for _ in range(self.num_head)
         ])
-        self.fc2s = nn.ParameterList([
+        self.fc2s = nn.ModuleList([
             nn.Linear(self.support_dim, 1) for _ in range(self.num_head)
         ])
 
