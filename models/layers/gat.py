@@ -51,7 +51,7 @@ class GATLayer(nn.Module):
             alphas = torch.softmax(alphas, -1)  # [b, t, t]
             outputs = torch.bmm(alphas, inputs)  # [b, t, h]
             if self.residual:
-                ouputs += torch.matmul(X, self.res_weights[i])
+                outputs += torch.matmul(X, self.res_weights[i])
             head_outputs.append(self.activation(outputs))
         if self.last_layer:
             outputs = torch.stack(head_outputs)  # [n, b, t, h]
