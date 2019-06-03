@@ -10,7 +10,8 @@ from .layers.pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
 class RNN_GCN(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 num_gcn_layer=1, init_weight=None, activation=None, **kwargs):
+                 num_gcn_layer=1, init_weight=None, activation=None,
+                 freeze=False, **kwargs):
 
         super(RNN_GCN, self).__init__()
         assert hidden_dims[0] % 2 == 0
@@ -23,6 +24,7 @@ class RNN_GCN(nn.Module):
         self.hidden_dims = hidden_dims
         self.num_rnn_layer = num_rnn_layer
         self.num_gcn_layer = num_gcn_layer
+        self.freeze = freeze
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.birnn = None  # to be replaced in subclass
@@ -47,6 +49,7 @@ class RNN_GCN(nn.Module):
             )
         else:
             vecs.weight = nn.Parameter(init_weight)
+        vecs.weight.requires_grad = not self.freeze
         return vecs
 
     def forward(self, input_ids, input_masks, input_laps):
@@ -85,10 +88,12 @@ class RNN_GCN(nn.Module):
 class GRU_GCN(RNN_GCN):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 num_gcn_layer=1, init_weight=None, activation=None, **kwargs):
+                 num_gcn_layer=1, init_weight=None, activation=None,
+                 freeze=False, **kwargs):
         super(GRU_GCN, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      num_gcn_layer, init_weight, activation, **kwargs)
+                                      num_gcn_layer, init_weight, activation,
+                                      freeze, **kwargs)
         self.birnn = nn.GRU(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
                             bidirectional=True, batch_first=True)
         self.gcn_layers.append(GCNLayer(self.hidden_dims[0], self.hidden_dims[1], activation))
@@ -101,10 +106,12 @@ class GRU_GCN(RNN_GCN):
 class GRU_ResGCN(RNN_GCN):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 num_gcn_layer=1, init_weight=None, activation=None, **kwargs):
+                 num_gcn_layer=1, init_weight=None, activation=None,
+                 freeze=False, **kwargs):
         super(GRU_ResGCN, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      num_gcn_layer, init_weight, activation, **kwargs)
+                                      num_gcn_layer, init_weight, activation,
+                                      freeze, **kwargs)
         self.birnn = nn.GRU(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
                             bidirectional=True, batch_first=True)
         self.gcn_layers.append(ResGCNLayer(self.hidden_dims[0], self.hidden_dims[1], activation))
@@ -117,10 +124,12 @@ class GRU_ResGCN(RNN_GCN):
 class LSTM_GCN(RNN_GCN):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 num_gcn_layer=1, init_weight=None, activation=None, **kwargs):
+                 num_gcn_layer=1, init_weight=None, activation=None,
+                 freeze=False, **kwargs):
         super(LSTM_GCN, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      num_gcn_layer, init_weight, activation, **kwargs)
+                                      num_gcn_layer, init_weight, activation,
+                                      freeze, **kwargs)
         self.birnn = nn.LSTM(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
                             bidirectional=True, batch_first=True)
         self.gcn_layers.append(GCNLayer(self.hidden_dims[0], self.hidden_dims[1], activation))
@@ -133,10 +142,12 @@ class LSTM_GCN(RNN_GCN):
 class LSTM_ResGCN(RNN_GCN):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 num_gcn_layer=1, init_weight=None, activation=None, **kwargs):
+                 num_gcn_layer=1, init_weight=None, activation=None,
+                 freeze=False, **kwargs):
         super(LSTM_ResGCN, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      num_gcn_layer, init_weight, activation, **kwargs)
+                                      num_gcn_layer, init_weight, activation,
+                                      freeze, **kwargs)
         self.birnn = nn.LSTM(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
                             bidirectional=True, batch_first=True)
         self.gcn_layers.append(ResGCNLayer(self.hidden_dims[0], self.hidden_dims[1], activation))

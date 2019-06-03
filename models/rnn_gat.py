@@ -9,7 +9,8 @@ from .layers.pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
 class RNN_GAT(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 init_weight=None, activation=None, **kwargs):
+                 init_weight=None, activation=None,
+                 freeze=False, **kwargs):
 
         super(RNN_GAT, self).__init__()
         assert hidden_dims[0] % 2 == 0
@@ -20,6 +21,7 @@ class RNN_GAT(nn.Module):
         self.embedding_dim = embedding_dim
         self.hidden_dims = hidden_dims
         self.num_rnn_layer = num_rnn_layer
+        self.freeze = freeze
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.birnn = None  # to be replaced in subclass
@@ -44,6 +46,7 @@ class RNN_GAT(nn.Module):
             )
         else:
             vecs.weight = nn.Parameter(init_weight)
+        vecs.weight.requires_grad = not self.freeze
         return vecs
 
     def forward(self, input_ids, input_masks, input_laps):
@@ -83,10 +86,12 @@ class GRU_GAT(RNN_GAT):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
                  init_weight=None, activation=None,
-                 num_heads=None, residual=False, **kwargs):
+                 freeze=False, num_heads=None,
+                 residual=False, **kwargs):
         super(GRU_GAT, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      init_weight, activation, **kwargs)
+                                      init_weight, activation,
+                                      freeze, **kwargs)
         num_heads = num_heads if num_heads else [4, 2]
         self.num_heads = num_heads
         self.birnn = nn.GRU(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
@@ -105,10 +110,11 @@ class LSTM_GAT(RNN_GAT):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
                  init_weight=None, activation=None,
-                 num_heads=None, residual=False, **kwargs):
+                 freeze=False, num_heads=None,
+                 residual=False, **kwargs):
         super(LSTM_GAT, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      init_weight, activation, **kwargs)
+                                      init_weight, activation, freeze, **kwargs)
         num_heads = num_heads if num_heads else [4, 2]
         self.num_heads = num_heads
         self.birnn = nn.LSTM(self.embedding_dim, self.hidden_dims[0]//2, self.num_rnn_layer,
