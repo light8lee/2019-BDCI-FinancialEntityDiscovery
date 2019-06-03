@@ -135,7 +135,9 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
         feature["input_mask_a"] = input_mask_a  # mask ids的padding部分
         feature["inputs_b"] = inputs_b  # 输入ids
         feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
-        feature['rows'], feature['cols'] = create_adj_from_tokens(instance, max_seq_length)
+        rows, cols = create_adj_from_tokens(instance, max_seq_length)
+        feature['rows'] = rows
+        feature['cols'] = cols
 
         feature = tuple(feature.values())
         feature = pickle.dumps(feature)
