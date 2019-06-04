@@ -93,7 +93,7 @@ class GRU(nn.Module):
                  pred_dims:list=None, pred_act:str='ELU', **kwargs):
         super(GRU, self).__init__(vocab_size, max_seq_len, drop_rate,
                                   embedding_dim, hidden_dim, num_rnn_layer,
-                                  init_weight, freeze, pred_dims, pred_act, kwargs)
+                                  init_weight, freeze, pred_dims, pred_act, **kwargs)
         self.birnn = nn.GRU(self.embedding_dim, self.hidden_dim//2, self.num_rnn_layer,
                             bidirectional=True, batch_first=True)
 
@@ -105,6 +105,6 @@ class LSTM(nn.Module):
                  pred_dims:list=None, pred_act:str='ELU', **kwargs):
         super(LSTM, self).__init__(vocab_size, max_seq_len, drop_rate,
                                   embedding_dim, hidden_dim, num_rnn_layer,
-                                  init_weight, freeze, pred_dims, pred_act, kwargs)
+                                  init_weight, freeze, pred_dims, pred_act, **kwargs)
         self.birnn = nn.LSTM(self.embedding_dim, self.hidden_dim//2, self.num_rnn_layer,
                             bidirectional=True, batch_first=True)
