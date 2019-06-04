@@ -3,14 +3,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.sparse as sp
 import math
-from .layers import activation as activation
+from .layers import activation as Act
 from .layers.gat import GATLayer
 from .layers.pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
 
 class RNN_GAT(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 init_weight=None, gcn_act=None,
+                 init_weight=None, activation=None,
                  freeze=False, **kwargs):
 
         super(RNN_GAT, self).__init__()
@@ -81,17 +81,17 @@ class RNN_GAT(nn.Module):
 class GRU_GAT(RNN_GAT):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 init_weight=None, gcn_act=None,
+                 init_weight=None, activation=None,
                  freeze:bool=False, num_heads:list=None,
                  residual:bool=False, pred_dims:list=None,
                  pred_act:str='ELU', **kwargs):
         super(GRU_GAT, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      init_weight, gcn_act,
+                                      init_weight, activation,
                                       freeze, **kwargs)
         num_heads = num_heads if num_heads else [1]
         pred_dims = pred_dims if pred_dims else []
-        pred_act = getattr(activation, pred_act, nn.ELU)
+        pred_act = getattr(Act, pred_act, nn.ELU)
 
         self.num_heads = num_heads
         self.pred_dims = pred_dims
@@ -104,7 +104,7 @@ class GRU_GAT(RNN_GAT):
         for num_head in num_heads:
             self.gcn_layers.append(
                 GATLayer(in_dim, self.hidden_dims[1],
-                         num_head, activation=gcn_act, residual=residual, last_layer=False)
+                         num_head, activation=activation, residual=residual, last_layer=False)
             )
             in_dim = self.hidden_dims[1]
             flat_out_dim += self.hidden_dims[1]
@@ -127,17 +127,17 @@ class GRU_GAT(RNN_GAT):
 class LSTM_GAT(RNN_GAT):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dims, num_rnn_layer=1,
-                 init_weight=None, gcn_act=None,
+                 init_weight=None, activation=None,
                  freeze:bool=False, num_heads:bool=None,
                  residual:bool=False, pred_dims:list=None,
                  pred_act:str='ELU', **kwargs):
         super(LSTM_GAT, self).__init__(vocab_size, max_seq_len, drop_rate,
                                       embedding_dim, hidden_dims, num_rnn_layer,
-                                      init_weight, gcn_act, freeze, **kwargs)
+                                      init_weight, activation, freeze, **kwargs)
         num_heads = num_heads if num_heads else [1]
         pred_dims = pred_dims if pred_dims else []
 
-        pred_act = getattr(activation, pred_act, nn.ELU)
+        pred_act = getattr(Act, pred_act, nn.ELU)
         self.num_heads = num_heads
         self.pred_dims = pred_dims
 
@@ -149,7 +149,7 @@ class LSTM_GAT(RNN_GAT):
         for num_head in num_heads:
             self.gcn_layers.append(
                 GATLayer(in_dim, self.hidden_dims[1],
-                         num_head, activation=gcn_act, residual=residual, last_layer=False)
+                         num_head, activation=activation, residual=residual, last_layer=False)
             )
             in_dim = self.hidden_dims[1]
             flat_out_dim += self.hidden_dims[1]
