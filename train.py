@@ -59,6 +59,8 @@ def train(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
+    if model_config.activation is None:
+        pass
     if model_config.activation == 'identical':
         model_config.activation = lambda v: v
     elif model_config.activation == 'gelu':
