@@ -61,7 +61,7 @@ def train(args):
 
     if model_config.activation is None:
         pass
-    if model_config.activation == 'identical':
+    elif model_config.activation == 'identical':
         model_config.activation = lambda v: v
     elif model_config.activation == 'gelu':
         model_config.activation = models.layers.activation.gelu
