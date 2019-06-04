@@ -33,7 +33,7 @@ class RNN(nn.Module):
         self.pred_dims = pred_dims
 
         pred_layers = []
-        out_dim = hidden_dim
+        out_dim = hidden_dim * 2
         for pred_dim in pred_dims:
             pred_layers.append(
                 nn.Linear(out_dim, pred_dim)
