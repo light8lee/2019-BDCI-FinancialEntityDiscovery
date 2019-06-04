@@ -86,7 +86,7 @@ class RNN(nn.Module):
         return outputs
 
 
-class GRU(nn.Module):
+class GRU(RNN):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dim, num_rnn_layer=1,
                  init_weight=None, freeze:bool=False,
@@ -98,7 +98,7 @@ class GRU(nn.Module):
                             bidirectional=True, batch_first=True)
 
 
-class LSTM(nn.Module):
+class LSTM(RNN):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, hidden_dim, num_rnn_layer=1,
                  init_weight=None, freeze:bool=False,
