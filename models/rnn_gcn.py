@@ -34,12 +34,13 @@ class RNN_GCN(nn.Module):
 
         self.max_pool = GlobalMaxPooling()
 
+        out_dim = 0
         for i in range(len(hidden_dims)-1):
             self.gcn_layers.append(
                 GCNLayer(self.hidden_dims[i], self.hidden_dims[i+1], activation, residual)
             )
+            out_dim += hidden_dims[i+1]
 
-        out_dim = sum(hidden_dims)
         pred_layers = []
         for pred_dim in pred_dims:
             pred_layers.append(
