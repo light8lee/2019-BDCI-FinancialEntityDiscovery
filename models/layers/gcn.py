@@ -29,6 +29,6 @@ class GCNLayer(nn.Module):
         outputs = torch.matmul(X, self.weight)  # [b, 2t, h2]
         outputs = torch.bmm(A, outputs) + self.bias  # [b, 2t, h2]
         if self.residual:
-            outputs += torch.matmul(X, self.res_weights[i])  # [b, 2t, h2]
+            outputs += torch.matmul(X, self.res_weight)  # [b, 2t, h2]
         outputs = self.activation(outputs)
         return outputs
