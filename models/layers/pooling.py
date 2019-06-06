@@ -12,7 +12,7 @@ class GlobalMaxPooling(nn.Module):
         """[summary]
         
         Arguments:
-            input [b, 2t, h] -- [description]
+            input [b, t, h] -- [description]
         
         Returns:
             [b, h] -- [description]
@@ -30,7 +30,7 @@ class GlobalAvgPooling(nn.Module):
         """[summary]
         
         Arguments:
-            input [b, 2t, h] -- [description]
+            input [b, t, h] -- [description]
         
         Returns:
             [b, h] -- [description]
@@ -48,11 +48,11 @@ class GlobalSumPooling(nn.Module):
         """[summary]
         
         Arguments:
-            input [l, b, h] -- [description]
+            input [b, t, h] -- [description]
         
         Returns:
             [b, h] -- [description]
         """
         assert len(input.shape) == 3
-        output = torch.sum(input, 0)
+        output = torch.sum(input, 1)
         return output
