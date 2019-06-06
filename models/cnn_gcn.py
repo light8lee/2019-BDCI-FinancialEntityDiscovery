@@ -25,6 +25,7 @@ class CNN_GCN(nn.Module):
         self.hidden_dims = hidden_dims
         self.pred_dims = pred_dims
         self.freeze = freeze
+        self.activation = activation
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.conv1d = nn.Conv1d(self.embedding_dim, self.hidden_dims[0],
@@ -84,6 +85,7 @@ class CNN_GCN(nn.Module):
         outputs = self.embedding(input_ids)  # [2b, t, e]
         outputs = outputs.transpose(-1, -2)  # [2b, e, t]
         outputs = self.conv1d(outputs).transpose(-1, -2)  # [2b, t, h1]
+        outputs = self.activation(outputs)
         outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h1]
         outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, self.hidden_dims[0])  # [b, 2t, h1]
 
