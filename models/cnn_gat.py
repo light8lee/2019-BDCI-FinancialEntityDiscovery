@@ -10,13 +10,14 @@ from .layers.pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
 class CNN_GAT(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, window_size, hidden_dims:list,
-                 pred_dims:list, num_heads:list,
+                 pred_dims:list, num_heads:list, cnn_dims:list,
                  init_weight=None, activation=None, pred_act:str='ELU',
                  residual:bool=False, freeze:bool=False, **kwargs):
 
         super(CNN_GAT, self).__init__()
         assert window_size % 2 == 1
-        assert len(num_heads) == len(hidden_dims) - 1
+        assert len(num_heads) == len(hidden_dims)
+        assert len(cnn_dims) >= 1
         pred_act = getattr(Act, pred_act, nn.ELU)
 
         self.vocab_size = vocab_size
@@ -26,23 +27,31 @@ class CNN_GAT(nn.Module):
         self.window_size = window_size
         self.hidden_dims = hidden_dims
         self.pred_dims = pred_dims
+        self.cnn_dims = cnn_dims
         self.num_heads = num_heads
         self.freeze = freeze
         self.activation = activation
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
-        self.conv1d = nn.Conv1d(self.embedding_dim, self.hidden_dims[0],
-                                kernel_size=window_size, stride=1, padding=window_size//2)
+        self.cnn_layers = nn.ModuleList()
         self.gat_layers = nn.ModuleList()
-
         self.max_pool = GlobalMaxPooling()
 
-        out_dim = 0
-        for i in range(len(hidden_dims)-1):
-            self.gat_layers.append(
-                GATLayer(self.hidden_dims[i], self.hidden_dims[i+1], num_heads[i], activation, residual)
+        in_dim = self.embedding_dim
+        for cnn_dim in self.cnn_dims:
+            self.cnn_layers.append(
+                nn.Conv1d(in_dim, cnn_dim,
+                          kernel_size=window_size, stride=1, padding=window_size//2)
             )
-            out_dim += hidden_dims[i+1]
+            in_dim = cnn_dim
+
+        out_dim = 0
+        for hidden_dim, num_head in zip(self.hidden_dims, self.num_heads):
+            self.gat_layers.append(
+                GATLayer(in_dim, hidden_dim, num_head, activation, residual)
+            )
+            out_dim += hidden_dim
+            in_dim = hidden_dim
 
         pred_layers = []
         for pred_dim in pred_dims:
