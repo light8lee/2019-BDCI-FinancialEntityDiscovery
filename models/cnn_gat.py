@@ -12,7 +12,7 @@ class CNN_GAT(nn.Module):
                  embedding_dim, window_size, hidden_dims:list,
                  pred_dims:list, num_heads:list, cnn_dims:list,
                  init_weight=None, activation=None, pred_act:str='ELU',
-                 residual:bool=False, freeze:bool=False, , add_norm=False, **kwargs):
+                 residual:bool=False, freeze:bool=False, add_norm=False, **kwargs):
 
         super(CNN_GAT, self).__init__()
         assert window_size % 2 == 1
