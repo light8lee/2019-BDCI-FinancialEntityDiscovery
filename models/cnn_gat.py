@@ -103,7 +103,7 @@ class CNN_GAT(nn.Module):
         outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h1]
         outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, self.hidden_dims[0])  # [b, 2t, h1]
 
-        pooled_outputs = []
+        pooled_outputs = [self.max_pool(outputs)]
         for layer in self.gat_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             outputs = layer(input_laps, outputs)  # [b, 2t, h2]
