@@ -7,7 +7,7 @@ import math
 
 
 class SAGELayer(nn.Module):
-    def __init__(self, in_dim, out_dim, activation=None, pooling='max')
+    def __init__(self, in_dim, out_dim, activation=None, pooling='max'):
         super(SAGELayer, self).__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
@@ -31,10 +31,13 @@ class SAGELayer(nn.Module):
             weight.data.uniform_(-std_div, std_div)
 
     def forward(self, A, X):
-        inputs = self.weight(X)  # [b, t, h]
-        inputs = inputs.unsqueeze(1)  # [b, 1, t, h]
+        inputs = self.activation(self.weight(X))  # [b, t, h1]
+        inputs = inputs.unsqueeze(1)  # [b, 1, t, h1]
         A = A.unsqueeze(-1)  # [b, t, t, 1]
-        outputs = A * inputs  # [b, t, t, h]
-        outputs = self.pooling(outputs, -1)  # [b, t, h]
+        outputs = A * inputs  # [b, t, t, h1]
+        outputs = self.pooling(outputs, -1)  # [b, t, h1]
+        outputs = torch.cat([X, outputs], -1)  # [b, t, h0+h1]
+        outputs = self.fc(outputs)  # [b, t, h]
         outputs = self.activation(outputs)  # [b, t, h]
-        return outputs  # TODO: add norm
+        outputs = outputs / torch.norm(outputs, p=2)
+        return outputs
