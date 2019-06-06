@@ -45,7 +45,7 @@ class CNN_GAT(nn.Module):
             )
             in_dim = cnn_dim
 
-        out_dim = 0
+        out_dim = in_dim
         for hidden_dim, num_head in zip(self.hidden_dims, self.num_heads):
             self.gat_layers.append(
                 GATLayer(in_dim, hidden_dim, num_head, activation, residual)
