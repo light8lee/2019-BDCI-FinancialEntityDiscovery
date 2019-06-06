@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.sparse as sp
 import math
 from .layers import activation as Act
-from .layers.pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
+from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 
 class RNN(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
@@ -27,7 +27,7 @@ class RNN(nn.Module):
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.birnn = None  # to be replaced in subclass
 
-        self.max_pool = GlobalMaxPooling()
+        self.max_pool = MaxPooling()
         pred_act = getattr(Act, pred_act, nn.ELU)
 
         self.pred_dims = pred_dims

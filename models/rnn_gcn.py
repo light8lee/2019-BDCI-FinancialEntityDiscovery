@@ -5,7 +5,7 @@ import torch.sparse as sp
 import math
 from .layers.gcn import GCNLayer
 from .layers import activation as Act
-from .layers.pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
+from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 
 class RNN_GCN(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
@@ -32,7 +32,7 @@ class RNN_GCN(nn.Module):
         self.birnn = None  # to be replaced in subclass
         self.gcn_layers = nn.ModuleList()
 
-        self.max_pool = GlobalMaxPooling()
+        self.max_pool = MaxPooling()
 
         out_dim = 0
         for i in range(len(hidden_dims)-1):

@@ -5,7 +5,7 @@ import torch.sparse as sp
 import math
 from .layers import activation as Act
 from .layers.gat import GATLayer
-from .layers.pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
+from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 
 class RNN_GAT(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
@@ -28,7 +28,7 @@ class RNN_GAT(nn.Module):
         self.birnn = None  # to be replaced in subclass
         self.gcn_layers = nn.ModuleList()
 
-        self.max_pool = GlobalMaxPooling()
+        self.max_pool = MaxPooling()
         self.dense = None
 
 

@@ -4,9 +4,9 @@ import torch.nn.functional as F
 import torch.sparse as sp
 import math
 
-class GlobalMaxPooling(nn.Module):
+class MaxPooling(nn.Module):
     def __init__(self):
-        super(GlobalMaxPooling, self).__init__()
+        super(MaxPooling, self).__init__()
 
     def forward(self, input, axis=1):
         """[summary]
@@ -17,14 +17,29 @@ class GlobalMaxPooling(nn.Module):
         Returns:
             [b, h] -- [description]
         """
-        assert len(input.shape) == 3
         output, _ = torch.max(input, axis)
         return output
 
 
-class GlobalAvgPooling(nn.Module):
+class AvgPooling(nn.Module):
     def __init__(self):
-        super(GlobalAvgPooling, self).__init__()
+        super(AvgPooling, self).__init__()
+
+    def forward(self, input, axis=1):
+        """[summary]
+        
+        Arguments:
+        
+        Returns:
+            [b, h] -- [description]
+        """
+        output = torch.mean(input, axis)
+        return output
+
+
+class SumPooling(nn.Module):
+    def __init__(self):
+        super(SumPooling, self).__init__()
 
     def forward(self, input, axis=1):
         """[summary]
@@ -35,24 +50,5 @@ class GlobalAvgPooling(nn.Module):
         Returns:
             [b, h] -- [description]
         """
-        assert len(input.shape) == 3
-        output = torch.mean(input, axis)
-        return output
-
-
-class GlobalSumPooling(nn.Module):
-    def __init__(self):
-        super(GlobalSumPooling, self).__init__()
-
-    def forward(self, input):
-        """[summary]
-        
-        Arguments:
-            input [b, t, h] -- [description]
-        
-        Returns:
-            [b, h] -- [description]
-        """
-        assert len(input.shape) == 3
-        output = torch.sum(input, 1)
+        output = torch.sum(input, axis)
         return output

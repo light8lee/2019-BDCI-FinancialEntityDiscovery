@@ -5,7 +5,7 @@ import torch.sparse as sp
 import math
 from .layers.graph_sage import SAGELayer
 from .layers import activation as Act
-from .layers.pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
+from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 
 class CNN_SAGE(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
@@ -34,7 +34,7 @@ class CNN_SAGE(nn.Module):
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
         self.sage_layers = nn.ModuleList()
-        self.max_pool = GlobalMaxPooling()
+        self.max_pool = MaxPooling()
 
         in_dim = self.embedding_dim
         for cnn_dim in self.cnn_dims:

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.sparse as sp
-from .pooling import GlobalMaxPooling, GlobalAvgPooling, GlobalSumPooling
+from .pooling import MaxPooling, AvgPooling, SumPooling
 import math
 
 
@@ -13,11 +13,11 @@ class SAGELayer(nn.Module):
         self.out_dim = out_dim
         self.activation = activation if activation is not None else torch.relu
         if pooling == 'max':
-            self.pooling = GlobalMaxPooling()
+            self.pooling = MaxPooling()
         elif pooling == 'mean':
-            self.pooling = GlobalAvgPooling()
+            self.pooling = AvgPooling()
         elif pooling == 'sum':
-            self.pooling = GlobalSumPooling()
+            self.pooling = SumPooling()
         else:
             raise ValueError()
 
@@ -35,7 +35,7 @@ class SAGELayer(nn.Module):
         inputs = inputs.unsqueeze(1)  # [b, 1, t, h1]
         A = A.unsqueeze(-1)  # [b, t, t, 1]
         outputs = A * inputs  # [b, t, t, h1]
-        outputs = self.pooling(outputs, -1)  # [b, t, h1]
+        outputs = self.pooling(outputs, 2)  # [b, t, h1]
         outputs = torch.cat([X, outputs], -1)  # [b, t, h0+h1]
         outputs = self.fc(outputs)  # [b, t, h]
         outputs = self.activation(outputs)  # [b, t, h]
