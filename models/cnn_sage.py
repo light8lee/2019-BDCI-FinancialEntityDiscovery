@@ -111,7 +111,7 @@ class CNN_SAGE(nn.Module):
             outputs = self.norm(outputs+self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim)))
 
         pooled_outputs = []
-        for layer in self.gat_layers:
+        for layer in self.sage_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             outputs = layer(input_adjs, outputs)  # [b, 2t, h2]
             pooled_output = self.max_pool(outputs)
