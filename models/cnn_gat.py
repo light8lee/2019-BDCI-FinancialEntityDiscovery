@@ -96,9 +96,11 @@ class CNN_GAT(nn.Module):
         """
         outputs = self.embedding(input_ids)  # [2b, t, e]
         outputs = outputs.transpose(-1, -2)  # [2b, e, t]
-        outputs = self.conv1d(outputs).transpose(-1, -2)  # [2b, t, h1]
+        for conv1d in self.cnn_layers:
+            outputs = conv1d(outputs)  # [2b, h, t]
+            outputs = self.activation(outputs)
+        outputs = outputs.transpose(-1, -2)  # [2b, t, h1]
         outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h1]
-        outputs = self.activation(outputs)
         outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, self.hidden_dims[0])  # [b, 2t, h1]
 
         pooled_outputs = []
