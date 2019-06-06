@@ -8,7 +8,7 @@ class GlobalMaxPooling(nn.Module):
     def __init__(self):
         super(GlobalMaxPooling, self).__init__()
 
-    def forward(self, input):
+    def forward(self, input, axis=1):
         """[summary]
         
         Arguments:
@@ -18,7 +18,7 @@ class GlobalMaxPooling(nn.Module):
             [b, h] -- [description]
         """
         assert len(input.shape) == 3
-        output, _ = torch.max(input, 1)
+        output, _ = torch.max(input, axis)
         return output
 
 
@@ -26,7 +26,7 @@ class GlobalAvgPooling(nn.Module):
     def __init__(self):
         super(GlobalAvgPooling, self).__init__()
 
-    def forward(self, input):
+    def forward(self, input, axis=1):
         """[summary]
         
         Arguments:
@@ -36,7 +36,7 @@ class GlobalAvgPooling(nn.Module):
             [b, h] -- [description]
         """
         assert len(input.shape) == 3
-        output = torch.mean(input, 1)
+        output = torch.mean(input, axis)
         return output
 
 
