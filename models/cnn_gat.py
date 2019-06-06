@@ -12,7 +12,7 @@ class CNN_GAT(nn.Module):
                  embedding_dim, window_size, hidden_dims:list,
                  pred_dims:list, num_heads:list, cnn_dims:list,
                  init_weight=None, activation=None, pred_act:str='ELU',
-                 residual:bool=False, freeze:bool=False, **kwargs):
+                 residual:bool=False, freeze:bool=False, , add_norm=False, **kwargs):
 
         super(CNN_GAT, self).__init__()
         assert window_size % 2 == 1
@@ -31,6 +31,7 @@ class CNN_GAT(nn.Module):
         self.num_heads = num_heads
         self.freeze = freeze
         self.activation = activation
+        self.add_norm = add_norm
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
@@ -45,7 +46,11 @@ class CNN_GAT(nn.Module):
             )
             in_dim = cnn_dim
 
-        out_dim = in_dim
+        if self.add_norm:
+            self.norm = nn.LayerNorm(in_dim)
+            self.res_weight = nn.Linear(self.embedding_dim, in_dim)
+
+        out_dim = 0
         for hidden_dim, num_head in zip(self.hidden_dims, self.num_heads):
             self.gat_layers.append(
                 GATLayer(in_dim, hidden_dim, num_head, activation, residual)
@@ -83,30 +88,34 @@ class CNN_GAT(nn.Module):
         vecs.weight.requires_grad = not self.freeze
         return vecs
 
-    def forward(self, input_ids, input_masks, input_laps):
+    def forward(self, input_ids, input_masks, input_adjs):
         """[summary]
         
         Arguments:
             input_ids [2b, t] -- [description]
             input_masks [2b, t] -- [description]
-            input_laps [b, 2t, 2t] -- [description]
+            input_adjs [b, 2t, 2t] -- [description]
         
         Returns:
             [type] -- [description]
         """
-        outputs = self.embedding(input_ids)  # [2b, t, e]
-        outputs = outputs.transpose(-1, -2)  # [2b, e, t]
+        inputs = self.embedding(input_ids)  # [2b, t, e]
+        outputs = inputs.transpose(-1, -2)  # [2b, e, t]
         for conv1d in self.cnn_layers:
+            outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             outputs = conv1d(outputs)  # [2b, h, t]
             outputs = self.activation(outputs)
         outputs = outputs.transpose(-1, -2)  # [2b, t, h1]
         outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h1]
-        outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, self.hidden_dims[0])  # [b, 2t, h1]
+        outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, self.cnn_dims[-1])  # [b, 2t, h1]
+        outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
+        if self.add_norm:
+            outputs = self.norm(outputs+self.res_weight(inputs))
 
-        pooled_outputs = [self.max_pool(outputs)]
+        pooled_outputs = []
         for layer in self.gat_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
-            outputs = layer(input_laps, outputs)  # [b, 2t, h2]
+            outputs = layer(input_adjs, outputs)  # [b, 2t, h2]
             pooled_output = self.max_pool(outputs)
             pooled_outputs.append(pooled_output)
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
