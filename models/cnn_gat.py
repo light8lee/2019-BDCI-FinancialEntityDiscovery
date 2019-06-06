@@ -110,7 +110,7 @@ class CNN_GAT(nn.Module):
         outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, self.cnn_dims[-1])  # [b, 2t, h1]
         outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
         if self.add_norm:
-            outputs = self.norm(outputs+self.res_weight(inputs))
+            outputs = self.norm(outputs+self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim)))
 
         pooled_outputs = []
         for layer in self.gat_layers:
