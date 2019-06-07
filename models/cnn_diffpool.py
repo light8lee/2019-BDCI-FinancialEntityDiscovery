@@ -49,10 +49,12 @@ class CNN_DiffPool(nn.Module):
             self.res_weight = nn.Linear(self.embedding_dim, in_dim)
 
         out_dim = 0
+        in_size = max_seq_len
         for _ in range(num_gnn_layer):
             self.diffpool_layers.append(
-                DiffPool(in_dim, max_seq_len, ratio, gnn, activation, **kwargs)
+                DiffPool(in_dim, in_size, ratio, gnn, activation, **kwargs)
             )
+            in_size = int(in_size * ratio)
             out_dim += in_dim
 
         pred_layers = []
