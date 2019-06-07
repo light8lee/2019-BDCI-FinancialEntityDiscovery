@@ -3,21 +3,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.sparse as sp
 import math
-from .layers.gat import GATLayer
+from .layers.diffpool import DiffPool
 from .layers import activation as Act
 from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 
-class CNN_GAT(nn.Module):
+class CNN_DiffPool(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
-                 embedding_dim, window_size, hidden_dims:list,
-                 pred_dims:list, num_heads:list, cnn_dims:list,
+                 embedding_dim, window_size, num_gnn_layer, gnn,
+                 pred_dims:list, cnn_dims:list, ratio:float,
                  init_weight=None, activation=None, pred_act:str='ELU',
-                 residual:bool=False, freeze:bool=False, add_norm=False, **kwargs):
+                 freeze:bool=False, add_norm=False, **kwargs):
 
-        super(CNN_GAT, self).__init__()
+        super(CNN_DiffPool, self).__init__()
         assert window_size % 2 == 1
-        assert len(num_heads) == len(hidden_dims)
         assert len(cnn_dims) >= 1
+        assert 0 < ratio <= 1.0
         pred_act = getattr(Act, pred_act, nn.ELU)
 
         self.vocab_size = vocab_size
@@ -25,17 +25,15 @@ class CNN_GAT(nn.Module):
         self.drop_rate = drop_rate
         self.embedding_dim = embedding_dim
         self.window_size = window_size
-        self.hidden_dims = hidden_dims
         self.pred_dims = pred_dims
         self.cnn_dims = cnn_dims
-        self.num_heads = num_heads
         self.freeze = freeze
         self.activation = activation
         self.add_norm = add_norm
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
-        self.gat_layers = nn.ModuleList()
+        self.diffpool_layers = nn.ModuleList()
         self.max_pool = MaxPooling()
 
         in_dim = self.embedding_dim
@@ -51,12 +49,11 @@ class CNN_GAT(nn.Module):
             self.res_weight = nn.Linear(self.embedding_dim, in_dim)
 
         out_dim = 0
-        for hidden_dim, num_head in zip(self.hidden_dims, self.num_heads):
+        for _ in range(num_gnn_layer):
             self.gat_layers.append(
-                GATLayer(in_dim, hidden_dim, num_head, activation, residual)
+                DiffPool(in_dim, max_seq_len, ratio, gnn, activation, **kwargs)
             )
-            out_dim += hidden_dim
-            in_dim = hidden_dim
+            out_dim += in_dim
 
         pred_layers = []
         for pred_dim in pred_dims:
@@ -113,9 +110,10 @@ class CNN_GAT(nn.Module):
             outputs = self.norm(outputs+self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim)))
 
         pooled_outputs = []
-        for layer in self.gat_layers:
+        adjs = input_adjs
+        for layer in self.diffpool_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
-            outputs = layer(input_adjs, outputs)  # [b, 2t, h2]
+            outputs, adjs = layer(adjs, outputs)  # [b, 2t, h2]
             pooled_output = self.max_pool(outputs)
             pooled_outputs.append(pooled_output)
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
