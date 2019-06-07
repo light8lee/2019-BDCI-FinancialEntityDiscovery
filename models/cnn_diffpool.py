@@ -50,7 +50,7 @@ class CNN_DiffPool(nn.Module):
 
         out_dim = 0
         for _ in range(num_gnn_layer):
-            self.gat_layers.append(
+            self.diffpool_layers.append(
                 DiffPool(in_dim, max_seq_len, ratio, gnn, activation, **kwargs)
             )
             out_dim += in_dim
@@ -112,8 +112,10 @@ class CNN_DiffPool(nn.Module):
         pooled_outputs = []
         adjs = input_adjs
         for layer in self.diffpool_layers:
+            print('adjs:', adjs.shape)
+            print('outputs:', outputs.shape)
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
-            outputs, adjs = layer(adjs, outputs)  # [b, 2t, h2]
+            adjs, outputs = layer(adjs, outputs)  # [b, 2t, h2]
             pooled_output = self.max_pool(outputs)
             pooled_outputs.append(pooled_output)
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
