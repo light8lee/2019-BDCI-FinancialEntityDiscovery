@@ -22,7 +22,7 @@ class DiffPool(nn.Module):
                                      activation=activation, residual=kwargs['residual'],
                                      last_layer=False)
         elif gnn == 'sage':
-            self.gnn_embed = SAGELayer(in_dim, int(in_size*ratio), activation=activation,
+            self.gnn_embed = SAGELayer(in_dim, in_dim, activation=activation,
                                        pooling=kwargs['pooling'])
             self.gnn_pool = SAGELayer(in_dim, int(in_size*ratio), activation=activation,
                                       pooling=kwargs['pooling'])
