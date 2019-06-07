@@ -57,7 +57,7 @@ class CNN_DiffPool(nn.Module):
         else:
             raise ValueError()
 
-        out_dim = 0
+        out_dim = in_dim
         in_size = max_seq_len
         for _ in range(num_gnn_layer):
             self.diffpool_layers.append(
@@ -130,7 +130,7 @@ class CNN_DiffPool(nn.Module):
             outputs = outputs + self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim))
         outputs = self.norm(outputs)
 
-        pooled_outputs = []
+        pooled_outputs = [outputs]
         adjs = input_adjs
         for layer in self.diffpool_layers:
             print('adjs:', adjs.shape)
@@ -139,7 +139,7 @@ class CNN_DiffPool(nn.Module):
             adjs, outputs = layer(adjs, outputs)  # [b, 2t, h2]
             pooled_output = self.max_pool(outputs)
             pooled_outputs.append(pooled_output)
-        pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
+        pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, 2t, h+...]
 
         outputs = self.dense(pooled_outputs)  # [b, 2]
         outputs = torch.log_softmax(outputs, 1)
