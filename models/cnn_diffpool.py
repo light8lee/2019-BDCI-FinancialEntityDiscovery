@@ -66,6 +66,7 @@ class CNN_DiffPool(nn.Module):
             in_size = int(in_size * ratio)
             out_dim += in_dim
 
+        out_dim += in_dim * (num_gnn_layer - 1)
         pred_layers = []
         for pred_dim in pred_dims:
             pred_layers.append(
