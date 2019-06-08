@@ -142,6 +142,7 @@ class CNN_DiffPool(nn.Module):
         i = len(pooled_outputs) - 1
         while i > 0:
             pooled_outputs.append(pooled_outputs[i] - pooled_outputs[i-1])
+            i -= 1
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, h+...]
 
         outputs = self.dense(pooled_outputs)  # [b, 2]
