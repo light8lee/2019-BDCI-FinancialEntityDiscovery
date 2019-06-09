@@ -34,8 +34,6 @@ class CNN_DiffPool(nn.Module):
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
         self.diffpool_layers = nn.ModuleList()
-        self.norms = nn.ModuleList()
-
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
         elif readout_pool == 'avg':
@@ -56,27 +54,21 @@ class CNN_DiffPool(nn.Module):
             flat_in_dim += in_dim
 
         if self.mode == 'add_norm':
-            norm = nn.LayerNorm
+            self.norm = nn.LayerNorm(in_dim)
             self.res_weight = nn.Linear(self.embedding_dim, in_dim)
         elif self.mode == 'concat':
             in_dim = flat_in_dim
-            norm = nn.LayerNorm
+            self.norm = nn.LayerNorm(flat_in_dim)
         elif self.mode == 'origin':
-            norm = nn.LayerNorm
+            self.norm = nn.LayerNorm(in_dim)
         else:
             raise ValueError()
-        self.norms.append(
-            norm(in_dim)
-        )
 
         out_dim = 0
         in_size = max_seq_len
         for _ in range(num_gnn_layer):
             self.diffpool_layers.append(
                 DiffPool(in_dim, in_size, ratio, gnn, activation, **kwargs)
-            )
-            self.norms.append(
-                norm(in_dim)
             )
             in_size = int(in_size * ratio)
             out_dim += in_dim
@@ -144,14 +136,13 @@ class CNN_DiffPool(nn.Module):
         if self.mode == 'add_norm':
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             outputs = outputs + self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim))
-        outputs = self.norms[0](outputs)
+        outputs = self.norm(outputs)
 
         pooled_outputs = []
         adjs = input_adjs
-        for layer, norm in zip(self.diffpool_layers, self.norms[1:]):
+        for layer in self.diffpool_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             adjs, outputs = layer(adjs, outputs)  # [b, 2t, h2]
-            outputs = norm(outputs)
             pooled_output = self.readout_pool(outputs, 1)
             pooled_outputs.append(pooled_output)
         i = len(pooled_outputs) - 1
