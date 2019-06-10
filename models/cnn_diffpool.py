@@ -155,3 +155,141 @@ class CNN_DiffPool(nn.Module):
         outputs = torch.log_softmax(outputs, 1)
 
         return outputs
+
+
+class CNN_DiffPool_V2(nn.Module):
+    def __init__(self, vocab_size, max_seq_len, drop_rate,
+                 embedding_dim, window_sizes:list, num_gnn_layer:int, gnn:str,
+                 pred_dims:list, cnn_dim:int, ratio:float, readout_pool:str='max',
+                 init_weight=None, activation=None, pred_act:str='ELU',
+                 freeze:bool=False, mode:str='add_norm', **kwargs):
+
+        super(CNN_DiffPool_V2, self).__init__()
+        assert len(window_sizes) > 0
+        for size in window_sizes:
+            assert size % 2 == 1
+        assert cnn_dim > 0
+        assert 0 < ratio <= 1.0
+        pred_act = getattr(Act, pred_act, nn.ELU)
+
+        self.vocab_size = vocab_size
+        self.max_seq_len = max_seq_len
+        self.drop_rate = drop_rate
+        self.embedding_dim = embedding_dim
+        self.window_sizes = window_sizes
+        self.pred_dims = pred_dims
+        self.cnn_dim = cnn_dim
+        self.freeze = freeze
+        self.activation = activation
+        self.mode = mode
+
+        self.embedding = self.init_unit_embedding(init_weight=init_weight)
+        self.cnn_layers = nn.ModuleList()
+        self.diffpool_layers = nn.ModuleList()
+        if readout_pool == 'max':
+            self.readout_pool = MaxPooling()
+        elif readout_pool == 'avg':
+            self.readout_pool = AvgPooling()
+        elif readout_pool == 'sum':
+            self.readout_pool = SumPooling()
+        else:
+            raise ValueError()
+
+        in_dim = self.embedding_dim
+        flat_in_dim = 0
+        for window_size in self.window_sizes:
+            self.cnn_layers.append(
+                nn.Conv1d(in_dim, cnn_dim,
+                          kernel_size=window_size, stride=1, padding=window_size//2)
+            )
+            flat_in_dim += cnn_dim
+
+        if self.mode == 'norm':  # FIXME
+            self.norm = nn.LayerNorm(flat_in_dim)
+
+        out_dim = 0
+        in_size = max_seq_len
+        for _ in range(num_gnn_layer):
+            self.diffpool_layers.append(
+                DiffPool(flat_in_dim, in_size, ratio, gnn, activation, **kwargs)
+            )
+            in_size = int(in_size * ratio)
+            out_dim += flat_in_dim
+
+        out_dim += flat_in_dim * (num_gnn_layer - 1)
+        pred_layers = []
+        for pred_dim in pred_dims:
+            pred_layers.append(
+                nn.Linear(out_dim, pred_dim)
+            )
+            pred_layers.append(pred_act())
+            out_dim = pred_dim
+        pred_layers.append(
+            nn.Linear(out_dim, 2)
+        )
+
+        self.dense = nn.Sequential(*pred_layers)
+
+    def init_unit_embedding(self, init_weight=None, padding_idx=0):
+        vecs = nn.Embedding(self.vocab_size, self.embedding_dim,
+                            padding_idx=padding_idx)
+        if init_weight is None:
+            vecs.weight = nn.Parameter(
+                torch.cat([
+                    torch.zeros(1, self.embedding_dim),  # [PAD]
+                    torch.FloatTensor(self.vocab_size-1,
+                                      self.embedding_dim).uniform_(-0.5 / self.embedding_dim,
+                                                                   0.5/self.embedding_dim)
+                ])
+            )
+        else:
+            vecs.weight = nn.Parameter(init_weight)
+        vecs.weight.requires_grad = not self.freeze
+        return vecs
+
+    def forward(self, input_ids, input_masks, input_adjs):
+        """[summary]
+
+        Arguments:
+            input_ids [2b, t] -- [description]
+            input_masks [2b, t] -- [description]
+            input_adjs [b, 2t, 2t] -- [description]
+
+        Returns:
+            [type] -- [description]
+        """
+        inputs = self.embedding(input_ids)  # [2b, t, e]
+        outputs = inputs.transpose(-1, -2)  # [2b, e, t]
+        flat_outputs = [outputs]
+
+        for conv1d in self.cnn_layers:
+            conv_outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
+            conv_outputs = conv1d(conv_outputs)  # [2b, h, t]
+            conv_outputs = self.activation(conv_outputs)
+            flat_outputs.append(conv_outputs)
+
+        outputs = torch.cat(flat_outputs, 1)  # [2b, e+h, t]
+        outputs = outputs.transpose(-1, -2)  # [2b, t, e+h]
+        hidden_dim = outputs.shape[-1]
+        outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h]
+        outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, hidden_dim)  # [b, 2t, h]
+        if self.mode == 'norm':
+            outputs = self.norm(outputs)
+
+        pooled_outputs = []
+        adjs = input_adjs
+        for layer in self.diffpool_layers:
+            outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
+            adjs, outputs = layer(adjs, outputs)  # [b, 2t, h2]
+            pooled_output = self.readout_pool(outputs, 1)
+            pooled_outputs.append(pooled_output)
+        i = len(pooled_outputs) - 1
+        while i > 0:
+            pooled_outputs.append(pooled_outputs[i] - pooled_outputs[i-1])
+            i -= 1
+        pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, h+...]
+
+        outputs = self.dense(pooled_outputs)  # [b, 2]
+        outputs = torch.log_softmax(outputs, 1)
+
+        return outputs
