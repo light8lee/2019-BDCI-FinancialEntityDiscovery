@@ -196,7 +196,7 @@ class CNN_DiffPool_V2(nn.Module):
             raise ValueError()
 
         in_dim = self.embedding_dim
-        flat_in_dim = 0
+        flat_in_dim = in_dim
         for window_size in self.window_sizes:
             self.cnn_layers.append(
                 nn.Conv1d(in_dim, cnn_dim,
