@@ -13,9 +13,9 @@ class DiffPool(nn.Module):
         super(DiffPool, self).__init__()
         if gnn == 'gcn':
             self.gnn_embed = GCNLayer(in_dim, in_dim, activation=activation,
-                                      residual=kwargs['residual'], num_mlp_layer=kwargs['num_mlp_layer'])
+                                      residual=kwargs['residual'])
             self.gnn_pool = GCNLayer(in_dim, int(in_size*ratio), activation=activation,
-                                     residual=kwargs['residual'], num_mlp_layer=kwargs['num_mlp_layer'])
+                                     residual=kwargs['residual'])
         elif gnn == 'gat':
             self.gnn_embed = GATLayer(in_dim, in_dim, kwargs['num_head'],
                                       activation=activation, residual=kwargs['residual'],
