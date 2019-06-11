@@ -74,7 +74,7 @@ class CNN_DiffPool(nn.Module):
             in_size = int(in_size * ratio)
             out_dim += in_dim
 
-        out_dim += in_dim * (num_gnn_layer - 1)
+        out_dim += in_dim * (num_gnn_layer - 1) * 2
         pred_layers = []
         for pred_dim in pred_dims:
             pred_layers.append(
@@ -149,6 +149,7 @@ class CNN_DiffPool(nn.Module):
         i = len(pooled_outputs) - 1
         while i > 0:
             pooled_outputs.append(pooled_outputs[i] - pooled_outputs[i-1])
+            pooled_outputs.append(pooled_outputs[i] / pooled_outputs[i-1])
             i -= 1
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, h+...]
 
