@@ -1,3 +1,4 @@
 inputs/*
 **/__pycache__/
 *.pyc
+outputs/*
