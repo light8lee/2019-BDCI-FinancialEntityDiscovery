@@ -30,6 +30,7 @@ class GNN_DiffPool_Base(nn.Module):
         self.pred_dims = pred_dims
         self.ratio = ratio
         self.activation = activation
+        self.freeze = freeze
 
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
