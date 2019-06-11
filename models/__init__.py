@@ -5,4 +5,4 @@ from .cnn_gat import CNN_GAT
 from .cnn_gcn import CNN_GCN
 from .cnn_sage import CNN_SAGE
 from .cnn_diffpool import CNN_DiffPool
-from .single_diffpool import GAT_DiffPool
+from .gnn_diffpool import GAT_DiffPool
