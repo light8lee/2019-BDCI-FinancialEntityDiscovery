@@ -115,7 +115,7 @@ def train(args):
     if args.conti is None:
         conti = 1
     elif os.path.isfile(ckpt_file) and args.conti is not None:
-        load_ckpt(ckpt_file, model, optimizer)
+        load_ckpt(ckpt_file, model, optimizer)  # FIXME: should be placed before multi gpu setting
         conti = args.conti + 1
     else:
         raise Exception("No such path {}".format(ckpt_file))
