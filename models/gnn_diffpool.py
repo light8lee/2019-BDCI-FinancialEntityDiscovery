@@ -45,9 +45,11 @@ class GNN_DiffPool_Base(nn.Module):
         self.gnn_layers = nn.ModuleList()
         self.diffpool_layers = nn.ModuleList()
 
-        in_dim = sum(hidden_dims) + embedding_dim
+        in_dim = sum(hidden_dims)
         in_size = max_seq_len
         out_dim = 0
+        self.norm = nn.LayerNorm(in_dim)
+
         for _ in range(num_diffpool_layer):
             self.diffpool_layers.append(
                 DiffPool(in_dim, in_size, ratio, diffpool_gnn, activation, **kwargs)
@@ -89,14 +91,14 @@ class GNN_DiffPool_Base(nn.Module):
     def forward(self, input_ids, input_masks, input_adjs):
         outputs = self.embedding(input_ids)
         outputs = outputs.view(-1, 2*self.max_seq_len, self.embedding_dim)
-        concat_outputs = [outputs]
+        concat_outputs = []
         for layer in self.gnn_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             outputs = layer(input_adjs, outputs)
             concat_outputs.append(outputs)
         outputs = torch.cat(concat_outputs, -1)
 
-        # TODO: add layer norm
+        outputs = self.norm(outputs)
 
         adjs = input_adjs
         pooled_outputs= []
