@@ -58,10 +58,9 @@ class CNN_DiffPool(nn.Module):
             self.res_weight = nn.Linear(self.embedding_dim, in_dim)
         elif self.mode == 'concat':
             in_dim = flat_in_dim
-            # self.norm = nn.LayerNorm(flat_in_dim)
+            self.norm = nn.LayerNorm(flat_in_dim)
         elif self.mode == 'origin':
-            # self.norm = nn.LayerNorm(in_dim)
-            pass
+            self.norm = nn.LayerNorm(in_dim)
         else:
             raise ValueError()
 
@@ -137,7 +136,7 @@ class CNN_DiffPool(nn.Module):
         if self.mode == 'add_norm':
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             outputs = outputs + self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim))
-            outputs = self.norm(outputs)
+        outputs = self.norm(outputs)
 
         pooled_outputs = []
         adjs = input_adjs
