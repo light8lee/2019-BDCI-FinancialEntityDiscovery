@@ -88,6 +88,7 @@ class GNN_DiffPool_Base(nn.Module):
 
     def forward(self, input_ids, input_masks, input_adjs):
         outputs = self.embedding(input_ids)
+        outputs = outputs.view(-1, 2*self.max_seq_len, self.embedding_dim)
         concat_outputs = [outputs]
         for layer in self.gnn_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
