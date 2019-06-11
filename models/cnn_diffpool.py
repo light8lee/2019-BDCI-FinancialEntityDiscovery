@@ -9,9 +9,9 @@ from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 
 class CNN_DiffPool(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
-                 embedding_dim, window_size, num_gnn_layer, gnn, dilation,
+                 embedding_dim, window_size, num_gnn_layer, gnn, 
                  pred_dims:list, cnn_dims:list, ratio:float, readout_pool:str='max',
-                 init_weight=None, activation=None, pred_act:str='ELU',
+                 init_weight=None, activation=None, pred_act:str='ELU', dilation:int=1,
                  freeze:bool=False, mode:str='add_norm', **kwargs):
 
         super(CNN_DiffPool, self).__init__()
@@ -159,11 +159,11 @@ class CNN_DiffPool(nn.Module):
 
 
 class CNN_DiffPool_V2(nn.Module):
-    def __init__(self, vocab_size, max_seq_len, drop_rate,
+    def __init__(self, vocab_size, max_seq_len, drop_rate, dilation,
                  embedding_dim, window_sizes:list, num_gnn_layer:int, gnn:str,
                  pred_dims:list, cnn_dim:int, ratio:float, readout_pool:str='max',
                  init_weight=None, activation=None, pred_act:str='ELU',
-                 freeze:bool=False, mode:str='add_norm', **kwargs):
+                 freeze:bool=False, **kwargs):
 
         super(CNN_DiffPool_V2, self).__init__()
         assert len(window_sizes) > 0
@@ -171,6 +171,7 @@ class CNN_DiffPool_V2(nn.Module):
             assert size % 2 == 1
         assert cnn_dim > 0
         assert 0 < ratio <= 1.0
+        # TODO: dilations with window_sizes
         pred_act = getattr(Act, pred_act, nn.ELU)
 
         self.vocab_size = vocab_size
@@ -182,7 +183,6 @@ class CNN_DiffPool_V2(nn.Module):
         self.cnn_dim = cnn_dim
         self.freeze = freeze
         self.activation = activation
-        self.mode = mode
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
@@ -205,8 +205,7 @@ class CNN_DiffPool_V2(nn.Module):
             )
             flat_in_dim += cnn_dim
 
-        if self.mode == 'norm':  # FIXME
-            self.norm = nn.LayerNorm(flat_in_dim)
+        self.norm = nn.LayerNorm(flat_in_dim)
 
         out_dim = 0
         in_size = max_seq_len
@@ -274,8 +273,7 @@ class CNN_DiffPool_V2(nn.Module):
         hidden_dim = outputs.shape[-1]
         outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h]
         outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, hidden_dim)  # [b, 2t, h]
-        if self.mode == 'norm':
-            outputs = self.norm(outputs)
+        outputs = self.norm(outputs)
 
         pooled_outputs = []
         adjs = input_adjs
