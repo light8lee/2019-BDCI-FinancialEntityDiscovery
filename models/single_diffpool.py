@@ -125,6 +125,7 @@ class GAT_DiffPool(GNN_DiffPool_Base):
                  pred_dims:list, ratio:float, readout_pool:str='max',
                  init_weight=None, activation=None, pred_act:str='ELU',
                  freeze:bool=False, num_heads:list=None, residual=False, **kwargs):
+        kwargs['residual'] = residual
         super(GAT_DiffPool, self).__init__(vocab_size, max_seq_len, drop_rate,
                                            embedding_dim, num_diffpool_layer, diffpool_gnn,
                                            hidden_dims, pred_dims, ratio, readout_pool, init_weight,
@@ -146,6 +147,7 @@ class GCN_DiffPool(GNN_DiffPool_Base):
                  pred_dims:list, ratio:float, readout_pool:str='max',
                  init_weight=None, activation=None, pred_act:str='ELU',
                  freeze:bool=False, residual=False, **kwargs):
+        kwargs['residual'] = residual
         super(GCN_DiffPool, self).__init__(vocab_size, max_seq_len, drop_rate,
                                            embedding_dim, num_diffpool_layer, diffpool_gnn,
                                            hidden_dims, pred_dims, ratio, readout_pool, init_weight,
