@@ -126,12 +126,12 @@ class RNN_DiffPool(nn.Module):
 
         for rnn in self.rnn_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
-            outputs = rnn(outputs)  # [2b, t, h]
+            outputs, _ = rnn(outputs)  # [2b, t, h]
             if self.mode == 'concat':
                 flat_outputs.append(outputs)
 
         if self.mode == 'concat':
-            outputs = torch.cat(flat_outputs, 1)  # [2b, e+h, t]
+            outputs = torch.cat(flat_outputs, -1)  # [2b, t, h+e]
         hidden_dim = outputs.shape[-1]
         outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h]
         outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, hidden_dim)  # [b, 2t, h]
