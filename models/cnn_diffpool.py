@@ -170,7 +170,7 @@ class CNN_DiffPool_V2(nn.Module):
         assert len(dilations) == len(window_sizes)
         assert len(readout_pools) > 0
         for dilation, size in zip(dilations, window_sizes):
-            assert (dilation*(size-1)) % 2 == 1
+            assert (dilation*(size-1)) % 2 == 0
         assert cnn_dim > 0
         assert 0 < ratio <= 1.0
         pred_act = getattr(Act, pred_act, nn.ELU)
@@ -192,11 +192,11 @@ class CNN_DiffPool_V2(nn.Module):
         self.readout_pools = nn.ModuleList()
         for readout_pool in readout_pools:
             if readout_pool == 'max':
-                self.readout_pool.append(MaxPooling())
+                self.readout_pools.append(MaxPooling())
             elif readout_pool == 'avg':
-                self.readout_pool.append(AvgPooling())
+                self.readout_pools.append(AvgPooling())
             elif readout_pool == 'sum':
-                self.readout_pool.append(SumPooling())
+                self.readout_pools.append(SumPooling())
             else:
                 raise ValueError()
 
@@ -219,9 +219,9 @@ class CNN_DiffPool_V2(nn.Module):
                 DiffPool(flat_in_dim, in_size, ratio, gnn, activation, **kwargs)
             )
             in_size = int(in_size * ratio)
-            out_dim += flat_in_dim
+            out_dim += flat_in_dim * len(self.readout_pools)
 
-        out_dim += flat_in_dim * (num_gnn_layer - 1)
+        out_dim += flat_in_dim * (num_gnn_layer - 1) * len(self.readout_pools)
         pred_layers = []
         for pred_dim in pred_dims:
             pred_layers.append(
