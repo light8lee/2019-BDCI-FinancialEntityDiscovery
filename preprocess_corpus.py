@@ -26,30 +26,19 @@ import tokenization
 import numpy as np
 import pickle
 import os
-import tensorflow as tf
+import argparse
 
-flags = tf.flags
+flags = argparse.ArgumentParser()
+flags.add_argument("input_dir")
+flags.add_argument("output_dir")
+flags.add_argument("vocab_file")
+flags.add_argument('--type', default='kfold', type=str, choices=['kfold', 'origin'])
+flags.add_argument('--do_lower_case', default=True, type=bool)
+flags.add_argument('--max_seq_length', default=50, type=int)
+flags.add_argument('--random_seed', type=int, default=12345)
 
-FLAGS = flags.FLAGS
+FLAGS = flags.parse_args()
 
-flags.DEFINE_string("input_dir", None,
-                    "input file dir")
-
-flags.DEFINE_string(
-    "output_dir", None,
-    "output file dir")
-
-flags.DEFINE_string("vocab_file", None,
-                    "The vocabulary file that the BERT model was trained on.")
-
-flags.DEFINE_bool(
-    "do_lower_case", True,
-    "Whether to lower case the input text. Should be True for uncased "
-    "models and False for cased models.")
-
-flags.DEFINE_integer("max_seq_length", 50, "Maximum sequence length.")
-
-flags.DEFINE_integer("random_seed", 12345, "Random seed for data generation.")
 
 class TrainingInstance(object):
     """A single training instance (sentence pair)."""
@@ -205,28 +194,46 @@ def truncate_seq(tokens, max_num_tokens, rng):
             tokens.pop()
 
 
-def main(_):
-    tf.logging.set_verbosity(tf.logging.INFO)
+def prepare_origin():
 
     tokenizer = tokenization.FullTokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
     for name in ['train', 'test', 'dev']:
-        tf.logging.info("*** Reading from input files ***")
+        print("*** Reading from input files ***")
         input_file = os.path.join(FLAGS.input_dir, '{}.txt'.format(name))
         rng = random.Random(FLAGS.random_seed)
         gen_instances = create_training_instances(
             input_file, tokenizer, FLAGS.max_seq_length, rng)
 
-        tf.logging.info("*** Writing to output files ***")
+        print("*** Writing to output files ***")
 
         output_file = os.path.join(FLAGS.output_dir, name)
         write_instance_to_example_files(gen_instances, tokenizer, FLAGS.max_seq_length,
                                         output_file, rng)
 
 
+def prepare_kfold():
+    tokenizer = tokenization.FullTokenizer(
+        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+
+    for k in range(10):
+        print("*** Reading from input files ***")
+        input_file = os.path.join(FLAGS.input_dir, 'train.{}.txt'.format(k))
+        rng = random.Random(FLAGS.random_seed)
+        gen_instances = create_training_instances(
+            input_file, tokenizer, FLAGS.max_seq_length, rng)
+
+        print("*** Writing to output files ***")
+
+        name = 'train{}.fea'.format(k)
+        output_file = os.path.join(FLAGS.output_dir, name)
+        write_instance_to_example_files(gen_instances, tokenizer, FLAGS.max_seq_length,
+                                        output_file, rng)
+
 if __name__ == "__main__":
-    flags.mark_flag_as_required("input_dir")
-    flags.mark_flag_as_required("output_dir")
-    flags.mark_flag_as_required("vocab_file")
-    tf.app.run()
+
+    if FLAGS.type == 'origin':
+        prepare_origin()
+    elif FLAGS.type == 'kfold':
+        prepare_kfold()

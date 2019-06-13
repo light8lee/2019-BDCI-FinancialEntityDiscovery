@@ -86,7 +86,11 @@ def train(args):
     sampler = None
     collate_fn = lambda batch: collect_multigraph(model_config.need_norm, batch)
     for phase in ['train', 'dev', 'test']:
-        fea_file = open(os.path.join(args.data, '{}.fea'.format(phase)), 'rb')
+        if phase == 'train':
+            fea_filename = os.path.join(args.data, 'train{}.fea'.format(args.fold))
+        else:
+            fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
+        fea_file = open(fea_filename, 'rb')
         tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
         pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
         with open(tgt_filename, 'r') as f:
@@ -166,12 +170,12 @@ def train(args):
                         if args.local_rank == 0:
                             Log('Dev Epoch {}: Saving Rank({}) New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                                 epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
-                            save_ckpt(os.path.join(args.save_dir, 'model.rank{}.epoch{}.pt.tar'.format(args.local_rank, epoch)),
+                            save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
                                                 epoch, model.module.state_dict(), optimizer.state_dict())
                     else:
                         Log('Dev Epoch {}: Saving New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                             epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
-                        save_ckpt(os.path.join(args.save_dir, 'model.epoch{}.pt.tar'.format(epoch)),
+                        save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
                                                epoch, model.state_dict(), optimizer.state_dict())
                 else:
                     if args.multi_gpu:
@@ -197,6 +201,7 @@ if __name__ == '__main__':
     parser.add_argument('--epoch', type=int, default=20, help="number of epochs")
     parser.add_argument('--conti', type=int, default=None, help="the start epoch for continue training")
     parser.add_argument('--multi_gpu', dest='multi_gpu', action='store_true', help="use multi gpu")
+    parser.add_argument('--fold', type=str, default='')
     parser.set_defaults(multi_gpu=False)
     parser.add_argument("--local_rank", type=int)
     args = parser.parse_args()
