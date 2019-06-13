@@ -75,6 +75,7 @@ class CNN_DiffPool(nn.Module):
             out_dim += in_dim
 
         out_dim += in_dim * (num_gnn_layer - 1)
+        self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
         for pred_dim in pred_dims:
             pred_layers.append(
@@ -151,6 +152,7 @@ class CNN_DiffPool(nn.Module):
             pooled_outputs.append(pooled_outputs[i] - pooled_outputs[i-1])
             i -= 1
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, h+...]
+        pooled_outputs = self.concat_norm(pooled_outputs)
 
         outputs = self.dense(pooled_outputs)  # [b, 2]
         outputs = torch.log_softmax(outputs, 1)
