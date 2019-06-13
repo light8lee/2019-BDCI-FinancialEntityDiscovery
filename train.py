@@ -48,7 +48,7 @@ def infer(data, model, criterion, seq_len, cuda):
 
 
 def train(args):
-    Log = log_info(os.path.join(args.save_dir, 'process.info'))
+    Log = log_info(os.path.join(args.save_dir, 'process{}.info'.format(args.fold)))
     Log(args)
     model_config, optimizer_config = Config.from_json(args.config)
     model_name = model_config.name
