@@ -9,16 +9,17 @@ from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 
 class CNN_DiffPool(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
-                 embedding_dim, window_size, num_gnn_layer, gnn,
+                 embedding_dim, window_size, num_gnn_layer, gnn, dilation,
                  pred_dims:list, cnn_dims:list, ratio:float, readout_pool:str='max',
                  init_weight=None, activation=None, pred_act:str='ELU',
                  freeze:bool=False, mode:str='add_norm', **kwargs):
 
         super(CNN_DiffPool, self).__init__()
-        assert window_size % 2 == 1
+        assert (dilation * (window_size - 1)) % 2 == 0
         assert len(cnn_dims) >= 1
         assert 0 < ratio <= 1.0
         pred_act = getattr(Act, pred_act, nn.ELU)
+        padding = (dilation * (window_size - 1)) // 2
 
         self.vocab_size = vocab_size
         self.max_seq_len = max_seq_len
@@ -47,8 +48,8 @@ class CNN_DiffPool(nn.Module):
         flat_in_dim = self.embedding_dim
         for cnn_dim in self.cnn_dims:
             self.cnn_layers.append(
-                nn.Conv1d(in_dim, cnn_dim,
-                          kernel_size=window_size, stride=1, padding=window_size//2)
+                nn.Conv1d(in_dim, cnn_dim, kernel_size=window_size,
+                          stride=1, padding=padding, dilation=dilation)
             )
             in_dim = cnn_dim
             flat_in_dim += in_dim
