@@ -32,7 +32,7 @@ def infer(data, model, seq_len, cuda):
         batch_adjs = batch_adjs.cuda()
         targets = targets.cuda()
     log_pred = model(batch_ids, batch_masks, batch_adjs)
-    return log_pred.cpu().numpy()
+    return np.exp(log_pred.cpu().numpy())
 
 def predict(args):
     Log = log_info(os.path.join(args.save_dir, 'kfold.info'))
