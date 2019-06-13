@@ -60,20 +60,18 @@ def predict(args):
     datasets = {}
     collate_fn = lambda batch: collect_multigraph(model_config.need_norm, batch)
 
-    for phase in ['dev', 'test']:
-        fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
-        tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
-        pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
-        fea_file = open(fea_filename, 'rb')
-        with open(tgt_filename, 'r') as f:
-            targets = [int(v.strip()) for v in f]
-        with open(pos_filename, 'r') as f:
-            positions = [int(v.strip()) for v in f]
-        dataset = GraphDataset(fea_file, targets, positions)
-        dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                             shuffle=False, collate_fn=collate_fn, num_workers=1)
-        dataloaders[phase] = dataloader
-        datasets[phase] = dataset
+    phase = 'test'
+    fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
+    tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
+    pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
+    fea_file = open(fea_filename, 'rb')
+    with open(tgt_filename, 'r') as f:
+        targets = [int(v.strip()) for v in f]
+    with open(pos_filename, 'r') as f:
+        positions = [int(v.strip()) for v in f]
+    dataset = GraphDataset(fea_file, targets, positions)
+    dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
+                                            shuffle=False, collate_fn=collate_fn, num_workers=1)
 
     epochs = args.best_epochs
     epochs = epochs.split(',')
@@ -89,28 +87,27 @@ def predict(args):
         if args.cuda:
             model = model.cuda()
 
-        for phase in ['dev', 'test']:
-            model.eval()
-            running_loss = 0.
-            running_results = Counter()
+        model.eval()
+        running_loss = 0.
+        running_results = Counter()
 
-            curr_proba = []
-            pbar = tqdm(dataloaders[phase])
-            pbar.set_description("[Fold: {}/{}]".format(fold, phase))
-            for data in pbar:
-                with t.no_grad():
-                    proba = infer(data, model, model_config.seq_len, args.cuda)
-                    curr_proba.append(proba)
-            curr_proba = np.concatenate(curr_proba, axis=0)
-            if phase not in total_proba:
-                total_proba[phase] = curr_proba
-            else:
-                assert total_proba[phase].shape == curr_proba.shape
-                total_proba[phase] += curr_proba
+        curr_proba = []
+        pbar = tqdm(dataloader)
+        pbar.set_description("[Fold: {}/{}]".format(fold, phase))
+        for data in pbar:
+            with t.no_grad():
+                proba = infer(data, model, model_config.seq_len, args.cuda)
+                curr_proba.append(proba)
+        curr_proba = np.concatenate(curr_proba, axis=0)
+        if phase not in total_proba:
+            total_proba[phase] = curr_proba
+        else:
+            assert total_proba[phase].shape == curr_proba.shape
+            total_proba[phase] += curr_proba
     
     for phase in ['dev', 'test']:
         predictions = total_proba[phase].argmax(1)
-        tn, fp, fn, tp = confusion_matrix(datasets[phase].targets, predictions, labels=[0, 1]).ravel()
+        tn, fp, fn, tp = confusion_matrix(dataset.targets, predictions, labels=[0, 1]).ravel()
         precision = Precision(tp, fp)
         recall = Recall(tp, fn)
         acc = (tp + tn) / (tn + fp + fn + tp)
