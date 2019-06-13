@@ -88,11 +88,13 @@ def train(args):
     for phase in ['train', 'dev', 'test']:
         if phase == 'train':
             fea_filename = os.path.join(args.data, 'train{}.fea'.format(args.fold))
+            tgt_filename = os.path.join(args.data, 'train{}.tgt'.format(args.fold))
+            pos_filename = os.path.join(args.data, 'train{}.pos'.format(args.fold))
         else:
             fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
+            tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
+            pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
         fea_file = open(fea_filename, 'rb')
-        tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
-        pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
         with open(tgt_filename, 'r') as f:
             targets = [int(v.strip()) for v in f]
         with open(pos_filename, 'r') as f:

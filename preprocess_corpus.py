@@ -226,7 +226,7 @@ def prepare_kfold():
 
         print("*** Writing to output files ***")
 
-        name = 'train{}.fea'.format(k)
+        name = 'train{}'.format(k)
         output_file = os.path.join(FLAGS.output_dir, name)
         write_instance_to_example_files(gen_instances, tokenizer, FLAGS.max_seq_length,
                                         output_file, rng)
