@@ -95,7 +95,7 @@ def predict(args):
             running_results = Counter()
 
             curr_proba = []
-            pbar = tqdm(dataloaders[phase], position=args.local_rank)
+            pbar = tqdm(dataloaders[phase])
             pbar.set_description("[Fold: {}/{}]".format(fold, phase))
             for data in pbar:
                 with t.no_grad():
