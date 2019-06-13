@@ -86,10 +86,10 @@ def train(args):
     sampler = None
     collate_fn = lambda batch: collect_multigraph(model_config.need_norm, batch)
     for phase in ['train', 'dev', 'test']:
-        if phase == 'train':
-            fea_filename = os.path.join(args.data, 'train{}.fea'.format(args.fold))
-            tgt_filename = os.path.join(args.data, 'train{}.tgt'.format(args.fold))
-            pos_filename = os.path.join(args.data, 'train{}.pos'.format(args.fold))
+        if phase != 'test' and args.fold:
+            fea_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.fea'.format(phase))
+            tgt_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.tgt'.format(phase))
+            pos_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.pos'.format(phase))
         else:
             fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
             tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
