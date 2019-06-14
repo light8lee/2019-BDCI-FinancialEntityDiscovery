@@ -45,7 +45,7 @@ class CNN_DiffPool(nn.Module):
             raise ValueError()
 
         in_dim = self.embedding_dim
-        flat_in_dim = self.embedding_dim
+        flat_in_dim = 0
         for cnn_dim in self.cnn_dims:
             self.cnn_layers.append(
                 nn.Conv1d(in_dim, cnn_dim, kernel_size=window_size,
@@ -80,6 +80,9 @@ class CNN_DiffPool(nn.Module):
         for pred_dim in pred_dims:
             pred_layers.append(
                 nn.Linear(out_dim, pred_dim)
+            )
+            pred_layers.append(
+                nn.LayerNorm(pred_dim)
             )
             pred_layers.append(pred_act())
             out_dim = pred_dim
@@ -120,7 +123,7 @@ class CNN_DiffPool(nn.Module):
         inputs = self.embedding(input_ids)  # [2b, t, e]
         outputs = inputs.transpose(-1, -2)  # [2b, e, t]
         if self.mode == 'concat':
-            flat_outputs = [outputs]
+            flat_outputs = []
 
         for conv1d in self.cnn_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
