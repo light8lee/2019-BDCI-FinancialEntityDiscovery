@@ -6,3 +6,4 @@ from .cnn_gcn import CNN_GCN
 from .cnn_sage import CNN_SAGE
 from .cnn_diffpool import CNN_DiffPool, CNN_DiffPool_V2
 from .rnn_diffpool import RNN_DiffPool
+from .hconv_diffpool import HConv_DiffPool
