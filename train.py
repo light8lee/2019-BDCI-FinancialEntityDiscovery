@@ -170,25 +170,25 @@ def train(args):
                     best_f1 = epoch_f1
                     if args.multi_gpu:
                         if args.local_rank == 0:
-                            Log('Dev Epoch {}: Saving Rank({}) New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                            Log('dev Epoch {}: Saving Rank({}) New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                                 epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                             save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
                                                 epoch, model.module.state_dict(), optimizer.state_dict())
                     else:
-                        Log('Dev Epoch {}: Saving New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                        Log('dev Epoch {}: Saving New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                             epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                         save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
                                                epoch, model.state_dict(), optimizer.state_dict())
                 else:
                     if args.multi_gpu:
-                        Log('Dev Epoch {}:  Rank({}) Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                        Log('dev Epoch {}:  Rank({}) Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                             epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                     else:
-                        Log('Dev Epoch {}: Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                        Log('dev Epoch {}: Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                             epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
-            elif phase == 'test':
-                Log('Test Epoch {}: Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
-                    epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+            else:
+                Log('{} Epoch {}: Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
+                    phase, epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
 
 
 if __name__ == '__main__':
