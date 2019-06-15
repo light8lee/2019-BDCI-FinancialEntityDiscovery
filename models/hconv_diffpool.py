@@ -79,6 +79,9 @@ class HConv_DiffPool(nn.Module):
             pred_layers.append(
                 nn.Linear(out_dim, pred_dim)
             )
+            pred_layers.append(
+                nn.LayerNorm(pred_dim)
+            )
             pred_layers.append(pred_act())
             out_dim = pred_dim
         pred_layers.append(

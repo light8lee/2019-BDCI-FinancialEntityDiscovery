@@ -13,6 +13,7 @@ class HConvLayer(nn.Module):
         assert (dilation * (window_size - 1)) % 2 == 0
         self.in_dim = in_dim
         self.out_dim = out_dim
+        self.activation = activation
 
         if gnn == 'gcn':
             self.gnn = GCNLayer(in_dim, out_dim, activation=activation,
@@ -42,6 +43,7 @@ class HConvLayer(nn.Module):
         conv_inputs = inputs.transpose(-1, -2)  # [2b, e, t]
         conv_outputs = self.conv1d(conv_inputs)  # [2b, h, t]
         conv_outputs = conv_outputs.transpose(-1, -2)  # [2b, t, h]
+        conv_outputs = self.activation(conv_outputs)
 
         gnn_inputs = inputs.view(-1, 2*seq_len, self.in_dim)  # [b, 2t, e]
         gnn_outputs = self.gnn(A, gnn_inputs)  # [b, 2t, h]
