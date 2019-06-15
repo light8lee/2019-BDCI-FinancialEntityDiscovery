@@ -32,7 +32,7 @@ def infer(data, model, seq_len, cuda):
         batch_adjs = batch_adjs.cuda()
         targets = targets.cuda()
     log_pred = model(batch_ids, batch_masks, batch_adjs)
-    return log_pred.cpu().numpy()
+    return np.exp(log_pred.cpu().numpy())
 
 def predict(args):
     Log = log_info(os.path.join(args.save_dir, 'kfold.info'))
@@ -56,29 +56,25 @@ def predict(args):
     else:
         model_config.activation = getattr(t, model_config.activation, None) or getattr(F, model_config.activation, None)
 
-    dataloaders = {}
-    datasets = {}
     collate_fn = lambda batch: collect_multigraph(model_config.need_norm, batch)
 
-    for phase in ['dev', 'test']:
-        fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
-        tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
-        pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
-        fea_file = open(fea_filename, 'rb')
-        with open(tgt_filename, 'r') as f:
-            targets = [int(v.strip()) for v in f]
-        with open(pos_filename, 'r') as f:
-            positions = [int(v.strip()) for v in f]
-        dataset = GraphDataset(fea_file, targets, positions)
-        dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                             shuffle=False, collate_fn=collate_fn, num_workers=1)
-        dataloaders[phase] = dataloader
-        datasets[phase] = dataset
+    phase = 'test'
+    fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
+    tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
+    pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
+    fea_file = open(fea_filename, 'rb')
+    with open(tgt_filename, 'r') as f:
+        targets = [int(v.strip()) for v in f]
+    with open(pos_filename, 'r') as f:
+        positions = [int(v.strip()) for v in f]
+    dataset = GraphDataset(fea_file, targets, positions)
+    dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
+                                            shuffle=False, collate_fn=collate_fn, num_workers=1)
 
     epochs = args.best_epochs
     epochs = epochs.split(',')
     assert len(epochs) == 10
-    total_proba = {}
+    total_proba = None
     for fold, epoch in enumerate(epochs):
         model = model_class(**model_config.values)
         ckpt_file = os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(fold, epoch))
@@ -89,34 +85,32 @@ def predict(args):
         if args.cuda:
             model = model.cuda()
 
-        for phase in ['dev', 'test']:
-            model.eval()
-            running_loss = 0.
-            running_results = Counter()
+        model.eval()
+        running_loss = 0.
+        running_results = Counter()
 
-            curr_proba = []
-            pbar = tqdm(dataloaders[phase])
-            pbar.set_description("[Fold: {}/{}]".format(fold, phase))
-            for data in pbar:
-                with t.no_grad():
-                    proba = infer(data, model, model_config.seq_len, args.cuda)
-                    curr_proba.append(proba)
-            curr_proba = np.concatenate(curr_proba, axis=0)
-            if phase not in total_proba:
-                total_proba[phase] = curr_proba
-            else:
-                assert total_proba[phase].shape == curr_proba.shape
-                total_proba[phase] += curr_proba
+        curr_proba = []
+        pbar = tqdm(dataloader)
+        pbar.set_description("[Fold: {}]".format(fold))
+        for data in pbar:
+            with t.no_grad():
+                proba = infer(data, model, model_config.seq_len, args.cuda)
+                curr_proba.append(proba)
+        curr_proba = np.concatenate(curr_proba, axis=0)
+        if total_proba is None:
+            total_proba = curr_proba
+        else:
+            assert total_proba.shape == curr_proba.shape
+            total_proba += curr_proba
     
-    for phase in ['dev', 'test']:
-        predictions = total_proba[phase].argmax(1)
-        tn, fp, fn, tp = confusion_matrix(datasets[phase].targets, predictions, labels=[0, 1]).ravel()
-        precision = Precision(tp, fp)
-        recall = Recall(tp, fn)
-        acc = (tp + tn) / (tn + fp + fn + tp)
-        f1 = F1(precision, recall)
-        Log('{}: Acc: {}, P: {}, R: {}, F1: {}'.format(
-            phase, acc, precision, recall, f1))
+    predictions = total_proba.argmax(1)
+    tn, fp, fn, tp = confusion_matrix(dataset.targets, predictions, labels=[0, 1]).ravel()
+    precision = Precision(tp, fp)
+    recall = Recall(tp, fn)
+    acc = (tp + tn) / (tn + fp + fn + tp)
+    f1 = F1(precision, recall)
+    Log('Acc: {}, P: {}, R: {}, F1: {}'.format(
+        acc, precision, recall, f1))
 
 
 if __name__ == '__main__':

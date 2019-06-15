@@ -193,24 +193,25 @@ def truncate_seq(tokens, max_num_tokens, rng):
         else:
             tokens.pop()
 
+def _prepare(tokenizer, input_file, output_file):
+    print("*** Reading from input files ***")
+    rng = random.Random(FLAGS.random_seed)
+    gen_instances = create_training_instances(
+        input_file, tokenizer, FLAGS.max_seq_length, rng)
+
+    print("*** Writing to output files ***")
+    write_instance_to_example_files(gen_instances, tokenizer, FLAGS.max_seq_length,
+                                    output_file, rng)
+
 
 def prepare_origin():
-
     tokenizer = tokenization.FullTokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
     for name in ['train', 'test', 'dev']:
-        print("*** Reading from input files ***")
         input_file = os.path.join(FLAGS.input_dir, '{}.txt'.format(name))
-        rng = random.Random(FLAGS.random_seed)
-        gen_instances = create_training_instances(
-            input_file, tokenizer, FLAGS.max_seq_length, rng)
-
-        print("*** Writing to output files ***")
-
         output_file = os.path.join(FLAGS.output_dir, name)
-        write_instance_to_example_files(gen_instances, tokenizer, FLAGS.max_seq_length,
-                                        output_file, rng)
+        _prepare(tokenizer, input_file, output_file)
 
 
 def prepare_kfold():
@@ -218,18 +219,17 @@ def prepare_kfold():
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
     for k in range(10):
-        print("*** Reading from input files ***")
-        input_file = os.path.join(FLAGS.input_dir, 'train.{}.txt'.format(k))
-        rng = random.Random(FLAGS.random_seed)
-        gen_instances = create_training_instances(
-            input_file, tokenizer, FLAGS.max_seq_length, rng)
+        output_dir = os.path.join(FLAGS.output_dir, 'fold{}'.format(k))
+        if not os.path.isdir(output_dir):
+            os.mkdir(output_dir)
+        for name in ['train', 'dev']:
+            input_file = os.path.join(FLAGS.input_dir, 'fold{}'.format(k), '{}.txt'.format(name))
+            output_file = os.path.join(output_dir, name)
+            _prepare(tokenizer, input_file, output_file)
+    input_file = os.path.join(FLAGS.input_dir, 'test_k.txt')
+    output_file = os.path.join(FLAGS.output_dir, 'test')
+    _prepare(tokenizer, input_file, output_file)
 
-        print("*** Writing to output files ***")
-
-        name = 'train{}'.format(k)
-        output_file = os.path.join(FLAGS.output_dir, name)
-        write_instance_to_example_files(gen_instances, tokenizer, FLAGS.max_seq_length,
-                                        output_file, rng)
 
 if __name__ == "__main__":
 
