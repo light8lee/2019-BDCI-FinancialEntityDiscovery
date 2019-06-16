@@ -165,23 +165,25 @@ class CNN_DiffPool(nn.Module):
 
 class CNN_DiffPool_V2(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
-                 embedding_dim, window_size, num_gnn_layer, gnn, 
+                 embedding_dim, window_sizes, dilations, num_gnn_layer, gnn, 
                  pred_dims:list, cnn_dims:list, ratio:float, readout_pool:str='max',
-                 init_weight=None, activation=None, pred_act:str='ELU', dilation:int=1,
+                 init_weight=None, activation=None, pred_act:str='ELU',
                  freeze:bool=False, mode:str='add_norm', **kwargs):
 
         super(CNN_DiffPool_V2, self).__init__()
-        assert (dilation * (window_size - 1)) % 2 == 0
+        assert len(window_sizes) == len(dilations) == len(cnn_dims)
+        for window_size, dilation in zip(window_sizes, dilations):
+            assert (dilation * (window_size - 1)) % 2 == 0
         assert len(cnn_dims) >= 1
         assert 0 < ratio <= 1.0
         pred_act = getattr(Act, pred_act, nn.ELU)
-        padding = (dilation * (window_size - 1)) // 2
 
         self.vocab_size = vocab_size
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
         self.embedding_dim = embedding_dim
-        self.window_size = window_size
+        self.window_sizes = window_sizes
+        self.dilations = dilations
         self.pred_dims = pred_dims
         self.cnn_dims = cnn_dims
         self.freeze = freeze
@@ -201,8 +203,9 @@ class CNN_DiffPool_V2(nn.Module):
             raise ValueError()
 
         in_dim = self.embedding_dim
-        flat_in_dim = self.embedding_dim
-        for cnn_dim in self.cnn_dims:
+        flat_in_dim = 0
+        for cnn_dim, window_size, dilation in zip(self.cnn_dims, self.window_sizes, self.dilations):
+            padding = (dilation * (window_size - 1)) // 2
             self.cnn_layers.append(
                 nn.Conv1d(in_dim, cnn_dim, kernel_size=window_size,
                           stride=1, padding=padding, dilation=dilation)
@@ -230,11 +233,15 @@ class CNN_DiffPool_V2(nn.Module):
             in_size = int(in_size * ratio)
             out_dim += in_dim
 
-        out_dim += in_dim * (num_gnn_layer - 1) + in_dim * (num_gnn_layer)
+        out_dim += in_dim * (num_gnn_layer - 1)
+        self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
         for pred_dim in pred_dims:
             pred_layers.append(
                 nn.Linear(out_dim, pred_dim)
+            )
+            pred_layers.append(
+                nn.LayerNorm(pred_dim)
             )
             pred_layers.append(pred_act())
             out_dim = pred_dim
@@ -275,7 +282,7 @@ class CNN_DiffPool_V2(nn.Module):
         inputs = self.embedding(input_ids)  # [2b, t, e]
         outputs = inputs.transpose(-1, -2)  # [2b, e, t]
         if self.mode == 'concat':
-            flat_outputs = [outputs]
+            flat_outputs = []
 
         for conv1d in self.cnn_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
@@ -296,21 +303,18 @@ class CNN_DiffPool_V2(nn.Module):
         outputs = self.norm(outputs)
 
         pooled_outputs = []
-        max_pooled_outputs = []
-        max_pool = MaxPooling()
         adjs = input_adjs
         for layer in self.diffpool_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             adjs, outputs = layer(adjs, outputs)  # [b, 2t, h2]
             pooled_output = self.readout_pool(outputs, 1)
-            max_pooled_outputs.append(max_pool(outputs, 1))
             pooled_outputs.append(pooled_output)
         i = len(pooled_outputs) - 1
         while i > 0:
             pooled_outputs.append(pooled_outputs[i] - pooled_outputs[i-1])
             i -= 1
-        pooled_outputs.extend(max_pooled_outputs)
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, h+...]
+        pooled_outputs = self.concat_norm(pooled_outputs)
 
         outputs = self.dense(pooled_outputs)  # [b, 2]
         outputs = torch.log_softmax(outputs, 1)
