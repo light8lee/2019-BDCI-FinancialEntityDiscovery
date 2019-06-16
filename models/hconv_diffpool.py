@@ -44,7 +44,7 @@ class HConv_DiffPool(nn.Module):
         self.diffpool_layers = nn.ModuleList()
 
         in_dim = self.embedding_dim
-        flat_in_dim = 0
+        flat_in_dim = in_dim
         for pre_dim in pre_dims:
             self.pre_hconv_layers.append(
                 HConvLayer(in_dim, pre_dim, window_size, dilation, hconv_gnn,
@@ -64,14 +64,14 @@ class HConv_DiffPool(nn.Module):
         else:
             raise ValueError()
         
-        out_dim = in_dim
+        out_dim = 0
         for _ in range(num_diffpool_layer):
             self.diffpool_layers.append(
                 DiffPool(in_dim, max_seq_len, ratio, diffpool_gnn,
                          activation=activation, **kwargs)
             )
             out_dim += in_dim
-        out_dim += in_dim * (num_diffpool_layer) 
+        out_dim += in_dim * (num_diffpool_layer - 1) 
        
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
@@ -122,7 +122,7 @@ class HConv_DiffPool(nn.Module):
         outputs = inputs
 
         if self.mode == 'concat':
-            flat_outputs = []
+            flat_outputs = [outputs]
         for layer in self.pre_hconv_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             outputs = layer(input_adjs, outputs)
@@ -138,7 +138,7 @@ class HConv_DiffPool(nn.Module):
             outputs = outputs + self.res_weight(inputs)
         outputs = self.norm(outputs)
 
-        pooled_outputs = [self.readout_pool(outputs, 1)]
+        pooled_outputs = []
         adjs = input_adjs
         for layer in self.diffpool_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
