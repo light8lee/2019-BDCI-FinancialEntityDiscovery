@@ -201,7 +201,7 @@ class CNN_DiffPool_V2(nn.Module):
             raise ValueError()
 
         in_dim = self.embedding_dim
-        flat_in_dim = in_dim
+        flat_in_dim = 0
         for cnn_dim, window_size, dilation in zip(self.cnn_dims, self.window_sizes, self.dilations):
             padding = (dilation * (window_size - 1)) // 2
             self.cnn_layers.append(
