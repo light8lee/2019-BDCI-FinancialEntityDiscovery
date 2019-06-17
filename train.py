@@ -50,7 +50,7 @@ def infer(data, model, criterion, seq_len, cuda):
 def train(args):
     Log = log_info(os.path.join(args.save_dir, 'process{}.info'.format(args.fold)))
     Log(args)
-    model_config, optimizer_config = Config.from_json(args.config)
+    model_config, optimizer_config, scheduler_config = Config.from_json(args.config)
     model_name = model_config.name
     model_class = getattr(models, model_name)
 
@@ -69,15 +69,6 @@ def train(args):
         model_config.activation = getattr(t, model_config.activation, None) or getattr(F, model_config.activation, None)
 
     model = model_class(**model_config.values)
-    if args.multi_gpu:
-        t.cuda.set_device(args.local_rank)
-        model = model.cuda()
-        t.distributed.init_process_group(backend='nccl', init_method='env://')
-        model = nn.parallel.DistributedDataParallel(model,
-                                                device_ids=[args.local_rank],
-                                                output_device=args.local_rank)
-    elif args.cuda:
-        model = model.cuda()
 
     criterion = nn.NLLLoss()
 
@@ -114,17 +105,28 @@ def train(args):
     if args.multi_gpu:
         total_steps  = total_steps // t.distributed.get_world_size()
     optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
-    # scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.2, patience=1, cooldown=0, min_lr=1e-5)  # TODO
+    scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)
+
     if not os.path.isdir(args.save_dir):
         os.mkdir(args.save_dir)
     ckpt_file = os.path.join(args.save_dir, 'model.epoch{}.pt.tar'.format(args.conti))
     if args.conti is None:
         conti = 1
     elif os.path.isfile(ckpt_file) and args.conti is not None:
-        load_ckpt(ckpt_file, model, optimizer)  # FIXME: should be placed before multi gpu setting
+        load_ckpt(ckpt_file, model, optimizer)
         conti = args.conti + 1
     else:
         raise Exception("No such path {}".format(ckpt_file))
+
+    if args.multi_gpu:
+        t.cuda.set_device(args.local_rank)
+        model = model.cuda()
+        t.distributed.init_process_group(backend='nccl', init_method='env://')
+        model = nn.parallel.DistributedDataParallel(model,
+                                                device_ids=[args.local_rank],
+                                                output_device=args.local_rank)
+    elif args.cuda:
+        model = model.cuda()
 
     epoch_loss = 10000
     best_f1 = 0
@@ -166,6 +168,10 @@ def train(args):
             epoch_acc = (running_results['tp'] + running_results['tn']) / running_results['total']
             epoch_f1 = F1(epoch_precision, epoch_recall)
             if phase == 'dev':
+                if scheduler_config.name == 'ReduceLROnPlateau':
+                    scheduler.step(epoch_loss)
+                else:
+                    scheduler.step()
                 if epoch_f1 > best_f1:
                     best_f1 = epoch_f1
                     if args.multi_gpu:

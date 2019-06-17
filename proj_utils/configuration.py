@@ -11,7 +11,9 @@ class Config(object):
 
     @classmethod
     def from_json(cls, json_filename):
-        model_conf, optim_conf = load_config_from_json(json_filename)
+        model_conf, optim_conf, sche_conf = load_config_from_json(json_filename)
+        if model_conf is None or optim_conf is None:
+            raise ValueError("No model or optimizer config in json file {}".format(json_filename))
 
         model_name = model_conf['name']
         del model_conf['name']
@@ -20,7 +22,19 @@ class Config(object):
         optim_name = optim_conf['name']
         del optim_conf['name']
         optim_config = Config(optim_name, optim_conf)
-        return model_config, optim_config
+
+        if sche_conf is None:
+            sche_config = Config('StepLR', {
+                'step_size': 1,
+                'gamma': 1,
+                'last_epoch': -1
+            })
+        else:
+            sche_name = sche_conf['name']
+            del sche_conf['name']
+            sche_config = Config(sche_name, sche_conf)
+
+        return model_config, optim_config, sche_config
 
     def __getattr__(self, key):
         return self.values[key]

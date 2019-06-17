@@ -59,9 +59,10 @@ def load_config_from_json(json_filename):
     with open(json_filename, 'r', encoding='utf-8') as f:
         v = f.read()
         obj = json.loads(v)
-        model_config = obj['model']
-        optimizer_config = obj['optimizer']
-        return model_config, optimizer_config
+        model_config = obj('model', None)
+        optimizer_config = obj.get('optimizer', None)
+        scheduler_config = obj.get('scheduler', None)
+        return model_config, optimizer_config, scheduler_config
 
 
 def create_embedding(additional_words, embedding_filename, embedding_dim=300):
