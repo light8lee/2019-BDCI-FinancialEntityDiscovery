@@ -231,7 +231,7 @@ class CNN_DiffPool_V2(nn.Module):
             )
             in_size = int(in_size * ratio)
         self.diffpool_layers.append(
-            DiffPool(in_dim, in_size, 1/in_size, activation, **kwargs)
+            DiffPool(in_dim, in_size, 1/in_size, gnn, activation, **kwargs)
         )
 
         out_dim = in_dim * (num_gnn_layer + 1)
