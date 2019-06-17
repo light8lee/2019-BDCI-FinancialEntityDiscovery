@@ -102,8 +102,6 @@ def train(args):
         datasets[phase] = dataset
 
     total_steps = int(args.epoch * len(datasets['train']) / args.batch_size)
-    if args.multi_gpu:
-        total_steps  = total_steps // t.distributed.get_world_size()
     optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
     scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)
 
@@ -113,7 +111,7 @@ def train(args):
     if args.conti is None:
         conti = 1
     elif os.path.isfile(ckpt_file) and args.conti is not None:
-        load_ckpt(ckpt_file, model, optimizer)
+        load_ckpt(ckpt_file, model, optimizer, scheduler)
         conti = args.conti + 1
     else:
         raise Exception("No such path {}".format(ckpt_file))
@@ -179,12 +177,12 @@ def train(args):
                             Log('dev Epoch {}: Saving Rank({}) New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                                 epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                             save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
-                                                epoch, model.module.state_dict(), optimizer.state_dict())
+                                                epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                     else:
                         Log('dev Epoch {}: Saving New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                             epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                         save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
-                                               epoch, model.state_dict(), optimizer.state_dict())
+                                               epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                 else:
                     if args.multi_gpu:
                         Log('dev Epoch {}:  Rank({}) Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
