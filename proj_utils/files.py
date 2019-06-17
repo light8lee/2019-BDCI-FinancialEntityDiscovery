@@ -59,7 +59,7 @@ def load_config_from_json(json_filename):
     with open(json_filename, 'r', encoding='utf-8') as f:
         v = f.read()
         obj = json.loads(v)
-        model_config = obj('model', None)
+        model_config = obj.get('model', None)
         optimizer_config = obj.get('optimizer', None)
         scheduler_config = obj.get('scheduler', None)
         return model_config, optimizer_config, scheduler_config
