@@ -232,7 +232,7 @@ class CNN_DiffPool_V2(nn.Module):
             DiffPool(in_dim, in_size, 1/in_size, gnn, activation, **kwargs)
         )
 
-        out_dim = in_dim * (num_gnn_layer + 1)
+        out_dim = in_dim * (2 * num_gnn_layer + 1)
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
         for pred_dim in pred_dims:
