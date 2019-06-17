@@ -173,7 +173,6 @@ class CNN_DiffPool_V2(nn.Module):
         assert len(window_sizes) == len(dilations) == len(cnn_dims)
         for window_size, dilation in zip(window_sizes, dilations):
             assert (dilation * (window_size - 1)) % 2 == 0
-        assert len(cnn_dims) >= 1
         assert 0 < ratio <= 1.0
         pred_act = getattr(Act, pred_act, nn.ELU)
 
