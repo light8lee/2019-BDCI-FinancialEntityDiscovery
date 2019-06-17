@@ -307,13 +307,13 @@ class CNN_DiffPool_V2(nn.Module):
             adjs, outputs = layer(adjs, outputs)  # [b, 2t, h2]
             pooled_output = self.readout_pool(outputs, 1)
             pooled_outputs.append(pooled_output)
-        pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, h+...]
 
         i = len(pooled_outputs) - 1
         while i > 0:
             pooled_outputs.append(pooled_outputs[i] - pooled_outputs[i-1])
             i -= 1
 
+        pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, h+...]
         pooled_outputs = self.concat_norm(pooled_outputs)
 
         outputs = self.dense(pooled_outputs)  # [b, 2]
