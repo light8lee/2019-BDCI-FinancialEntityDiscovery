@@ -16,7 +16,6 @@ class CNN_DiffPool(nn.Module):
 
         super(CNN_DiffPool, self).__init__()
         assert (dilation * (window_size - 1)) % 2 == 0
-        assert len(cnn_dims) >= 1
         assert 0 < ratio <= 1.0
         pred_act = getattr(Act, pred_act, nn.ELU)
         padding = (dilation * (window_size - 1)) // 2
