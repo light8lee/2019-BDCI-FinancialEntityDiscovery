@@ -14,6 +14,7 @@ import torch as t
 import torch.nn.functional as F
 import torch.nn as nn
 import torch.optim as optim
+from tensorboardX import SummaryWriter
 from sklearn.metrics import confusion_matrix
 from collections import Counter
 
@@ -128,6 +129,8 @@ def train(args):
 
     epoch_loss = 10000
     best_f1 = 0
+    if args.log:
+        writer = SummaryWriter(os.path.join(args.save_dir, 'logs'))
     for epoch in range(conti, conti+args.epoch):
         for phase in ['train', 'dev', 'test']:
             if phase == 'train':
@@ -165,6 +168,16 @@ def train(args):
             epoch_recall = Recall(running_results['tp'], running_results['fn'])
             epoch_acc = (running_results['tp'] + running_results['tn']) / running_results['total']
             epoch_f1 = F1(epoch_precision, epoch_recall)
+            if args.log:
+                writer.add_scalars('loss', {
+                    phase: epoch_loss,
+                }, epoch)
+                writer.add_scalars('acc', {
+                    phase: epoch_acc,
+                }, epoch)
+                writer.add_scalars('f1', {
+                    phase: epoch_f1,
+                }, epoch)
             if phase == 'dev':
                 if scheduler_config.name == 'ReduceLROnPlateau':
                     scheduler.step(epoch_loss)
@@ -193,6 +206,8 @@ def train(args):
             else:
                 Log('{} Epoch {}: Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                     phase, epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+    if args.log:
+        writer.close()
 
 
 if __name__ == '__main__':
@@ -200,6 +215,7 @@ if __name__ == '__main__':
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--name', type=str, default="e4g", help="model name")
+    parser.add_argument('--log', dest='log', action='store_true', help='whether use tensorboard')
     parser.add_argument('--data', type=str, default="./inputs/train", help="input/target data name")
     parser.add_argument('--save_dir', type=str, default='./outputs/', help="model directory path")
     parser.add_argument('--config', type=str, default='model_config.json', help="config file")
@@ -208,7 +224,7 @@ if __name__ == '__main__':
     parser.add_argument('--conti', type=int, default=None, help="the start epoch for continue training")
     parser.add_argument('--multi_gpu', dest='multi_gpu', action='store_true', help="use multi gpu")
     parser.add_argument('--fold', type=str, default='')
-    parser.set_defaults(multi_gpu=False)
+    parser.set_defaults(multi_gpu=False, log=False)
     parser.add_argument("--local_rank", type=int)
     args = parser.parse_args()
     train(args)
