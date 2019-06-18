@@ -11,11 +11,13 @@ from .layers.hconv import HConvLayer
 
 class HConv_DiffPool(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate, hconv_gnn, diffpool_gnn,
-                 embedding_dim, window_size, dilation, pre_dims, num_diffpool_layer, ratio,
+                 embedding_dim, window_sizes, dilations, pre_dims, num_diffpool_layer, ratio,
                  pred_dims, readout_pool:str='sum', init_weight=None,
                  activation=None, pred_act:str='ELU', mode='concat', freeze:bool=False, **kwargs):
         super(HConv_DiffPool, self).__init__()
-        assert (dilation * (window_size - 1)) % 2 == 0
+        assert len(dilations) == len(window_sizes) == len(pre_dims)
+        for dilation, window_size in zip(dilations, window_sizes):
+            assert (dilation * (window_size - 1)) % 2 == 0
         assert 0 < ratio <= 1.0
         pred_act = getattr(Act, pred_act, nn.ELU)
 
@@ -23,7 +25,6 @@ class HConv_DiffPool(nn.Module):
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
         self.embedding_dim = embedding_dim
-        self.window_size = window_size
         self.pred_dims = pred_dims
         self.activation = activation
         self.mode = mode
@@ -45,7 +46,7 @@ class HConv_DiffPool(nn.Module):
 
         in_dim = self.embedding_dim
         flat_in_dim = 0
-        for pre_dim in pre_dims:
+        for pre_dim, dilation, window_size in zip(pre_dims, dilations, window_sizes):
             self.pre_hconv_layers.append(
                 HConvLayer(in_dim, pre_dim, window_size, dilation, hconv_gnn,
                            activation=self.activation, **kwargs)
