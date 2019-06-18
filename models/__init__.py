@@ -7,3 +7,4 @@ from .cnn_sage import CNN_SAGE
 from .cnn_diffpool import CNN_DiffPool, CNN_DiffPool_V2
 from .rnn_diffpool import RNN_DiffPool
 from .hconv_diffpool import HConv_DiffPool
+from .gnn_diffpool import GAT_DiffPool, GCN_DiffPool

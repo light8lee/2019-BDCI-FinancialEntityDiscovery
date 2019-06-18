@@ -8,28 +8,29 @@ from .gat import GATLayer
 from .graph_sage import SAGELayer
 
 class HConvLayer(nn.Module):
-    def __init__(self, in_dim, out_dim, window_size, dilation, gnn='gcn', activation=None, **kwargs):
+    def __init__(self, in_dim, out_cnn_dim, out_gnn_dim, window_size, dilation, gnn='gcn', activation=None, **kwargs):
         super(HConvLayer, self).__init__()
         assert (dilation * (window_size - 1)) % 2 == 0
         self.in_dim = in_dim
-        self.out_dim = out_dim
+        self.out_cnn_dim = out_cnn_dim
+        self.out_gnn_dim = out_gnn_dim
         self.activation = activation
 
         if gnn == 'gcn':
-            self.gnn = GCNLayer(in_dim, out_dim, activation=activation,
+            self.gnn = GCNLayer(in_dim, out_gnn_dim, activation=activation,
                                 residual=kwargs['residual'])
         elif gnn == 'gat':
-            self.gnn = GATLayer(in_dim, out_dim, kwargs['num_head'],
+            self.gnn = GATLayer(in_dim, out_gnn_dim, kwargs['num_head'],
                                 activation=activation, residual=kwargs['residual'],
                                 last_layer=False)
         elif gnn == 'sage':
-            self.gnn = SAGELayer(in_dim, out_dim, activation=activation,
+            self.gnn = SAGELayer(in_dim, out_gnn_dim, activation=activation,
                                  pooling=kwargs['pooling'])
         else:
             raise ValueError()
         
         padding = (dilation * (window_size - 1)) // 2
-        self.conv1d = nn.Conv1d(in_dim, out_dim, window_size,
+        self.conv1d = nn.Conv1d(in_dim, out_cnn_dim, window_size,
                                 stride=1, padding=padding, dilation=dilation)
     
     def forward(self, A, inputs):
@@ -47,7 +48,7 @@ class HConvLayer(nn.Module):
 
         gnn_inputs = inputs.view(-1, 2*seq_len, self.in_dim)  # [b, 2t, e]
         gnn_outputs = self.gnn(A, gnn_inputs)  # [b, 2t, h]
-        gnn_outputs = gnn_outputs.view(-1, seq_len, self.out_dim)  # [2b, t, h]
+        gnn_outputs = gnn_outputs.view(-1, seq_len, self.out_gnn_dim)  # [2b, t, h]
         outputs = torch.cat([conv_outputs, gnn_outputs], -1)  # [2b, t, 2h]
 
         return outputs
