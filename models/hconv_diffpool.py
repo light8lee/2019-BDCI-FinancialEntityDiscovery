@@ -12,7 +12,7 @@ from .layers.hconv import HConvLayer
 class HConv_DiffPool(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate, hconv_gnn, diffpool_gnn,
                  embedding_dim, window_sizes, dilations, pre_cnn_dims, pre_gnn_dims, num_diffpool_layer, ratio,
-                 pred_dims, readout_pool:str='sum', init_weight=None,
+                 pred_dims, readout_pool:str='sum', init_weight=None, need_embed:bool=False,
                  activation=None, pred_act:str='ELU', mode='concat', freeze:bool=False, **kwargs):
         super(HConv_DiffPool, self).__init__()
         assert len(dilations) == len(window_sizes) == len(pre_cnn_dims) == len(pre_gnn_dims)
@@ -28,6 +28,7 @@ class HConv_DiffPool(nn.Module):
         self.pred_dims = pred_dims
         self.activation = activation
         self.mode = mode
+        self.need_embed = need_embed
         self.freeze = freeze
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
@@ -45,7 +46,7 @@ class HConv_DiffPool(nn.Module):
         self.diffpool_layers = nn.ModuleList()
 
         in_dim = self.embedding_dim
-        flat_in_dim = 0
+        flat_in_dim = in_dim if need_embed else 0
         for pre_cnn_dim, pre_gnn_dim, dilation, window_size in zip(pre_cnn_dims, pre_gnn_dims, dilations, window_sizes):
             self.pre_hconv_layers.append(
                 HConvLayer(in_dim, pre_cnn_dim, pre_gnn_dim, window_size, dilation, hconv_gnn,
@@ -124,7 +125,7 @@ class HConv_DiffPool(nn.Module):
         outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
 
         if self.mode == 'concat':
-            flat_outputs = []
+            flat_outputs = [outputs] if self.need_embed else []
         for layer in self.pre_hconv_layers:
             outputs = layer(input_adjs, outputs)
             if self.mode == 'concat':
