@@ -49,7 +49,7 @@ class RNN_DiffPool(nn.Module):
             raise ValueError()
 
         in_dim = self.embedding_dim
-        flat_in_dim = self.embedding_dim
+        flat_in_dim = 0
         for rnn_dim in self.rnn_dims:
             self.rnn_layers.append(
                 rnn(in_dim, rnn_dim, num_layers=1, batch_first=True, bidirectional=True)
@@ -122,7 +122,7 @@ class RNN_DiffPool(nn.Module):
         inputs = self.embedding(input_ids)  # [2b, t, e]
         outputs = inputs  # [2b, t, e]
         if self.mode == 'concat':
-            flat_outputs = [outputs]
+            flat_outputs = []
 
         for rnn in self.rnn_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
@@ -143,7 +143,6 @@ class RNN_DiffPool(nn.Module):
         pooled_outputs = []
         adjs = input_adjs
         for layer in self.diffpool_layers:
-            outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             adjs, outputs = layer(adjs, outputs)  # [b, 2t, h2]
             pooled_output = self.readout_pool(outputs, 1)
             pooled_outputs.append(pooled_output)
