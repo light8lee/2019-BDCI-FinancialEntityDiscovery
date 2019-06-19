@@ -89,16 +89,10 @@ def get_pos(s, offset=0):
 
 
 def create_adj_from_tokens(instance, max_seq_length):
-    pos1 = get_pos(instance.tokens_a)
-    pos2 = get_pos(instance.tokens_b, max_seq_length)
     up_positions = []
-    for key in pos1:
-        up_positions.extend(itertools.product(pos1[key], pos2[key]))  # 只记录了tokens_a到tokens_b的边对应的邻接矩阵
-    for i in range(len(instance.tokens_a)-1):
-        up_positions.append((i, i+1))  # 句子内指向下个字的边
-    for j in range(len(instance.tokens_b)-1):
-        i = j + max_seq_length
-        up_positions.append((i, i+1))  # 句子内指向下个字的边
+    for i in range(len(instance.tokens_a)):
+        for j in range(max_seq_length, max_seq_length+len(instance.tokens_b)):
+            up_positions.append((i, j))  # 前一个句子的词指向后一个句子的词
     rows, cols = zip(*up_positions)  #  上三角矩阵
     return rows, cols
 
