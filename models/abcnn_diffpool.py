@@ -80,12 +80,12 @@ class ABCNN1_DiffPool(nn.Module):
                 nn.Linear(out_dim, pred_dim)
             )
             pred_layers.append(
-                nn.Dropout(p=self.drop_rate)
-            )
-            pred_layers.append(
                 nn.LayerNorm(pred_dim)
             )
             pred_layers.append(pred_act())
+            pred_layers.append(
+                nn.Dropout(p=self.drop_rate)
+            )
             out_dim = pred_dim
         pred_layers.append(
             nn.Linear(out_dim, 2)
