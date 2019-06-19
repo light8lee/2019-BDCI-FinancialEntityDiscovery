@@ -22,25 +22,36 @@ class GraphDataset(Dataset):
         return feature, target
 
 
-def collect_multigraph(need_norm, batch):
+def collect_multigraph(need_norm, concat_ab, batch):
+    concat_ab = True if concat_ab is None else concat_ab
+
     batch_size = len(batch)
     features, targets = zip(*batch)
     batch_inputs_a, batch_mask_a, batch_inputs_b, batch_mask_b, batch_rows, batch_cols = zip(*features)
     seq_len = len(batch_inputs_a[0])
     shape = (2*seq_len, 2*seq_len)
 
-    batch_inputs = []
-    for inputs_a, inputs_b in zip(batch_inputs_a, batch_inputs_b):
-        batch_inputs.append(inputs_a)
-        batch_inputs.append(inputs_b)
+    if concat_ab:
+        batch_inputs = []
+        for inputs_a, inputs_b in zip(batch_inputs_a, batch_inputs_b):
+            batch_inputs.append(inputs_a)
+            batch_inputs.append(inputs_b)
 
-    batch_masks = []
-    for mask_a, mask_b in zip(batch_mask_a, batch_mask_b):
-        batch_masks.append(mask_a)
-        batch_masks.append(mask_b)
+        batch_masks = []
+        for mask_a, mask_b in zip(batch_mask_a, batch_mask_b):
+            batch_masks.append(mask_a)
+            batch_masks.append(mask_b)
 
-    batch_inputs = t.from_numpy(np.array(batch_inputs)).long()
-    batch_masks = t.from_numpy(np.array(batch_masks)).float()
+        batch_inputs = t.from_numpy(np.array(batch_inputs)).long()
+        batch_masks = t.from_numpy(np.array(batch_masks)).float()
+    else:
+        batch_inputs_a = t.from_numpy(np.array(batch_inputs_a)).long()
+        batch_inputs_b = t.from_numpy(np.array(batch_inputs_b)).long()
+        batch_inputs = (batch_inputs_a, batch_inputs_b)
+
+        batch_mask_a = t.from_numpy(np.array(batch_mask_a)).long()
+        batch_mask_b = t.from_numpy(np.array(batch_mask_b)).long()
+        batch_masks = (batch_mask_a, batch_mask_b)
 
     batch_adjs = []
     for rows, cols in zip(batch_rows, batch_cols):

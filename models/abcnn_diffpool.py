@@ -5,19 +5,18 @@ import torch.sparse as sp
 import math
 from .layers.diffpool import DiffPool
 from .layers import activation as Act
+from .layers.abcnn import ABCNN1
 from .layers.pooling import MaxPooling, AvgPooling, SumPooling
-from .layers.hconv import HConvLayer
 
+class ABCNN1_DiffPool(nn.Module):
+    def __init__(self, vocab_size, max_seq_len, drop_rate,
+                 embedding_dim, window_sizes, num_diffpool_layer, diffpool_gnn, 
+                 pred_dims:list, cnn_dims:list, ratio:float, readout_pool:str='max',
+                 init_weight=None, activation=None, pred_act:str='ELU',
+                 freeze:bool=False, mode:str='add_norm', need_embed:bool=True, **kwargs):
 
-class HConv_DiffPool(nn.Module):
-    def __init__(self, vocab_size, max_seq_len, drop_rate, hconv_gnn, diffpool_gnn,
-                 embedding_dim, window_sizes, dilations, pre_cnn_dims, pre_gnn_dims, num_diffpool_layer, ratio,
-                 pred_dims, readout_pool:str='sum', init_weight=None, need_embed:bool=False,
-                 activation=None, pred_act:str='ELU', mode='concat', freeze:bool=False, **kwargs):
-        super(HConv_DiffPool, self).__init__()
-        assert len(dilations) == len(window_sizes) == len(pre_cnn_dims) == len(pre_gnn_dims)
-        for dilation, window_size in zip(dilations, window_sizes):
-            assert (dilation * (window_size - 1)) % 2 == 0
+        super(ABCNN1_DiffPool, self).__init__()
+        assert len(window_sizes) == len(cnn_dims)
         assert 0 < ratio <= 1.0
         pred_act = getattr(Act, pred_act, nn.ELU)
 
@@ -25,13 +24,17 @@ class HConv_DiffPool(nn.Module):
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
         self.embedding_dim = embedding_dim
+        self.window_size = window_size
         self.pred_dims = pred_dims
+        self.cnn_dims = cnn_dims
+        self.freeze = freeze
         self.activation = activation
         self.mode = mode
         self.need_embed = need_embed
-        self.freeze = freeze
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
+        self.cnn_layers = nn.ModuleList()
+        self.diffpool_layers = nn.ModuleList()
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
         elif readout_pool == 'avg':
@@ -40,41 +43,37 @@ class HConv_DiffPool(nn.Module):
             self.readout_pool = SumPooling()
         else:
             raise ValueError()
-        
-        self.pre_hconv_layers = nn.ModuleList()
-        self.post_hconv_layers = nn.ModuleList()
-        self.diffpool_layers = nn.ModuleList()
 
-        in_dim = self.embedding_dim
+        in_dim = embedding_dim
         flat_in_dim = in_dim if need_embed else 0
-        for pre_cnn_dim, pre_gnn_dim, dilation, window_size in zip(pre_cnn_dims, pre_gnn_dims, dilations, window_sizes):
-            self.pre_hconv_layers.append(
-                HConvLayer(in_dim, pre_cnn_dim, pre_gnn_dim, window_size, dilation, hconv_gnn,
-                           activation=self.activation, **kwargs)
+        for cnn_dim, window_size in zip(cnn_dims, window_sizes):
+            self.cnn_layers.append(
+                ABCNN1(in_dim, cnn_dim, max_seq_len, window_size, activation=activation)
             )
-            in_dim = pre_cnn_dim + pre_gnn_dim
+            in_dim = cnn_dim
             flat_in_dim += in_dim
-        
+
         if self.mode == 'add_norm':
             self.norm = nn.LayerNorm(in_dim)
             self.res_weight = nn.Linear(self.embedding_dim, in_dim)
         elif self.mode == 'concat':
             in_dim = flat_in_dim
-            self.norm = nn.LayerNorm(in_dim)
+            self.norm = nn.LayerNorm(flat_in_dim)
         elif self.mode == 'origin':
             self.norm = nn.LayerNorm(in_dim)
         else:
             raise ValueError()
-        
+
         out_dim = 0
-        for _ in range(num_diffpool_layer):
+        in_size = max_seq_len
+        for _ in range(num_gnn_layer):
             self.diffpool_layers.append(
-                DiffPool(in_dim, max_seq_len, ratio, diffpool_gnn,
-                         activation=activation, **kwargs)
+                DiffPool(in_dim, in_size, ratio, gnn, activation, **kwargs)
             )
+            in_size = int(in_size * ratio)
             out_dim += in_dim
-        out_dim += in_dim * (num_diffpool_layer - 1) 
-       
+
+        out_dim += in_dim * (num_gnn_layer - 1)
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
         for pred_dim in pred_dims:
@@ -111,50 +110,60 @@ class HConv_DiffPool(nn.Module):
             vecs.weight = nn.Parameter(init_weight)
         vecs.weight.requires_grad = not self.freeze
         return vecs
-    
+
     def forward(self, input_ids, input_masks, input_adjs):
         """[summary]
         
         Arguments:
-            input_ids [2b, t] -- [description]
-            input_masks [2b, t] -- [description]
+            input_ids ([b, t], [b, t]) -- [description]
+            input_masks ([b, t], [b, t]) -- [description]
             input_adjs [b, 2t, 2t] -- [description]
         
         Returns:
             [type] -- [description]
         """
-        inputs = self.embedding(input_ids)
-        outputs = F.dropout(inputs, p=self.drop_rate, training=self.training)
+        inputs_a, inputs_b = input_ids
+        masks_a, masks_b = input_masks
+        inputs_a = self.embedding(inputs_a)  # [b, t, e]
+        inputs_b = self.embedding(inputs_b)  # [b, t, e]
+
+        outputs_a = F.dropout(inputs_a, p=self.drop_rate, training=self.training)
+        outputs_b = F.dropout(inputs_b, p=self.drop_rate, training=self.training)
 
         if self.mode == 'concat':
-            flat_outputs = [outputs] if self.need_embed else []
-        for layer in self.pre_hconv_layers:
-            outputs = layer(input_adjs, outputs)
+            flat_outputs = [torch.cat([outputs_a, outputs_b], 1)] if self.need_embed else []
+
+        for conv in self.cnn_layers:
+            outputs_a, outputs_b = conv(outputs_a, outputs_b)  # [b, t, h]
             if self.mode == 'concat':
-                flat_outputs.append(outputs)
-        
+                flat_outputs.append(torch.cat([outputs_a, outputs_b], 1))
+
         if self.mode == 'concat':
-            outputs = torch.cat(flat_outputs, -1)  # [2b, t, h]
+            outputs = torch.cat(flat_outputs, -1)  # [b, 2t, h+e]
+        else:
+            outputs = torch.cat([outputs_a, outputs_b], 1)  # [b, 2t, h]
+
         hidden_dim = outputs.shape[-1]
-        outputs = outputs.view(-1, 2*self.max_seq_len, hidden_dim)  # [b, 2t, h]
+        inputs_masks = torch.cat([masks_a, masks_b], 1)  # [b, 2t]
+        outputs = outputs * input_masks.unsqueeze(-1)  # [b, 2t, h]
+        outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, hidden_dim)  # [b, 2t, h]
+
         if self.mode == 'add_norm':
-            outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
-            outputs = outputs + self.res_weight(inputs)
+            inputs = torch.cat([inputs_a, inputs_b], 1)
+            outputs = outputs + self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim))
         outputs = self.norm(outputs)
 
         pooled_outputs = []
         adjs = input_adjs
         for layer in self.diffpool_layers:
-            adjs, outputs = layer(adjs, outputs)
+            adjs, outputs = layer(adjs, outputs)  # [b, 2t, h2]
             pooled_output = self.readout_pool(outputs, 1)
             pooled_outputs.append(pooled_output)
-
         i = len(pooled_outputs) - 1
         while i > 0:
             pooled_outputs.append(pooled_outputs[i] - pooled_outputs[i-1])
             i -= 1
-        
-        pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, h]
+        pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, h+...]
         pooled_outputs = self.concat_norm(pooled_outputs)
 
         outputs = self.dense(pooled_outputs)  # [b, 2]

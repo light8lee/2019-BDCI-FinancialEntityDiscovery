@@ -29,8 +29,12 @@ def infer(data, model, criterion, seq_len, cuda):
     labels = targets.numpy()
 
     if cuda:
-        batch_ids = batch_ids.cuda()
-        batch_masks = batch_masks.cuda()
+        if isinstance(batch_ids, t.Tensor):
+            batch_ids = batch_ids.cuda()
+            batch_masks = batch_masks.cuda()
+        else:
+            batch_ids = [v.cuda() for v in batch_ids]
+            batch_masks = [v.cuda() for v in batch_masks]
         batch_adjs = batch_adjs.cuda()
         targets = targets.cuda()
     log_pred = model(batch_ids, batch_masks, batch_adjs)
@@ -76,7 +80,7 @@ def train(args):
     dataloaders = {}
     datasets = {}
     sampler = None
-    collate_fn = lambda batch: collect_multigraph(model_config.need_norm, batch)
+    collate_fn = lambda batch: collect_multigraph(model_config.need_norm, model_config.concat_ab, batch)
     for phase in ['train', 'dev', 'test']:
         if phase != 'test' and args.fold:
             fea_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.fea'.format(phase))
