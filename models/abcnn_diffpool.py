@@ -24,7 +24,6 @@ class ABCNN1_DiffPool(nn.Module):
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
         self.embedding_dim = embedding_dim
-        self.window_size = window_size
         self.pred_dims = pred_dims
         self.cnn_dims = cnn_dims
         self.freeze = freeze
@@ -66,14 +65,14 @@ class ABCNN1_DiffPool(nn.Module):
 
         out_dim = 0
         in_size = max_seq_len
-        for _ in range(num_gnn_layer):
+        for _ in range(num_diffpool_layer):
             self.diffpool_layers.append(
-                DiffPool(in_dim, in_size, ratio, gnn, activation, **kwargs)
+                DiffPool(in_dim, in_size, ratio, diffpool_gnn, activation, **kwargs)
             )
             in_size = int(in_size * ratio)
             out_dim += in_dim
 
-        out_dim += in_dim * (num_gnn_layer - 1)
+        out_dim += in_dim * (num_diffpool_layer - 1)
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
         for pred_dim in pred_dims:
