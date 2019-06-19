@@ -12,7 +12,7 @@ class CNN_DiffPool(nn.Module):
                  embedding_dim, window_size, num_gnn_layer, gnn, 
                  pred_dims:list, cnn_dims:list, ratio:float, readout_pool:str='max',
                  init_weight=None, activation=None, pred_act:str='ELU', dilation:int=1,
-                 freeze:bool=False, mode:str='add_norm', **kwargs):
+                 freeze:bool=False, mode:str='add_norm', need_embed:bool=False, **kwargs):
 
         super(CNN_DiffPool, self).__init__()
         assert (dilation * (window_size - 1)) % 2 == 0
@@ -30,6 +30,7 @@ class CNN_DiffPool(nn.Module):
         self.freeze = freeze
         self.activation = activation
         self.mode = mode
+        self.need_embed = need_embed
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
@@ -44,7 +45,7 @@ class CNN_DiffPool(nn.Module):
             raise ValueError()
 
         in_dim = self.embedding_dim
-        flat_in_dim = 0
+        flat_in_dim = in_dim if need_embed else 0
         for cnn_dim in self.cnn_dims:
             self.cnn_layers.append(
                 nn.Conv1d(in_dim, cnn_dim, kernel_size=window_size,
@@ -122,7 +123,7 @@ class CNN_DiffPool(nn.Module):
         inputs = self.embedding(input_ids)  # [2b, t, e]
         outputs = inputs.transpose(-1, -2)  # [2b, e, t]
         if self.mode == 'concat':
-            flat_outputs = []
+            flat_outputs = [outputs] if self.need_embed else []
 
         for conv1d in self.cnn_layers:
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
