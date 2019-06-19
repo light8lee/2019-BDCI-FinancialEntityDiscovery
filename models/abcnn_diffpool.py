@@ -143,7 +143,7 @@ class ABCNN1_DiffPool(nn.Module):
             outputs = torch.cat([outputs_a, outputs_b], 1)  # [b, 2t, h]
 
         hidden_dim = outputs.shape[-1]
-        inputs_masks = torch.cat([masks_a, masks_b], 1)  # [b, 2t]
+        input_masks = torch.cat([masks_a, masks_b], 1)  # [b, 2t]
         outputs = outputs * input_masks.unsqueeze(-1)  # [b, 2t, h]
         outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, hidden_dim)  # [b, 2t, h]
 

@@ -1,4 +1,3 @@
-
 import models
 from proj_utils.files import save_ckpt, load_ckpt, load_config_from_json
 from proj_utils.configuration import Config
@@ -17,13 +16,14 @@ import torch.optim as optim
 from tensorboardX import SummaryWriter
 from sklearn.metrics import confusion_matrix
 from collections import Counter
+import pdb
 
 Precision = lambda tp, fp: tp / (tp + fp)
 Recall = lambda tp, fn: tp / (tp + fn)
 F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 
-def infer(data, model, criterion, seq_len, cuda):
+def infer(data, model, criterion, cuda):
     features, targets = data
     batch_ids, batch_masks, batch_adjs = features
     labels = targets.numpy()
@@ -133,6 +133,7 @@ def train(args):
 
     epoch_loss = 10000
     best_f1 = 0
+    # pdb.set_trace()
     if args.log:
         writer = SummaryWriter(os.path.join(args.save_dir, 'logs'))
     for epoch in range(conti, conti+args.epoch):
@@ -152,7 +153,7 @@ def train(args):
                 optimizer.zero_grad()
 
                 with t.set_grad_enabled(phase == 'train'):
-                    result, loss = infer(data, model, criterion, model_config.seq_len, args.cuda)
+                    result, loss = infer(data, model, criterion, args.cuda)
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()

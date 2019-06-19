@@ -49,8 +49,8 @@ def collect_multigraph(need_norm, concat_ab, batch):
         batch_inputs_b = t.from_numpy(np.array(batch_inputs_b)).long()
         batch_inputs = (batch_inputs_a, batch_inputs_b)
 
-        batch_mask_a = t.from_numpy(np.array(batch_mask_a)).long()
-        batch_mask_b = t.from_numpy(np.array(batch_mask_b)).long()
+        batch_mask_a = t.from_numpy(np.array(batch_mask_a)).float()
+        batch_mask_b = t.from_numpy(np.array(batch_mask_b)).float()
         batch_masks = (batch_mask_a, batch_mask_b)
 
     batch_adjs = []
