@@ -46,7 +46,7 @@ class GNN_DiffPool_Base(nn.Module):
         self.diffpool_layers = nn.ModuleList()
 
         in_dim = sum(hidden_dims)
-        in_size = max_seq_len
+        in_size = max_seq_len * 2
         out_dim = 0
         self.norm = nn.LayerNorm(in_dim)
 
