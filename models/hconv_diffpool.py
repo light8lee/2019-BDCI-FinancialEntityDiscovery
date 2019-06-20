@@ -124,12 +124,12 @@ class HConv_DiffPool(nn.Module):
             [type] -- [description]
         """
         inputs = self.embedding(input_ids)
-        outputs = F.dropout(inputs, p=self.drop_rate, training=self.training)
 
         if self.mode == 'concat':
             flat_outputs = [outputs] if self.need_embed else []
         for layer in self.pre_hconv_layers:
             outputs = layer(input_adjs, outputs)
+            outputs = F.dropout(inputs, p=self.drop_rate, training=self.training)
             if self.mode == 'concat':
                 flat_outputs.append(outputs)
         
