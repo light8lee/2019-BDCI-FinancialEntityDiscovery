@@ -23,8 +23,6 @@ class GraphDataset(Dataset):
         return feature, target
 
 
-
-
 def collect_multigraph(need_norm, concat_ab, batch):
     concat_ab = True if concat_ab is None else concat_ab
 
@@ -66,7 +64,7 @@ def collect_multigraph(need_norm, concat_ab, batch):
             if need_norm:
                 mtx = get_laplacian(mtx)
             elif add_selfloop:
-                mtx = mtx + sp.eye(2*seq_len)
+                mtx = mtx + sp.diags(batch_masks)
         mtx = sparse_scipy2torch(mtx)
         batch_adjs.append(mtx)
         return batch_adjs
