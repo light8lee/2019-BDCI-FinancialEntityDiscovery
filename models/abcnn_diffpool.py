@@ -126,14 +126,14 @@ class ABCNN1_DiffPool(nn.Module):
         inputs_a = self.embedding(inputs_a)  # [b, t, e]
         inputs_b = self.embedding(inputs_b)  # [b, t, e]
 
-        outputs_a = F.dropout(inputs_a, p=self.drop_rate, training=self.training)
-        outputs_b = F.dropout(inputs_b, p=self.drop_rate, training=self.training)
 
         if self.mode == 'concat':
             flat_outputs = [torch.cat([outputs_a, outputs_b], 1)] if self.need_embed else []
 
         for conv in self.cnn_layers:
             outputs_a, outputs_b = conv(outputs_a, outputs_b)  # [b, t, h]
+            outputs_a = F.dropout(inputs_a, p=self.drop_rate, training=self.training)
+            outputs_b = F.dropout(inputs_b, p=self.drop_rate, training=self.training)
             if self.mode == 'concat':
                 flat_outputs.append(torch.cat([outputs_a, outputs_b], 1))
 

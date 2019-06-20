@@ -286,9 +286,9 @@ class CNN_DiffPool_V2(nn.Module):
             flat_outputs = [outputs] if self.need_embed else []
 
         for conv1d in self.cnn_layers:
-            outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             outputs = conv1d(outputs)  # [2b, h, t]
             outputs = self.activation(outputs)
+            outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
             if self.mode == 'concat':
                 flat_outputs.append(outputs)
 
