@@ -10,7 +10,7 @@ from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 class CNN_GAT(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, window_size, hidden_dims:list,
-                 pred_dims:list, num_heads:list, cnn_dims:list, readout_pool:str,
+                 pred_dims:list, num_heads:list, cnn_dims:list, readout_pool:str, need_norm:bool=False,
                  init_weight=None, activation=None, pred_act:str='ELU', need_embed:bool=False,
                  residual:bool=False, freeze:bool=False, mode='add_norm', **kwargs):
 
@@ -33,6 +33,7 @@ class CNN_GAT(nn.Module):
         self.activation = activation
         self.mode = mode
         self.need_embed = need_embed
+        self.need_norm = need_norm
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
@@ -81,7 +82,7 @@ class CNN_GAT(nn.Module):
             self.selfloop_layers.append(
                 nn.Linear(in_dim, hidden_dim)
             )
-            out_dim += hidden_dim
+            out_dim += hidden_dim * 2
             in_dim = hidden_dim
 
         self.concat_norm = nn.LayerNorm(out_dim)
@@ -115,6 +116,18 @@ class CNN_GAT(nn.Module):
             vecs.weight = nn.Parameter(init_weight)
         vecs.weight.requires_grad = not self.freeze
         return vecs
+    
+    def _normalize_adjs(self, input_masks, input_adjs):
+        selfloop = torch.eye(self.max_seq_len*2, device=input_adjs.device).unsqueeze(0)  # [1, t, t]
+        selfloop = selfloop * input_masks.unsqueeze(-1)  # [b, t, t], keep padding values to 0
+        input_adjs = input_adjs + selfloop  # [b, t, t]
+        if self.need_norm:  # this is equvalient to D^{-1/2} A D^{-1/2}
+            row_sum = input_adjs.sum(-1)  # [b, t]
+            d_inv_sqrt = torch.pow(row_sum, -0.5)  # [b, t]
+            d_inv_sqrt *= input_masks  # [b, t], keep padding values to 0
+            normalization = d_inv_sqrt.unsqueeze(-1) * d_inv_sqrt.unsqueeze(1) # [b, t, t]
+            input_adjs *= normalization
+        return input_adjs
 
     def forward(self, input_ids, input_masks, input_adjs):
         """[summary]
@@ -148,19 +161,27 @@ class CNN_GAT(nn.Module):
         if self.mode == 'add_norm':
             outputs = outputs + self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim))
         outputs = self.norm(outputs)
-
+        input_masks = input_masks.view(-1, 2*self.max_seq_len)
+        input_adjs = [
+            self._normalize_adjs(input_masks, input_adjs[0]),
+            self._normalize_adjs(input_masks, input_adjs[1]),
+        ]
         pooled_outputs = []
         for inter_layer, outer_layer, selfloop_layer in zip(self.inter_gat_layers, self.outer_gat_layers, self.selfloop_layers):
             inter_outputs = inter_layer(input_adjs[0], outputs)  # [b, 2t, h2]
             outer_outputs = outer_layer(input_adjs[1], outputs)  # [b, 2t, h2]
             selfloop_outputs = selfloop_layer(outputs)
             outputs = inter_outputs + outer_outputs + selfloop_outputs
-            outputs = inter_outputs + outer_outputs
+            # outputs = inter_outputs + outer_outputs
 
-            pooled_output = self.readout_pool(outputs, 1)
             # diff_output = self.readout_pool(outer_outputs-inter_outputs, 1)
 
-            pooled_outputs.append(pooled_output)
+            pooled_outputs.append(
+                self.readout_pool(inter_outputs, 1)
+            )
+            pooled_outputs.append(
+                self.readout_pool(outer_outputs, 1)
+            )
             # pooled_outputs.append(diff_output)
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
         pooled_outputs = self.concat_norm(pooled_outputs)

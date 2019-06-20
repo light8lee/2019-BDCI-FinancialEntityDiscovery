@@ -61,8 +61,8 @@ def collect_multigraph(need_norm, concat_ab, batch):
             data = np.ones_like(rows)
             mtx = sp.coo_matrix((data, (rows, cols)), shape=shape)
             mtx = mtx.transpose() + mtx  # 下三角加上上三角构成完整的邻接矩阵
-        mtx = sparse_scipy2torch(mtx)
-        batch_adjs.append(mtx)
+            mtx = sparse_scipy2torch(mtx)
+            batch_adjs.append(mtx)
         return batch_adjs
     batch_inter_adjs = _collect_adjs(batch_inter_rows, batch_inter_cols)
     batch_inter_adjs = t.stack(batch_inter_adjs, 0)
