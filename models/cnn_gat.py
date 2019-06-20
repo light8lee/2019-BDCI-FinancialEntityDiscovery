@@ -83,7 +83,7 @@ class CNN_GAT(nn.Module):
                 nn.Linear(in_dim, hidden_dim)
             )
             out_dim += hidden_dim * 2
-            in_dim = hidden_dim
+            in_dim = hidden_dim * 2
 
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
@@ -170,8 +170,9 @@ class CNN_GAT(nn.Module):
         for inter_layer, outer_layer, selfloop_layer in zip(self.inter_gat_layers, self.outer_gat_layers, self.selfloop_layers):
             inter_outputs = inter_layer(input_adjs[0], outputs)  # [b, 2t, h2]
             outer_outputs = outer_layer(input_adjs[1], outputs)  # [b, 2t, h2]
-            selfloop_outputs = selfloop_layer(outputs)
-            outputs = inter_outputs + outer_outputs + selfloop_outputs
+            # selfloop_outputs = selfloop_layer(outputs)
+            outputs = torch.cat([inter_outputs, outer_outputs], -1)
+            # outputs = inter_outputs + outer_outputs + selfloop_outputs
             # outputs = inter_outputs + outer_outputs
 
             # diff_output = self.readout_pool(outer_outputs-inter_outputs, 1)
