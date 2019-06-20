@@ -36,7 +36,7 @@ def infer(data, model, criterion, cuda):
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
 
-        if isinstance(batca, t.Tensor):
+        if isinstance(batch_adjs, t.Tensor):
             batch_adjs = batch_adjs.cuda()
         else:
             batch_adjs = [v.cuda() for v in batch_adjs]

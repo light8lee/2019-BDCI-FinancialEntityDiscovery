@@ -141,7 +141,7 @@ class CNN_GAT(nn.Module):
         hidden_dim = outputs.shape[-1]
         outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h1]
         outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, hidden_dim)  # [b, 2t, h1]
-        if self.add_norm:
+        if self.mode == 'add_norm':
             outputs = outputs + self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim))
         outputs = self.norm(outputs)
 
