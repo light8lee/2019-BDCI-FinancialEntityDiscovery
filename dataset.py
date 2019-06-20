@@ -55,23 +55,19 @@ def collect_multigraph(need_norm, concat_ab, batch):
         batch_mask_b = t.from_numpy(np.array(batch_mask_b)).float()
         batch_masks = (batch_mask_a, batch_mask_b)
 
-    def _collect_adjs(batch_rows, batch_cols, add_selfloop):
+    def _collect_adjs(batch_rows, batch_cols):
         batch_adjs = []
         for rows, cols in zip(batch_rows, batch_cols):
             data = np.ones_like(rows)
             mtx = sp.coo_matrix((data, (rows, cols)), shape=shape)
             mtx = mtx.transpose() + mtx  # 下三角加上上三角构成完整的邻接矩阵
-            if need_norm:
-                mtx = get_laplacian(mtx)
-            elif add_selfloop:
-                mtx = mtx + sp.diags(batch_masks)
         mtx = sparse_scipy2torch(mtx)
         batch_adjs.append(mtx)
         return batch_adjs
-    batch_inter_adjs = _collect_adjs(batch_inter_rows, batch_inter_cols, True)
+    batch_inter_adjs = _collect_adjs(batch_inter_rows, batch_inter_cols)
     batch_inter_adjs = t.stack(batch_inter_adjs, 0)
     batch_inter_adjs = batch_inter_adjs.to_dense().float()
-    batch_outer_adjs = _collect_adjs(batch_outer_rows, batch_outer_cols, False)
+    batch_outer_adjs = _collect_adjs(batch_outer_rows, batch_outer_cols)
     batch_outer_adjs = t.stack(batch_outer_adjs, 0)
     batch_outer_adjs = batch_outer_adjs.to_dense().float()
 

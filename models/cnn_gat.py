@@ -38,6 +38,7 @@ class CNN_GAT(nn.Module):
         self.cnn_layers = nn.ModuleList()
         self.inter_gat_layers = nn.ModuleList()
         self.outer_gat_layers = nn.ModuleList()
+        self.selfloop_layers = nn.ModuleList()
 
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
@@ -76,6 +77,9 @@ class CNN_GAT(nn.Module):
             )
             self.outer_gat_layers.append(
                 GATLayer(in_dim, hidden_dim, num_head, activation, residual)
+            )
+            self.selfloop_layers.append(
+                nn.Linear(in_dim, hidden_dim)
             )
             out_dim += hidden_dim
             in_dim = hidden_dim
@@ -146,10 +150,11 @@ class CNN_GAT(nn.Module):
         outputs = self.norm(outputs)
 
         pooled_outputs = []
-        for inter_layer, outer_layer in zip(self.inter_gat_layers, self.outer_gat_layers):
+        for inter_layer, outer_layer, selfloop_layer in zip(self.inter_gat_layers, self.outer_gat_layers, self.selfloop_layers):
             inter_outputs = inter_layer(input_adjs[0], outputs)  # [b, 2t, h2]
             outer_outputs = outer_layer(input_adjs[1], outputs)  # [b, 2t, h2]
-            outputs = inter_outputs + outer_outputs
+            selfloop_outputs = selfloop_layer(outputs)
+            outputs = inter_outputs + outer_outputs + selfloop_outputs
             pooled_output = self.readout_pool(outputs, 1)
             pooled_outputs.append(pooled_output)
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
