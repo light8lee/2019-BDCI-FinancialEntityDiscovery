@@ -155,8 +155,13 @@ class CNN_GAT(nn.Module):
             outer_outputs = outer_layer(input_adjs[1], outputs)  # [b, 2t, h2]
             selfloop_outputs = selfloop_layer(outputs)
             outputs = inter_outputs + outer_outputs + selfloop_outputs
+            outputs = inter_outputs + outer_outputs
+
             pooled_output = self.readout_pool(outputs, 1)
+            # diff_output = self.readout_pool(outer_outputs-inter_outputs, 1)
+
             pooled_outputs.append(pooled_output)
+            # pooled_outputs.append(diff_output)
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
         pooled_outputs = self.concat_norm(pooled_outputs)
 
