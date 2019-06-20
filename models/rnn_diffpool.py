@@ -69,7 +69,7 @@ class RNN_DiffPool(nn.Module):
             raise ValueError()
 
         out_dim = 0
-        in_size = max_seq_len
+        in_size = max_seq_len * 2
         for _ in range(num_gnn_layer):
             self.diffpool_layers.append(
                 DiffPool(in_dim, in_size, ratio, gnn, activation, **kwargs)
