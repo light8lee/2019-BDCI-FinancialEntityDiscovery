@@ -89,17 +89,18 @@ def get_pos(s, offset=0):
 
 
 def create_adj_from_tokens(instance, max_seq_length):
-    up_positions = []
+    outer_positions = []
+    inter_positions = []
     for i in range(len(instance.tokens_a)):
         for j in range(max_seq_length, max_seq_length+len(instance.tokens_b)):
-            up_positions.append((i, j))  # 前一个句子的词指向后一个句子的词
+            outer_positions.append((i, j))  # 前一个句子的词指向后一个句子的词
+
     for i in range(len(instance.tokens_a)-1):
-        up_positions.append((i, i+1))  # 句子内指向下个字的边
+        inter_positions.append((i, i+1))  # 句子内指向下个字的边
     for j in range(len(instance.tokens_b)-1):
         i = j + max_seq_length
-        up_positions.append((i, i+1))  # 句子内指向下个字的边
-    rows, cols = zip(*up_positions)  #  上三角矩阵
-    return rows, cols
+        inter_positions.append((i, i+1))  # 句子内指向下个字的边
+    return inter_positions, outer_positions
 
 
 def write_instance_to_example_files(instances, tokenizer, max_seq_length, output_file, rng):
@@ -123,9 +124,13 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
         feature["input_mask_a"] = input_mask_a  # mask ids的padding部分
         feature["inputs_b"] = inputs_b  # 输入ids
         feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
-        rows, cols = create_adj_from_tokens(instance, max_seq_length)
-        feature['rows'] = rows
-        feature['cols'] = cols
+        inter_pos, outer_pos = create_adj_from_tokens(instance, max_seq_length)
+        inter_rows, inter_cols = zip(*inter_pos)
+        outer_rows, outer_cols = zip(*outer_pos)
+        feature['inter_rows'] = inter_rows
+        feature['inter_cols'] = inter_cols
+        feature['outer_rows'] = outer_rows
+        feature['outer_cols'] = outer_cols
 
         feature = tuple(feature.values())
         feature = pickle.dumps(feature)
