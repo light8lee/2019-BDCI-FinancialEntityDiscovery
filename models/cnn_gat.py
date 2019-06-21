@@ -79,7 +79,7 @@ class CNN_GAT(nn.Module):
                 GATLayer(in_dim, hidden_dim, num_head, activation, residual)
             )
             in_dim = hidden_dim
-            out_dim += hidden_dim * 4
+            out_dim += hidden_dim * 3
 
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
@@ -141,46 +141,40 @@ class CNN_GAT(nn.Module):
         if self.mode == 'concat':
             flat_outputs = [outputs] if self.need_embed else []
 
+        pooled_outputs = []
         for conv1d in self.cnn_layers:
             outputs = conv1d(outputs)  # [2b, h, t]
             outputs = self.activation(outputs)
+            hidden_dim = outputs.shape[1]
+            pooled_outputs.append(
+                self.readout_pool(outputs.view(-1, hidden_dim, 2*self.max_seq_len), -1)
+            )
             outputs = F.dropout(outputs, p=self.drop_rate, training=self.training)
-            if self.mode == 'concat':
-                flat_outputs.append(outputs)
+        #     if self.mode == 'concat':
+        #         flat_outputs.append(outputs)
 
-        if self.mode == 'concat':
-            outputs = torch.cat(flat_outputs, 1)  # [2b, e+h, t]
-        outputs = outputs.transpose(-1, -2)  # [2b, t, h1]
-        hidden_dim = outputs.shape[-1]
-        outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h1]
-        outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, hidden_dim)  # [b, 2t, h1]
-        if self.mode == 'add_norm':
-            outputs = outputs + self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim))
-        outputs = self.norm(outputs)
+        # if self.mode == 'concat':
+        #     outputs = torch.cat(flat_outputs, 1)  # [2b, e+h, t]
+        # outputs = outputs.transpose(-1, -2)  # [2b, t, h1]
+        # hidden_dim = outputs.shape[-1]
+        # outputs = outputs * input_masks.unsqueeze(-1)  # [2b, t, h1]
+        # outputs = outputs.contiguous().view(-1, 2*self.max_seq_len, hidden_dim)  # [b, 2t, h1]
+        # if self.mode == 'add_norm':
+        #     outputs = outputs + self.res_weight(inputs.view(-1, 2*self.max_seq_len, self.embedding_dim))
+        # outputs = self.norm(outputs)
         input_masks = input_masks.view(-1, 2*self.max_seq_len)
         input_adjs = [
             self._normalize_adjs(input_masks, input_adjs[0]),
             self._normalize_adjs(input_masks, input_adjs[1]),
         ]
-        pooled_outputs = []
-        inter_outputs = outer_outputs = outputs
-        for inter_layer, outer_layer in zip(self.inter_gat_layers, self.outer_gat_layers):
-            inter_outputs = inter_layer(input_adjs[0], inter_outputs)  # [b, 2t, h2]
+        outer_outputs = inputs.view(-1, 2*self.max_seq_len, self.embedding_dim)
+        for i, outer_layer in enumerate(self.outer_gat_layers):
             outer_outputs = outer_layer(input_adjs[1], outer_outputs)  # [b, 2t, h2]
-
-
+            pooled_output = self.readout_pool(outer_outputs, 1)
             pooled_outputs.append(
-                self.readout_pool(outer_outputs - inter_outputs, 1)
+                pooled_outputs[i] - pooled_output
             )
-            pooled_outputs.append(
-                self.readout_pool(outer_outputs * inter_outputs, 1)
-            )
-            pooled_outputs.append(
-                self.readout_pool(inter_outputs, 1)
-            )
-            pooled_outputs.append(
-                self.readout_pool(outer_outputs, 1)
-            )
+            pooled_outputs.append(pooled_output)
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
         pooled_outputs = self.concat_norm(pooled_outputs)
 
