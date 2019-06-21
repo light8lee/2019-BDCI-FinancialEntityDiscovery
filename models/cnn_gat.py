@@ -78,8 +78,8 @@ class CNN_GAT(nn.Module):
             self.outer_gat_layers.append(
                 GATLayer(in_dim, hidden_dim, num_head, activation, residual)
             )
-            out_dim += hidden_dim
-            in_dim = hidden_dim
+            in_dim = hidden_dim * 4
+            out_dim += in_dim
 
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
