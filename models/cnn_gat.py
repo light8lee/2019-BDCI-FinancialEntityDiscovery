@@ -39,7 +39,6 @@ class CNN_GAT(nn.Module):
         self.cnn_layers = nn.ModuleList()
         self.inter_gat_layers = nn.ModuleList()
         self.outer_gat_layers = nn.ModuleList()
-        self.selfloop_layers = nn.ModuleList()
 
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
@@ -74,13 +73,10 @@ class CNN_GAT(nn.Module):
         out_dim = 0
         for hidden_dim, num_head in zip(self.hidden_dims, self.num_heads):
             self.inter_gat_layers.append(
-                GATLayer(in_dim, hidden_dim, num_head, lambda v: v, residual)
+                GATLayer(in_dim, hidden_dim, num_head, activation, residual)
             )
             self.outer_gat_layers.append(
-                GATLayer(in_dim, hidden_dim, num_head, lambda v: v, residual)
-            )
-            self.selfloop_layers.append(
-                nn.Linear(in_dim, hidden_dim)
+                GATLayer(in_dim, hidden_dim, num_head, activation, residual)
             )
             out_dim += hidden_dim
             in_dim = hidden_dim
@@ -167,27 +163,24 @@ class CNN_GAT(nn.Module):
             self._normalize_adjs(input_masks, input_adjs[1]),
         ]
         pooled_outputs = []
-        for inter_layer, outer_layer, selfloop_layer in zip(self.inter_gat_layers, self.outer_gat_layers, self.selfloop_layers):
-            inter_outputs = inter_layer(input_adjs[0], outputs)  # [b, 2t, h2]
-            outer_outputs = outer_layer(input_adjs[1], outputs)  # [b, 2t, h2]
-            selfloop_outputs = selfloop_layer(outputs)
-            outputs = torch.cat([inter_outputs, outer_outputs], -1)
-            outputs = inter_outputs + outer_outputs + selfloop_outputs
-            outputs = self.activation(outputs)
-            # outputs = inter_outputs + outer_outputs
+        inter_outputs = outer_outputs = outputs
+        for inter_layer, outer_layer in zip(self.inter_gat_layers, self.outer_gat_layers):
+            inter_outputs = inter_layer(input_adjs[0], inter_outputs)  # [b, 2t, h2]
+            outer_outputs = outer_layer(input_adjs[1], outer_outputs)  # [b, 2t, h2]
 
-            # diff_output = self.readout_pool(outer_outputs-inter_outputs, 1)
 
             pooled_outputs.append(
-                self.readout_pool(outputs, 1)
+                self.readout_pool(outer_outputs - inter_outputs, 1)
             )
-            # pooled_outputs.append(
-            #     self.readout_pool(inter_outputs, 1)
-            # )
-            # pooled_outputs.append(
-            #     self.readout_pool(outer_outputs, 1)
-            # )
-            # pooled_outputs.append(diff_output)
+            pooled_outputs.append(
+                self.readout_pool(outer_outputs * inter_outputs, 1)
+            )
+            pooled_outputs.append(
+                self.readout_pool(inter_outputs, 1)
+            )
+            pooled_outputs.append(
+                self.readout_pool(outer_outputs, 1)
+            )
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
         pooled_outputs = self.concat_norm(pooled_outputs)
 

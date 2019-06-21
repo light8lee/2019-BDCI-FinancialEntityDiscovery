@@ -92,14 +92,12 @@ def create_adj_from_tokens(instance, max_seq_length):
     outer_positions = []
     inter_positions = []
     for i in range(len(instance.tokens_a)):
-        for j in range(max_seq_length, max_seq_length+len(instance.tokens_b)):
-            outer_positions.append((i, j))  # 前一个句子的词指向后一个句子的词
+        for j in range(len(instance.tokens_b)):
+            if instance.tokens_a[i] != instance.tokens_b[j]:
+                outer_positions.append((i, j+max_seq_length))  # different words
+            else:
+                inter_positions.append((i, j+max_seq_length))  # same words
 
-    for i in range(len(instance.tokens_a)-1):
-        inter_positions.append((i, i+1))  # 句子内指向下个字的边
-    for j in range(len(instance.tokens_b)-1):
-        i = j + max_seq_length
-        inter_positions.append((i, i+1))  # 句子内指向下个字的边
     return inter_positions, outer_positions
 
 
