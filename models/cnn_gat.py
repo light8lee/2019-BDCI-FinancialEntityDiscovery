@@ -79,7 +79,7 @@ class CNN_GAT(nn.Module):
                 GATLayer(in_dim, hidden_dim, num_head, activation, residual)
             )
             in_dim = hidden_dim
-            out_dim += hidden_dim * 3
+            out_dim += hidden_dim * 4
 
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
@@ -173,6 +173,9 @@ class CNN_GAT(nn.Module):
             pooled_output = self.readout_pool(outer_outputs, 1)
             pooled_outputs.append(
                 pooled_outputs[i] - pooled_output
+            )
+            pooled_outputs.append(
+                pooled_outputs[i] * pooled_output
             )
             pooled_outputs.append(pooled_output)
         pooled_outputs = torch.cat(pooled_outputs, -1)  # [b, num_gcn_layer*h2]
