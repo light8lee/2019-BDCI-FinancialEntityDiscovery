@@ -15,22 +15,13 @@ class GATLayer(nn.Module):
         self.support_dim = out_dim // num_head
         self.activation = activation if activation is not None else torch.relu
         self.residual = residual
-        self.last_layer = last_layer
 
-        self.weights = nn.ParameterList([
-            nn.Parameter(torch.FloatTensor(self.in_dim, self.support_dim)) for _ in range(self.num_head)
-        ])
-        self.fc1s = nn.ModuleList([
-            nn.Linear(self.support_dim, 1) for _ in range(self.num_head)
-        ])
-        self.fc2s = nn.ModuleList([
-            nn.Linear(self.support_dim, 1) for _ in range(self.num_head)
-        ])
+        self.weight = nn.Parameter(torch.FloatTensor(self.in_dim, self.out_dim))
+        self.fc1 = nn.Parameter(torch.FloatTensor(1, 1, self.num_head, self.support_dim))
+        self.fc2 = nn.Parameter(torch.FloatTensor(1, 1, self.num_head, self.support_dim))
 
         if self.residual:
-            self.res_weights = nn.ParameterList([
-                nn.Parameter(torch.FloatTensor(self.in_dim, self.support_dim)) for _ in range(self.num_head)
-            ])
+            self.res_weight = nn.Parameter(torch.FloatTensor(self.in_dim, self.out_dim))
 
         self.reset_parameters()
 
@@ -41,22 +32,28 @@ class GATLayer(nn.Module):
 
     def forward(self, A, X):
         head_outputs = []
-        mask = (-1e9 * (1.0 - A))
-        for i in range(self.num_head):
-            inputs = torch.matmul(X, self.weights[i])  # [b, t, h]
-            self_fc = self.fc1s[i](inputs)  # [b, t, 1]
-            neigh_fc = self.fc2s[i](inputs).transpose(-1, -2)  # [b, t, 1]
-            alphas = F.leaky_relu(self_fc + neigh_fc)  # [b, t, t]
-            alphas = alphas + mask  # only need neighborhoods' information
-            alphas = torch.softmax(alphas, -1)  # [b, t, t]
-            outputs = torch.bmm(alphas, inputs)  # [b, t, h]
-            if self.residual:
-                outputs += torch.matmul(X, self.res_weights[i])
-            head_outputs.append(self.activation(outputs))
-        if self.last_layer:
-            outputs = torch.stack(head_outputs)  # [n, b, t, h]
-            outputs = torch.mean(outputs, 0)  # [b, t, h]
-        else:
-            outputs = torch.cat(head_outputs, -1)  # [b, t, h*n]
+        mask = (-1e9 * (1.0 - A)).unsqueeze(1)  # [b, 1, t, t]
+
+        inputs = torch.matmul(X, self.weight)  # [b, t, h]
+        shape = inputs.shape
+        inputs = inputs.view(shape[0], shape[1], self.num_head, self.support_dim)  # [b, t, n, h/n]
+
+        self_fc = self.fc1 * inputs  # [b, t, n, h/n]
+        self_fc = torch.sum(self_fc, -1, keepdim=True).transpose(1, 2)  # [b, t, n, 1] -> [b, n, t, 1]
+        neigh_fc = self.fc2 * inputs  # [b, t, n, h/n]
+        neigh_fc = torch.sum(neigh_fc, -1, keepdim=True).permute(0, 2, 3, 1)  # [b, t, n, 1] -> [b, n, 1, t]
+
+        alphas = F.leaky_relu(self_fc + neigh_fc)  # [b, n, t, t]
+        alphas = alphas + mask  # only need neighborhoods' information
+        alphas = torch.softmax(alphas, -1)  # [b, n, t, t]
+        outputs = torch.matmul(alphas, inputs.transpose(1, 2))  # [b, n, t, h/n]
+
+        outputs = outputs.transpose(1, 2).contiguous().view(*shape)  # [b, t, h]
+
+        if self.residual:
+            outputs += torch.matmul(X, self.res_weight)
+
+        outputs = self.activation(outputs)
+
         return outputs
 
