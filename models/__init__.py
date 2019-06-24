@@ -10,3 +10,4 @@ from .hconv_diffpool import HConv_DiffPool
 from .gnn_diffpool import GAT_DiffPool, GCN_DiffPool
 from .abcnn_diffpool import ABCNN1_DiffPool
 from .hconv_gat import HConv_GAT
+from .gat_abcnn import GAT_ABCNN1
