@@ -58,7 +58,7 @@ class GAT_ABCNN1(nn.Module):
                 ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=2)
             )
             in_dim = hidden_dim
-        out_dim = len(hidden_dims) + 1  # FIXME
+        out_dim = sum(hidden_dims) * 4
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
         for pred_dim in pred_dims:
@@ -134,9 +134,9 @@ class GAT_ABCNN1(nn.Module):
 
         sim_outputs = []
 
-        pool_a = self.readout_pool(inputs_a, -1)
-        pool_b = self.readout_pool(inputs_b, -1)
-        sim_outputs.append(self._cos_sim(pool_a, pool_b))
+        # pool_a = self.readout_pool(inputs_a, -1)
+        # pool_b = self.readout_pool(inputs_b, -1)
+        # sim_outputs.append(self._cos_sim(pool_a, pool_b))
 
         # for outer_gat_layer, cnn_layer in zip(self.outer_gat_layers, self.cnn_layers):
         for cnn_layer in self.cnn_layers:
@@ -147,10 +147,14 @@ class GAT_ABCNN1(nn.Module):
             # gat_b_outputs = gat_b_outputs * masks_b.unsqueeze(-1)
             inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b)
 
-            pool_a = self.readout_pool(inputs_a, -1)
-            pool_b = self.readout_pool(inputs_b, -1)
-            sim_outputs.append(self._cos_sim(pool_a, pool_b))
-        outputs = torch.stack(sim_outputs, 1)  # [b, num_layer]
+            pool_a = self.readout_pool(inputs_a, 1)
+            pool_b = self.readout_pool(inputs_b, 1)
+            # sim_outputs.append(self._cos_sim(pool_a, pool_b))
+            sim_outputs.append(pool_a)
+            sim_outputs.append(pool_b)
+            sim_outputs.append(pool_a - pool_b)
+            sim_outputs.append(pool_a * pool_b)
+        outputs = torch.cat(sim_outputs, -1)  # [b, h]
 
         outputs = self.dense(outputs)
         outputs = torch.log_softmax(outputs, 1)
