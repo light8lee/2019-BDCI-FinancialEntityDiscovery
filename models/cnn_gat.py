@@ -71,6 +71,7 @@ class CNN_GAT(nn.Module):
             raise ValueError()
 
         out_dim = 0
+        in_dim = self.embedding_dim
         for hidden_dim, num_head in zip(self.hidden_dims, self.num_heads):
             self.inter_gat_layers.append(
                 GATLayer(in_dim, hidden_dim, num_head, activation, residual)
