@@ -51,11 +51,11 @@ class GAT_ABCNN1(nn.Module):
         in_dim = self.embedding_dim
         # flat_in_dim = in_dim if need_embed else 0
         for num_head, hidden_dim in zip(num_heads, hidden_dims):
-            self.outer_gat_layers.append(
-                GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
-            )
+            # self.outer_gat_layers.append(
+            #     GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
+            # )
             self.cnn_layers.append(
-                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=3)
+                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=2)
             )
             in_dim = hidden_dim
         out_dim = len(hidden_dims) + 1  # FIXME
@@ -138,13 +138,14 @@ class GAT_ABCNN1(nn.Module):
         pool_b = self.readout_pool(inputs_b, -1)
         sim_outputs.append(self._cos_sim(pool_a, pool_b))
 
-        for outer_gat_layer, cnn_layer in zip(self.outer_gat_layers, self.cnn_layers):
-            outputs = torch.cat([inputs_a, inputs_b], 1)  # [b, 2t, e]
-            gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
-            gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
-            gat_a_outputs = gat_a_outputs * masks_a.unsqueeze(-1)
-            gat_b_outputs = gat_b_outputs * masks_b.unsqueeze(-1)
-            inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b, [gat_a_outputs], [gat_b_outputs])
+        # for outer_gat_layer, cnn_layer in zip(self.outer_gat_layers, self.cnn_layers):
+        for cnn_layer in self.cnn_layers:
+            # outputs = torch.cat([inputs_a, inputs_b], 1)  # [b, 2t, e]
+            # gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
+            # gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
+            # gat_a_outputs = gat_a_outputs * masks_a.unsqueeze(-1)
+            # gat_b_outputs = gat_b_outputs * masks_b.unsqueeze(-1)
+            inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b)
 
             pool_a = self.readout_pool(inputs_a, -1)
             pool_b = self.readout_pool(inputs_b, -1)
