@@ -127,10 +127,10 @@ class GAT_ABCNN1(nn.Module):
         inputs_a = self.embedding(inputs_a)  # [b, t, e]
         inputs_b = self.embedding(inputs_b)  # [b, t, e]
 
-        input_adjs = [
-            self._normalize_adjs(input_masks, input_adjs[0]),
-            self._normalize_adjs(input_masks, input_adjs[1]),
-        ]
+        # input_adjs = [
+        #     self._normalize_adjs(input_masks, input_adjs[0]),
+        #     self._normalize_adjs(input_masks, input_adjs[1]),
+        # ]
 
         sim_outputs = []
 
@@ -152,7 +152,7 @@ class GAT_ABCNN1(nn.Module):
             # sim_outputs.append(self._cos_sim(pool_a, pool_b))
             sim_outputs.append(pool_a)
             sim_outputs.append(pool_b)
-            sim_outputs.append(pool_a - pool_b)
+            sim_outputs.append(torch.abs(pool_a - pool_b))
             sim_outputs.append(pool_a * pool_b)
         outputs = torch.cat(sim_outputs, -1)  # [b, h]
 
