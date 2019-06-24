@@ -58,7 +58,7 @@ class GAT_ABCNN1(nn.Module):
                 ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=3)
             )
             in_dim = hidden_dim
-        out_dim = len(hidden_dims)  # FIXME
+        out_dim = len(hidden_dims) + 1  # FIXME
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
         for pred_dim in pred_dims:
@@ -131,7 +131,13 @@ class GAT_ABCNN1(nn.Module):
             self._normalize_adjs(input_masks, input_adjs[0]),
             self._normalize_adjs(input_masks, input_adjs[1]),
         ]
+
         sim_outputs = []
+
+        pool_a = self.readout_pool(inputs_a, -1)
+        pool_b = self.readout_pool(inputs_b, -1)
+        sim_outputs.append(self._cos_sim(pool_a, pool_b))
+
         for outer_gat_layer, cnn_layer in zip(self.outer_gat_layers, self.cnn_layers):
             outputs = torch.cat([inputs_a, inputs_b], 1)  # [b, 2t, e]
             gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
