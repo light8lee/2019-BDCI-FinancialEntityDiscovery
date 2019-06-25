@@ -49,13 +49,15 @@ class GAT_ABCNN1(nn.Module):
             raise ValueError()
 
         in_dim = self.embedding_dim
-        # flat_in_dim = in_dim if need_embed else 0
         for num_head, hidden_dim in zip(num_heads, hidden_dims):
+            self.inter_gat_layers.append(
+                GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
+            )
             self.outer_gat_layers.append(
                 GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
             )
             self.cnn_layers.append(
-                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=3)
+                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=4)
             )
             in_dim = hidden_dim
         out_dim = sum(hidden_dims) * 4
@@ -141,14 +143,25 @@ class GAT_ABCNN1(nn.Module):
         masks_b = masks_b.unsqueeze(-1)
 
         # for cnn_layer in self.cnn_layers:
-        for outer_gat_layer, cnn_layer in zip(self.outer_gat_layers, self.cnn_layers):
+        for inter_gat_layer, outer_gat_layer, cnn_layer in zip(self.inter_gat_layers, self.outer_gat_layers, self.cnn_layers):
             outputs = torch.cat([inputs_a, inputs_b], 1)  # [b, 2t, e]
+
+            extra_a_inputs = []
+            extra_b_inputs = []
+
+            gat_outputs = inter_gat_layer(input_adjs[0], outputs)  # [b, 2t, e]
+            gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
+
+            extra_a_inputs.append(gat_a_outputs * masks_a)
+            extra_b_inputs.append(gat_b_outputs * masks_b)
+
             gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
             gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
-            gat_a_outputs = gat_a_outputs * masks_a
-            gat_b_outputs = gat_b_outputs * masks_b
 
-            inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b, [gat_a_outputs], [gat_b_outputs])
+            extra_a_inputs.append(gat_a_outputs * masks_a)
+            extra_b_inputs.append(gat_b_outputs * masks_b)
+
+            inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b, extra_a_inputs, extra_b_inputs)
             inputs_a = inputs_a * masks_a
             inputs_b = inputs_b * masks_b
 
