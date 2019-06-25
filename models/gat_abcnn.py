@@ -148,7 +148,7 @@ class GAT_ABCNN1(nn.Module):
             gat_a_outputs = gat_a_outputs * masks_a
             gat_b_outputs = gat_b_outputs * masks_b
 
-            inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b)
+            inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b, [gat_a_outputs], [gat_b_outputs])
             inputs_a = inputs_a * masks_a
             inputs_b = inputs_b * masks_b
 
