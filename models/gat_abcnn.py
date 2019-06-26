@@ -65,7 +65,7 @@ class GAT_ABCNN1(nn.Module):
                 ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=4)
             )
             in_dim = hidden_dim
-        out_dim = sum(hidden_dims) * 4
+        out_dim = sum(hidden_dims) * 2
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
         for pred_dim in pred_dims:
@@ -179,9 +179,9 @@ class GAT_ABCNN1(nn.Module):
             pool_a = self.readout_pool(inputs_a, 1)
             pool_b = self.readout_pool(inputs_b, 1)
             # sim_outputs.append(self._cos_sim(pool_a, pool_b))
-            sim_outputs.append(pool_a)
-            sim_outputs.append(pool_b)
-            sim_outputs.append(pool_a - pool_b)
+            # sim_outputs.append(pool_a)
+            # sim_outputs.append(pool_b)
+            sim_outputs.append(torch.abs(pool_a - pool_b))
             sim_outputs.append(pool_a * pool_b)
         outputs = torch.cat(sim_outputs, -1)  # [b, h]
 
