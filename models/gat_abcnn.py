@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import torch.sparse as sp
 import math
 from .layers.gat import GATLayer
+from .layers.gcn import GCNLayer
 from .layers.abcnn import ABCNN1
 from .layers import activation as Act
 from .layers.pooling import MaxPooling, AvgPooling, SumPooling
@@ -38,6 +39,7 @@ class GAT_ABCNN1(nn.Module):
         self.cnn_layers = nn.ModuleList()
         self.inter_gat_layers = nn.ModuleList()
         self.outer_gat_layers = nn.ModuleList()
+        self.outer_gcn_layers = nn.ModuleList()
 
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
@@ -50,14 +52,17 @@ class GAT_ABCNN1(nn.Module):
 
         in_dim = self.embedding_dim
         for num_head, hidden_dim in zip(num_heads, hidden_dims):
-            self.inter_gat_layers.append(
-                GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
-            )
+            # self.inter_gat_layers.append(
+            #     GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
+            # )
             self.outer_gat_layers.append(
                 GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
             )
+            self.outer_gcn_layers.append(
+                GCNLayer(in_dim, hidden_dim, activation, residual=residual)
+            )
             self.cnn_layers.append(
-                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=4)
+                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=3)
             )
             in_dim = hidden_dim
         out_dim = sum(hidden_dims) * 4
@@ -143,20 +148,22 @@ class GAT_ABCNN1(nn.Module):
         masks_b = masks_b.unsqueeze(-1)
 
         # for cnn_layer in self.cnn_layers:
-        for inter_gat_layer, outer_gat_layer, cnn_layer in zip(self.inter_gat_layers, self.outer_gat_layers, self.cnn_layers):
+        for outer_gcn_layer, outer_gat_layer, cnn_layer in zip(self.outer_gcn_layers, self.outer_gat_layers, self.cnn_layers):
             outputs = torch.cat([inputs_a, inputs_b], 1)  # [b, 2t, e]
 
             extra_a_inputs = []
             extra_b_inputs = []
 
-            gat_outputs = inter_gat_layer(input_adjs[0], outputs)  # [b, 2t, e]
-            gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
+            # gat_outputs = inter_gat_layer(input_adjs[0], outputs)  # [b, 2t, e]
+            # gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
 
-            extra_a_inputs.append(gat_a_outputs * masks_a)
-            extra_b_inputs.append(gat_b_outputs * masks_b)
+            # extra_a_inputs.append(gat_a_outputs * masks_a)
+            # extra_b_inputs.append(gat_b_outputs * masks_b)
 
-            gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
-            gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
+            # gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
+            # gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
+            gcn_outputs = outer_gcn_layer(input_adjs[1], outputs)
+            gat_a_outputs, gat_b_outputs = torch.chunk(gcn_outputs, 2, 1)  # [b, t, e] * 2
 
             extra_a_inputs.append(gat_a_outputs * masks_a)
             extra_b_inputs.append(gat_b_outputs * masks_b)
