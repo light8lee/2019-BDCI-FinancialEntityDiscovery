@@ -181,7 +181,7 @@ class GAT_ABCNN1(nn.Module):
             # sim_outputs.append(self._cos_sim(pool_a, pool_b))
             sim_outputs.append(pool_a)
             sim_outputs.append(pool_b)
-            sim_outputs.append(torch.abs(pool_a - pool_b))
+            sim_outputs.append(pool_a - pool_b)
             sim_outputs.append(pool_a * pool_b)
         outputs = torch.cat(sim_outputs, -1)  # [b, h]
 
