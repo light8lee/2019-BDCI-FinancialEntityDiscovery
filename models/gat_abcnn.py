@@ -144,7 +144,7 @@ class GAT_ABCNN1(nn.Module):
             self._cos_sim(
                 self.readout_pool(inputs_a, 1),
                 self.readout_pool(inputs_b, 1)
-            )
+            ).unsqueeze(-1)
         )
 
         # pool_a = self.readout_pool(inputs_a, -1)
@@ -172,7 +172,7 @@ class GAT_ABCNN1(nn.Module):
                 self._cos_sim(
                     self.readout_pool(gat_a_outputs, 1),
                     self.readout_pool(gat_b_outputs, 1)
-                )
+                ).unsqueeze(-1)
             )
 
             extra_a_inputs.append(gat_a_outputs * masks_a)
@@ -184,7 +184,7 @@ class GAT_ABCNN1(nn.Module):
                 self._cos_sim(
                     self.readout_pool(gcn_a_outputs, 1),
                     self.readout_pool(gcn_b_outputs, 1)
-                )
+                ).unsqueeze(-1)
             )
 
             extra_a_inputs.append(gcn_a_outputs * masks_a)
@@ -196,7 +196,7 @@ class GAT_ABCNN1(nn.Module):
 
             pool_a = self.readout_pool(inputs_a, 1)
             pool_b = self.readout_pool(inputs_b, 1)
-            sim_outputs.append(self._cos_sim(pool_a, pool_b))
+            sim_outputs.append(self._cos_sim(pool_a, pool_b).unsqueeze(-1))
             sim_outputs.append(pool_a)
             sim_outputs.append(pool_b)
             sim_outputs.append(torch.abs(pool_a - pool_b))
