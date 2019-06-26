@@ -56,10 +56,10 @@ class GAT_ABCNN1(nn.Module):
             #     GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
             # )
             self.outer_gat_layers.append(
-                GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
+                GATLayer(in_dim, in_dim, num_head, activation, residual=residual, last_layer=False)
             )
             self.outer_gcn_layers.append(
-                GCNLayer(in_dim, hidden_dim, activation, residual=residual)
+                GCNLayer(in_dim, in_dim, activation, residual=residual)
             )
             self.cnn_layers.append(
                 ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=4)
