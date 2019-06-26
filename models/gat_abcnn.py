@@ -65,7 +65,7 @@ class GAT_ABCNN1(nn.Module):
                 ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=4)
             )
             in_dim = hidden_dim
-        out_dim = sum(hidden_dims) * 4 + 4
+        out_dim = sum(hidden_dims) * 4 # + 4
         self.concat_norm = nn.LayerNorm(out_dim)
         pred_layers = []
         for pred_dim in pred_dims:
@@ -140,12 +140,12 @@ class GAT_ABCNN1(nn.Module):
         ]
 
         sim_outputs = []
-        sim_outputs.append(
-            self._cos_sim(
-                self.readout_pool(inputs_a, 1),
-                self.readout_pool(inputs_b, 1)
-            ).unsqueeze(-1)
-        )
+        # sim_outputs.append(
+        #     self._cos_sim(
+        #         self.readout_pool(inputs_a, 1),
+        #         self.readout_pool(inputs_b, 1)
+        #     ).unsqueeze(-1)
+        # )
 
         # pool_a = self.readout_pool(inputs_a, -1)
         # pool_b = self.readout_pool(inputs_b, -1)
@@ -168,24 +168,24 @@ class GAT_ABCNN1(nn.Module):
 
             gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
             gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
-            sim_outputs.append(
-                self._cos_sim(
-                    self.readout_pool(gat_a_outputs, 1),
-                    self.readout_pool(gat_b_outputs, 1)
-                ).unsqueeze(-1)
-            )
+            # sim_outputs.append(
+            #     self._cos_sim(
+            #         self.readout_pool(gat_a_outputs, 1),
+            #         self.readout_pool(gat_b_outputs, 1)
+            #     ).unsqueeze(-1)
+            # )
 
             extra_a_inputs.append(gat_a_outputs * masks_a)
             extra_b_inputs.append(gat_b_outputs * masks_b)
 
             gcn_outputs = outer_gcn_layer(input_adjs[1], outputs)
             gcn_a_outputs, gcn_b_outputs = torch.chunk(gcn_outputs, 2, 1)  # [b, t, e] * 2
-            sim_outputs.append(
-                self._cos_sim(
-                    self.readout_pool(gcn_a_outputs, 1),
-                    self.readout_pool(gcn_b_outputs, 1)
-                ).unsqueeze(-1)
-            )
+            # sim_outputs.append(
+            #     self._cos_sim(
+            #         self.readout_pool(gcn_a_outputs, 1),
+            #         self.readout_pool(gcn_b_outputs, 1)
+            #     ).unsqueeze(-1)
+            # )
 
             extra_a_inputs.append(gcn_a_outputs * masks_a)
             extra_b_inputs.append(gcn_b_outputs * masks_b)
@@ -196,7 +196,7 @@ class GAT_ABCNN1(nn.Module):
 
             pool_a = self.readout_pool(inputs_a, 1)
             pool_b = self.readout_pool(inputs_b, 1)
-            sim_outputs.append(self._cos_sim(pool_a, pool_b).unsqueeze(-1))
+            # sim_outputs.append(self._cos_sim(pool_a, pool_b).unsqueeze(-1))
             sim_outputs.append(pool_a)
             sim_outputs.append(pool_b)
             sim_outputs.append(torch.abs(pool_a - pool_b))
