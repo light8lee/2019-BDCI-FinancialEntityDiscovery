@@ -62,7 +62,7 @@ class GAT_ABCNN1(nn.Module):
                 GCNLayer(in_dim, hidden_dim, activation, residual=residual)
             )
             self.cnn_layers.append(
-                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=3)
+                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=4)
             )
             in_dim = hidden_dim
         out_dim = sum(hidden_dims) * 4
@@ -160,13 +160,17 @@ class GAT_ABCNN1(nn.Module):
             # extra_a_inputs.append(gat_a_outputs * masks_a)
             # extra_b_inputs.append(gat_b_outputs * masks_b)
 
-            # gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
-            # gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
-            gcn_outputs = outer_gcn_layer(input_adjs[1], outputs)
-            gat_a_outputs, gat_b_outputs = torch.chunk(gcn_outputs, 2, 1)  # [b, t, e] * 2
+            gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
+            gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
 
             extra_a_inputs.append(gat_a_outputs * masks_a)
             extra_b_inputs.append(gat_b_outputs * masks_b)
+
+            gcn_outputs = outer_gcn_layer(input_adjs[1], outputs)
+            gcn_a_outputs, gcn_b_outputs = torch.chunk(gcn_outputs, 2, 1)  # [b, t, e] * 2
+
+            extra_a_inputs.append(gcn_a_outputs * masks_a)
+            extra_b_inputs.append(gcn_b_outputs * masks_b)
 
             inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b, extra_a_inputs, extra_b_inputs)
             inputs_a = inputs_a * masks_a
