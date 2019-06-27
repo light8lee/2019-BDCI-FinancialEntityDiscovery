@@ -202,7 +202,7 @@ class GAT_ABCNN1(nn.Module):
             sim_outputs.append(torch.abs(pool_a - pool_b))
             sim_outputs.append(pool_a * pool_b)
         outputs = torch.cat(sim_outputs, -1)  # [b, h]
-        outputs = self.concat_norm(outputs)
+        # outputs = self.concat_norm(outputs)
 
         outputs = self.dense(outputs)
         outputs = torch.log_softmax(outputs, 1)
