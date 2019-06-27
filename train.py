@@ -160,6 +160,7 @@ def train(args):
                     result, loss = infer(data, model, criterion, args.cuda)
                     if phase == 'train':
                         loss.backward()
+                        t.nn.utils.clip_grad_norm_(model.parameters(), 5)
                         optimizer.step()
                 running_results += result
                 running_loss += loss.item()
