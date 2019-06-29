@@ -23,13 +23,21 @@ F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 def infer(data, model, seq_len, cuda):
     features, targets = data
-    batch_ids, batch_masks, batch_adjs = features
+    batch_ids, batch_masks, *batch_adjs = features
     labels = targets.numpy()
 
     if cuda:
-        batch_ids = batch_ids.cuda()
-        batch_masks = batch_masks.cuda()
-        batch_adjs = batch_adjs.cuda()
+        if isinstance(batch_ids, t.Tensor):
+            batch_ids = batch_ids.cuda()
+            batch_masks = batch_masks.cuda()
+        else:
+            batch_ids = [v.cuda() for v in batch_ids]
+            batch_masks = [v.cuda() for v in batch_masks]
+
+        if isinstance(batch_adjs, t.Tensor):
+            batch_adjs = batch_adjs.cuda()
+        else:
+            batch_adjs = [v.cuda() for v in batch_adjs]
         targets = targets.cuda()
     log_pred = model(batch_ids, batch_masks, batch_adjs)
     return np.exp(log_pred.cpu().numpy())
@@ -38,7 +46,7 @@ def predict(args):
     Log = log_info(os.path.join(args.save_dir, 'kfold.info'))
     Log(args)
 
-    model_config, optimizer_config = Config.from_json(args.config)
+    model_config, optimizer_config, _ = Config.from_json(args.config)
     model_name = model_config.name
     model_class = getattr(models, model_name)
 
@@ -56,7 +64,7 @@ def predict(args):
     else:
         model_config.activation = getattr(t, model_config.activation, None) or getattr(F, model_config.activation, None)
 
-    collate_fn = lambda batch: collect_multigraph(model_config.need_norm, batch)
+    collate_fn = lambda batch: collect_multigraph(model_config.need_norm, model_config.concat_ab, batch)
 
     phase = 'test'
     fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
