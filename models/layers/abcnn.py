@@ -22,9 +22,9 @@ class ABCNN1(nn.Module):
 
     def reset_parameters(self):
         for weight in self.parameters():
-            # std_div = 1. / math.sqrt(weight.size(-1))
-            # weight.data.uniform_(-std_div, std_div)
-            torch.nn.init.xavier_uniform_(weight.data)
+            std_div = 1. / math.sqrt(weight.size(-1))
+            weight.data.uniform_(-std_div, std_div)
+        torch.nn.init.xavier_uniform_(self.conv.weight.data)
     
     def forward(self, xa, xb, extra_a_fea=None, extra_b_fea=None):
         extra_a_fea = [] if extra_a_fea is None else list(extra_a_fea)
