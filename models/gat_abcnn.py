@@ -12,13 +12,13 @@ from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 class GAT_ABCNN1(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, window_size, hidden_dims:list,
-                 pred_dims:list, num_heads:list, readout_pool:str, need_norm:bool=False,
+                 pred_dims:list, readout_pool:str, need_norm:bool=False, gnn_channels:list=None,
                  init_weight=None, activation=None, pred_act:str='ELU', need_embed:bool=False,
                  residual:bool=False, freeze:bool=False, mode='add_norm', **kwargs):
 
         super(GAT_ABCNN1, self).__init__()
         assert window_size % 2 == 1
-        assert len(num_heads) == len(hidden_dims)
+        gnn_channels = ["gcn", "gat"] if gnn_channels is None else gnn_channels
         pred_act = getattr(Act, pred_act, nn.ELU)
 
         self.vocab_size = vocab_size
@@ -28,7 +28,8 @@ class GAT_ABCNN1(nn.Module):
         self.window_size = window_size
         self.hidden_dims = hidden_dims
         self.pred_dims = pred_dims
-        self.num_heads = num_heads
+        # self.num_heads = num_heads
+        self.gnn_channels = gnn_channels
         self.freeze = freeze
         self.activation = activation
         self.mode = mode
@@ -37,7 +38,7 @@ class GAT_ABCNN1(nn.Module):
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
-        self.inter_gat_layers = nn.ModuleList()
+        # self.inter_gat_layers = nn.ModuleList()
         self.outer_gat_layers = nn.ModuleList()
         self.outer_gcn_layers = nn.ModuleList()
 
@@ -51,18 +52,23 @@ class GAT_ABCNN1(nn.Module):
             raise ValueError()
 
         in_dim = self.embedding_dim
-        for num_head, hidden_dim in zip(num_heads, hidden_dims):
+        if "gat" in gnn_channels:
+            num_heads = kwargs['num_heads']
+            assert len(num_heads) == len(hidden_dims)
+        for i, hidden_dim in enumerate(hidden_dims):
             # self.inter_gat_layers.append(
             #     GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
             # )
-            self.outer_gat_layers.append(
-                GATLayer(in_dim, in_dim, num_head, activation, residual=residual, last_layer=False)
-            )
-            self.outer_gcn_layers.append(
-                GCNLayer(in_dim, in_dim, activation, residual=residual)
-            )
+            if "gat" in gnn_channels:
+                self.outer_gat_layers.append(
+                    GATLayer(in_dim, in_dim, num_heads[i], activation, residual=residual, last_layer=False)
+                )
+            if "gcn" in gnn_channels:
+                self.outer_gcn_layers.append(
+                    GCNLayer(in_dim, in_dim, activation, residual=residual)
+                )
             self.cnn_layers.append(
-                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=4)
+                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=2+len(gnn_channels))
             )
             in_dim = hidden_dim
         out_dim = sum(hidden_dims) * 4 # + 4
@@ -153,8 +159,8 @@ class GAT_ABCNN1(nn.Module):
         masks_a = masks_a.unsqueeze(-1)
         masks_b = masks_b.unsqueeze(-1)
 
-        # for cnn_layer in self.cnn_layers:
-        for outer_gcn_layer, outer_gat_layer, cnn_layer in zip(self.outer_gcn_layers, self.outer_gat_layers, self.cnn_layers):
+        # for outer_gcn_layer, outer_gat_layer, cnn_layer in zip(self.outer_gcn_layers, self.outer_gat_layers, self.cnn_layers):
+        for i, cnn_layer in enumerate(self.cnn_layers):
             outputs = torch.cat([inputs_a, inputs_b], 1)  # [b, 2t, e]
 
             extra_a_inputs = []
@@ -166,29 +172,31 @@ class GAT_ABCNN1(nn.Module):
             # extra_a_inputs.append(gat_a_outputs * masks_a)
             # extra_b_inputs.append(gat_b_outputs * masks_b)
 
-            gat_outputs = outer_gat_layer(input_adjs[1], outputs)  # [b, 2t, e]
-            gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
-            # sim_outputs.append(
-            #     self._cos_sim(
-            #         self.readout_pool(gat_a_outputs, 1),
-            #         self.readout_pool(gat_b_outputs, 1)
-            #     ).unsqueeze(-1)
-            # )
+            if "gat" in self.gnn_channels:
+                gat_outputs = self.outer_gat_layers[i](input_adjs[1], outputs)  # [b, 2t, e]
+                gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
+                # sim_outputs.append(
+                #     self._cos_sim(
+                #         self.readout_pool(gat_a_outputs, 1),
+                #         self.readout_pool(gat_b_outputs, 1)
+                #     ).unsqueeze(-1)
+                # )
 
-            extra_a_inputs.append(gat_a_outputs * masks_a)
-            extra_b_inputs.append(gat_b_outputs * masks_b)
+                extra_a_inputs.append(gat_a_outputs * masks_a)
+                extra_b_inputs.append(gat_b_outputs * masks_b)
 
-            gcn_outputs = outer_gcn_layer(input_adjs[1], outputs)
-            gcn_a_outputs, gcn_b_outputs = torch.chunk(gcn_outputs, 2, 1)  # [b, t, e] * 2
-            # sim_outputs.append(
-            #     self._cos_sim(
-            #         self.readout_pool(gcn_a_outputs, 1),
-            #         self.readout_pool(gcn_b_outputs, 1)
-            #     ).unsqueeze(-1)
-            # )
+            if "gcn" in self.gnn_channels:
+                gcn_outputs = self.outer_gcn_layers[i](input_adjs[1], outputs)
+                gcn_a_outputs, gcn_b_outputs = torch.chunk(gcn_outputs, 2, 1)  # [b, t, e] * 2
+                # sim_outputs.append(
+                #     self._cos_sim(
+                #         self.readout_pool(gcn_a_outputs, 1),
+                #         self.readout_pool(gcn_b_outputs, 1)
+                #     ).unsqueeze(-1)
+                # )
 
-            extra_a_inputs.append(gcn_a_outputs * masks_a)
-            extra_b_inputs.append(gcn_b_outputs * masks_b)
+                extra_a_inputs.append(gcn_a_outputs * masks_a)
+                extra_b_inputs.append(gcn_b_outputs * masks_b)
 
             inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b, extra_a_inputs, extra_b_inputs)
             inputs_a = inputs_a * masks_a
