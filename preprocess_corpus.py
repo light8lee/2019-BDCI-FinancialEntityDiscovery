@@ -167,14 +167,14 @@ def create_training_instances(input_file, tokenizer, max_seq_length, rng):
 def create_instance(tokens_a, tokens_b, label, vocab_words, max_seq_length, rng):
     """Creates `TrainingInstance`s for a single document."""
 
-    # Account for [CLS] [SEP]
-    max_num_tokens = max_seq_length - 2
+    # Account for [CLS] [SEP] (not used)
+    max_num_tokens = max_seq_length
     truncate_seq(tokens_a, max_num_tokens, rng)
     truncate_seq(tokens_b, max_num_tokens, rng)
-    tokens_a.insert(0, '[CLS]')
-    tokens_b.insert(0, '[CLS]')
-    tokens_a.append('[SEP]')
-    tokens_b.append('[SEP]')
+    # tokens_a.insert(0, '[CLS]')
+    # tokens_b.insert(0, '[CLS]')
+    # tokens_a.append('[SEP]')
+    # tokens_b.append('[SEP]')
     instance = Instance(tokens_a, tokens_b, label)
     return instance
 
