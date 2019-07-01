@@ -38,7 +38,6 @@ class GAT_ABCNN1(nn.Module):
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
-        # self.inter_gat_layers = nn.ModuleList()
         self.outer_gat_layers = nn.ModuleList()
         self.outer_gcn_layers = nn.ModuleList()
 
@@ -56,9 +55,6 @@ class GAT_ABCNN1(nn.Module):
             num_heads = kwargs['num_heads']
             assert len(num_heads) == len(hidden_dims)
         for i, hidden_dim in enumerate(hidden_dims):
-            # self.inter_gat_layers.append(
-            #     GATLayer(in_dim, hidden_dim, num_head, activation, residual=residual, last_layer=False)
-            # )
             if "gat" in gnn_channels:
                 self.outer_gat_layers.append(
                     GATLayer(in_dim, in_dim, num_heads[i], activation, residual=residual, last_layer=False)
@@ -140,10 +136,7 @@ class GAT_ABCNN1(nn.Module):
         inputs_a = self.embedding(inputs_a)  # [b, t, e]
         inputs_b = self.embedding(inputs_b)  # [b, t, e]
 
-        input_adjs = [
-            self._normalize_adjs(input_masks, input_adjs[0]),
-            self._normalize_adjs(input_masks, input_adjs[1]),
-        ]
+        input_adjs = self._normalize_adjs(input_masks, input_adjs),
 
         sim_outputs = []
         # sim_outputs.append(
@@ -159,21 +152,14 @@ class GAT_ABCNN1(nn.Module):
         masks_a = masks_a.unsqueeze(-1)
         masks_b = masks_b.unsqueeze(-1)
 
-        # for outer_gcn_layer, outer_gat_layer, cnn_layer in zip(self.outer_gcn_layers, self.outer_gat_layers, self.cnn_layers):
         for i, cnn_layer in enumerate(self.cnn_layers):
             outputs = torch.cat([inputs_a, inputs_b], 1)  # [b, 2t, e]
 
             extra_a_inputs = []
             extra_b_inputs = []
 
-            # gat_outputs = inter_gat_layer(input_adjs[0], outputs)  # [b, 2t, e]
-            # gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
-
-            # extra_a_inputs.append(gat_a_outputs * masks_a)
-            # extra_b_inputs.append(gat_b_outputs * masks_b)
-
             if "gat" in self.gnn_channels:
-                gat_outputs = self.outer_gat_layers[i](input_adjs[1], outputs)  # [b, 2t, e]
+                gat_outputs = self.outer_gat_layers[i](input_adjs, outputs)  # [b, 2t, e]
                 gat_a_outputs, gat_b_outputs = torch.chunk(gat_outputs, 2, 1)  # [b, t, e] * 2
                 # sim_outputs.append(
                 #     self._cos_sim(
@@ -186,7 +172,7 @@ class GAT_ABCNN1(nn.Module):
                 extra_b_inputs.append(gat_b_outputs * masks_b)
 
             if "gcn" in self.gnn_channels:
-                gcn_outputs = self.outer_gcn_layers[i](input_adjs[1], outputs)
+                gcn_outputs = self.outer_gcn_layers[i](input_adjs, outputs)
                 gcn_a_outputs, gcn_b_outputs = torch.chunk(gcn_outputs, 2, 1)  # [b, t, e] * 2
                 # sim_outputs.append(
                 #     self._cos_sim(

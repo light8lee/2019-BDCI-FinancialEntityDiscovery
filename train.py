@@ -25,7 +25,7 @@ F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 def infer(data, model, criterion, cuda):
     features, targets = data
-    batch_ids, batch_masks, *batch_adjs = features
+    batch_ids, batch_masks, batch_adjs = features
     labels = targets.numpy()
 
     if cuda:

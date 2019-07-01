@@ -123,10 +123,10 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
         feature["inputs_b"] = inputs_b  # 输入ids
         feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
         inter_pos, outer_pos = create_adj_from_tokens(instance, max_seq_length)
-        inter_rows, inter_cols = zip(*inter_pos)
+        # inter_rows, inter_cols = zip(*inter_pos)
         outer_rows, outer_cols = zip(*outer_pos)
-        feature['inter_rows'] = inter_rows
-        feature['inter_cols'] = inter_cols
+        # feature['inter_rows'] = inter_rows
+        # feature['inter_cols'] = inter_cols
         feature['outer_rows'] = outer_rows
         feature['outer_cols'] = outer_cols
 
