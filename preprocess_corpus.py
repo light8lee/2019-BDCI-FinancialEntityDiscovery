@@ -93,12 +93,9 @@ def create_adj_from_tokens(instance, max_seq_length):
     inter_positions = []
     for i in range(len(instance.tokens_a)):
         for j in range(len(instance.tokens_b)):
-            if instance.tokens_a[i] != instance.tokens_b[j]:
-                outer_positions.append((i, j+max_seq_length))  # different words
-            else:
-                inter_positions.append((i, j+max_seq_length))  # same words
+            outer_positions.append((i, j+max_seq_length))
 
-    return inter_positions, outer_positions
+    return outer_positions
 
 
 def write_instance_to_example_files(instances, tokenizer, max_seq_length, output_file, rng):
@@ -122,7 +119,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
         feature["input_mask_a"] = input_mask_a  # mask ids的padding部分
         feature["inputs_b"] = inputs_b  # 输入ids
         feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
-        inter_pos, outer_pos = create_adj_from_tokens(instance, max_seq_length)
+        outer_pos = create_adj_from_tokens(instance, max_seq_length)
         # inter_rows, inter_cols = zip(*inter_pos)
         outer_rows, outer_cols = zip(*outer_pos)
         # feature['inter_rows'] = inter_rows
