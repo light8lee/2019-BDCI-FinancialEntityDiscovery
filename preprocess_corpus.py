@@ -185,15 +185,17 @@ Instance = collections.namedtuple("Instance",
 
 def truncate_seq(tokens, max_num_tokens, rng):
     """Truncates a pair of sequences to a maximum sequence length."""
-    while True:
-        total_length = len(tokens)
-        if total_length <= max_num_tokens:
-            break
+    while len(tokens) > max_num_tokens:
+        tokens.pop()
+    # while True:
+    #     total_length = len(tokens)
+    #     if total_length <= max_num_tokens:
+    #         break
 
-        if rng.random() < 0.5:
-            del tokens[0]
-        else:
-            tokens.pop()
+    #     if rng.random() < 0.5:
+    #         del tokens[0]
+    #     else:
+    #         tokens.pop()
 
 def _prepare(tokenizer, input_file, output_file):
     print("*** Reading from input files ***")
