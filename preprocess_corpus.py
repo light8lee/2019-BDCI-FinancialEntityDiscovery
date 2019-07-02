@@ -22,7 +22,7 @@ import collections
 import itertools
 from tqdm import tqdm
 import random
-import tokenization
+# import tokenization
 import numpy as np
 import pickle
 import os
@@ -221,7 +221,7 @@ class Tokenizer(object):
         self.unk = unk
         self.do_lower_case = do_lower_case
     
-    def tokenize(self, tokens):
+    def convert_tokens_to_ids(self, tokens):
         token_ids = []
         for token in tokens:
             if self.do_lower_case:
@@ -230,6 +230,9 @@ class Tokenizer(object):
                 self.char2id[token] if token in self.char2id else self.char2id[self.unk]
             )
         return token_ids
+    
+    def tokenize(self, tokens):
+        return list(tokens)
 
 
 def prepare_origin():
