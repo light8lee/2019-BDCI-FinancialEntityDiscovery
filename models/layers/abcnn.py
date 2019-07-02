@@ -38,9 +38,11 @@ class ABCNN1(nn.Module):
 
     def reset_parameters(self):
         for weight in self.parameters():
-            std_div = 1. / math.sqrt(weight.size(-1))
-            weight.data.uniform_(-std_div, std_div)
-        torch.nn.init.xavier_uniform_(self.conv.weight.data)
+            if len(weight.shape) > 1:
+                torch.nn.init.xavier_uniform_(weight.data)
+            else:
+                std_div = 1. / math.sqrt(weight.size(-1))
+                weight.data.uniform_(-std_div, std_div)
     
     def euclidean_attn(self, xa, xb):
         xa_expanded = xa.unsqueeze(-2)  # [b, t1, 1, e]
