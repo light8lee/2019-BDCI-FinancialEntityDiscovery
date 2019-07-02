@@ -164,8 +164,8 @@ def create_training_instances(input_file, tokenizer, max_seq_length, rng):
 
             tokens_a = tokenizer.tokenize(line_a)
             tokens_b = tokenizer.tokenize(line_b)
-            assert len(tokens_a) == line_a
-            assert len(tokens_b) == line_b
+            assert len(tokens_a) == len(line_a)
+            assert len(tokens_b) == len(line_b)
             yield create_instance(tokens_a, tokens_b, label, max_seq_length, rng)
 
 
