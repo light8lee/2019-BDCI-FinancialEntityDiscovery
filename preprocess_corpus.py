@@ -90,7 +90,6 @@ def get_pos(s, offset=0):
 
 def create_adj_from_tokens(instance, max_seq_length):
     outer_positions = []
-    inter_positions = []
     for i in range(len(instance.tokens_a)):
         for j in range(len(instance.tokens_b)):
             outer_positions.append((i, j+max_seq_length))
@@ -109,6 +108,8 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
 
     fea_pos = 0
     for (inst_index, instance) in pbar:
+        if not instance.tokens_a or not instance.tokens_b:
+            continue
 
         feature = collections.OrderedDict()
         target = collections.OrderedDict()
@@ -121,7 +122,15 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
         feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
         outer_pos = create_adj_from_tokens(instance, max_seq_length)
         # inter_rows, inter_cols = zip(*inter_pos)
-        outer_rows, outer_cols = zip(*outer_pos)
+        try:
+            outer_rows, outer_cols = zip(*outer_pos)
+        except:
+            print(output_file)
+            print(instance.tokens_a)
+            print(instance.tokens_b)
+            print(inputs_a)
+            print(inputs_b)
+            exit(0)
         # feature['inter_rows'] = inter_rows
         # feature['inter_cols'] = inter_cols
         feature['outer_rows'] = outer_rows
@@ -153,11 +162,11 @@ def create_training_instances(input_file, tokenizer, max_seq_length, rng):
             line = ''.join(line.split('@@'))
             _, line_a, line_b, label = line.split('##')
             label = int(label)
-            line_a = tokenization.convert_to_unicode(line_a)
-            line_b = tokenization.convert_to_unicode(line_b)
 
             tokens_a = tokenizer.tokenize(line_a)
             tokens_b = tokenizer.tokenize(line_b)
+            assert len(tokens_a) == line_a
+            assert len(tokens_b) == line_b
             yield create_instance(tokens_a, tokens_b, label, vocab_words, max_seq_length, rng)
 
 
@@ -205,8 +214,27 @@ def _prepare(tokenizer, input_file, output_file):
                                     output_file, rng)
 
 
+class Tokenizer(object):
+    def __init__(self, vocab_file, do_lower_case=True, unk='[UNK]'):
+        with open(vocab_file, encoding='utf-8') as f:
+            self.id2char = list(map(str.strip, f))
+            self.char2id = {ch: id for id, ch in enumerate(self.id2char)}
+        self.unk = unk
+        self.do_lower_case = do_lower_case
+    
+    def tokenize(self, tokens):
+        token_ids = []
+        for token in tokens:
+            if self.do_lower_case:
+                token = token.lower()
+            token_ids.append(
+                self.char2id[token] if token in self.char2id else self.char2id[self.unk]
+            )
+        return token_ids
+
+
 def prepare_origin():
-    tokenizer = tokenization.FullTokenizer(
+    tokenizer = Tokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
     for name in ['train', 'test', 'dev']:
@@ -216,7 +244,7 @@ def prepare_origin():
 
 
 def prepare_kfold():
-    tokenizer = tokenization.FullTokenizer(
+    tokenizer = Tokenizer(
         vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
 
     for k in range(10):
