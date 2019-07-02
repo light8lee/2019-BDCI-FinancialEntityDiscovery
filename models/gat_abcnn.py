@@ -11,7 +11,7 @@ from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 
 class GAT_ABCNN1(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
-                 embedding_dim, window_size, hidden_dims:list,
+                 embedding_dim, window_size, hidden_dims:list, attn,
                  pred_dims:list, readout_pool:str, need_norm:bool=False, gnn_channels:list=None,
                  init_weight=None, activation=None, pred_act:str='ELU', need_embed:bool=False,
                  residual:bool=False, freeze:bool=False, mode='add_norm', **kwargs):
@@ -64,7 +64,8 @@ class GAT_ABCNN1(nn.Module):
                     GCNLayer(in_dim, in_dim, activation, residual=residual)
                 )
             self.cnn_layers.append(
-                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation, num_channel=2+len(gnn_channels))
+                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation,
+                       num_extra_channel=len(gnn_channels), attn=attn)
             )
             in_dim = hidden_dim
         out_dim = sum(hidden_dims) * 4 # + 4
