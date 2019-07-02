@@ -153,7 +153,6 @@ def create_training_instances(input_file, tokenizer, max_seq_length, rng):
     """Create `TrainingInstance`s from raw text."""
 
     # Input file format:
-    vocab_words = list(tokenizer.vocab.keys())
     with open(input_file, "r") as reader:
         for line in reader:
             line = line.strip()
@@ -167,10 +166,10 @@ def create_training_instances(input_file, tokenizer, max_seq_length, rng):
             tokens_b = tokenizer.tokenize(line_b)
             assert len(tokens_a) == line_a
             assert len(tokens_b) == line_b
-            yield create_instance(tokens_a, tokens_b, label, vocab_words, max_seq_length, rng)
+            yield create_instance(tokens_a, tokens_b, label, max_seq_length, rng)
 
 
-def create_instance(tokens_a, tokens_b, label, vocab_words, max_seq_length, rng):
+def create_instance(tokens_a, tokens_b, label, max_seq_length, rng):
     """Creates `TrainingInstance`s for a single document."""
 
     # Account for [CLS] [SEP] (not used)
