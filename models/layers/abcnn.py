@@ -63,8 +63,8 @@ class ABCNN1(nn.Module):
             xa,
             xb.transpose(-1, -2)
         )  # [b, t1, t2]
-        xa_attn = torch.softmax(attn, -1) * xb  # [b, t1, t2]
-        xb_attn = torch.softmax(attn.transpose(-1, -2), -1) * xa  # [b, t2, t1]
+        xa_attn = torch.matmul(torch.softmax(attn, -1), xb)  # [b, t1, t2]
+        xb_attn = torch.matmul(torch.softmax(attn.transpose(-1, -2), -1), xa)  # [b, t2, t1]
 
         return xa_attn, xb_attn
     
