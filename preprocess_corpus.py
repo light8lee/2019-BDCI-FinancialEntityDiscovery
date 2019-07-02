@@ -40,29 +40,6 @@ flags.add_argument('--random_seed', type=int, default=12345)
 FLAGS = flags.parse_args()
 
 
-class TrainingInstance(object):
-    """A single training instance (sentence pair)."""
-
-    def __init__(self, tokens, masked_lm_positions, masked_lm_labels):
-        self.tokens = tokens
-        # self.is_random_next = is_random_next
-        self.masked_lm_positions = masked_lm_positions
-        self.masked_lm_labels = masked_lm_labels
-
-    def __str__(self):
-        s = ""
-        s += "tokens: %s\n" % (" ".join(
-            [tokenization.printable_text(x) for x in self.tokens]))
-        s += "masked_lm_positions: %s\n" % (" ".join(
-            [str(x) for x in self.masked_lm_positions]))
-        s += "masked_lm_labels: %s\n" % (" ".join(
-            [tokenization.printable_text(x) for x in self.masked_lm_labels]))
-        s += "\n"
-        return s
-
-    def __repr__(self):
-        return self.__str__()
-
 def get_padded_tokens(tokens, tokenizer, max_seq_length, pad='after'):
     input_ids = tokenizer.convert_tokens_to_ids(tokens)
     input_mask = [1] * len(input_ids)
