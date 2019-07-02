@@ -98,7 +98,6 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
         feature["inputs_b"] = inputs_b  # 输入ids
         feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
         outer_pos = create_adj_from_tokens(instance, max_seq_length)
-        # inter_rows, inter_cols = zip(*inter_pos)
         try:
             outer_rows, outer_cols = zip(*outer_pos)
         except:

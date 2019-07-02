@@ -28,8 +28,8 @@ def collect_multigraph(need_norm, concat_ab, batch):
 
     batch_size = len(batch)
     features, targets = zip(*batch)
-    batch_inputs_a, batch_mask_a, batch_inputs_b, batch_mask_b, batch_inter_rows, \
-        batch_inter_cols, batch_outer_rows, batch_outer_cols = zip(*features)
+    batch_inputs_a, batch_mask_a, batch_inputs_b, batch_mask_b, \
+        batch_outer_rows, batch_outer_cols = zip(*features)
     seq_len = len(batch_inputs_a[0])
     shape = (2*seq_len, 2*seq_len)
 
@@ -64,16 +64,13 @@ def collect_multigraph(need_norm, concat_ab, batch):
             mtx = sparse_scipy2torch(mtx)
             batch_adjs.append(mtx)
         return batch_adjs
-    batch_inter_adjs = _collect_adjs(batch_inter_rows, batch_inter_cols)
-    batch_inter_adjs = t.stack(batch_inter_adjs, 0)
-    batch_inter_adjs = batch_inter_adjs.to_dense().float()
     batch_outer_adjs = _collect_adjs(batch_outer_rows, batch_outer_cols)
     batch_outer_adjs = t.stack(batch_outer_adjs, 0)
     batch_outer_adjs = batch_outer_adjs.to_dense().float()
 
     targets = t.from_numpy(np.array(targets)).long()
 
-    return (batch_inputs, batch_masks, batch_inter_adjs, batch_outer_adjs), targets
+    return (batch_inputs, batch_masks, batch_outer_adjs), targets
 
 
 if __name__ == '__main__':
