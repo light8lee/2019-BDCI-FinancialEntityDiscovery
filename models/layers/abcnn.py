@@ -58,6 +58,8 @@ class ABCNN1(nn.Module):
         return xa_attn, xb_attn
     
     def softmax_attn(self, xa, xb):
+        mask_a = (xa.sum(-1, keepdim=True) == 0).transpose(-1, -2)  # [b, 1, t1]
+        mask_b = (xb.sum(-1, keepdim=True) == 0).transpose(-1, -2)  # [b, 1, t2]
         xa = self.left_mlp(xa)
         xb = self.left_mlp(xb)
 
@@ -65,8 +67,8 @@ class ABCNN1(nn.Module):
             xa,
             xb.transpose(-1, -2)
         )  # [b, t1, t2]
-        xa_attn = torch.matmul(torch.softmax(attn, -1), xb)  # [b, t1, t2]
-        xb_attn = torch.matmul(torch.softmax(attn.transpose(-1, -2), -1), xa)  # [b, t2, t1]
+        xa_attn = torch.matmul(torch.softmax(attn.masked_fill(mask_b, -1e9), -1), xb)  # [b, t1, e]
+        xb_attn = torch.matmul(torch.softmax(attn.transpose(-1, -2).masked_fill(mask_a, -1e9), -1), xa)  # [b, t2, e]
 
         return xa_attn, xb_attn
     
