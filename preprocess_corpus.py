@@ -69,7 +69,8 @@ def create_adj_from_tokens(instance, max_seq_length):
     outer_positions = []
     for i in range(len(instance.tokens_a)):
         for j in range(len(instance.tokens_b)):
-            outer_positions.append((i, j+max_seq_length))
+            if instance.tokens_a[i] != instance.tokens_b[j]:
+                outer_positions.append((i, j+max_seq_length))
 
     return outer_positions
 
