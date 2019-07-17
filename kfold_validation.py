@@ -55,15 +55,6 @@ def predict(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
-    if model_config.activation is None:
-        pass
-    elif model_config.activation == 'identical':
-        model_config.activation = lambda v: v
-    elif model_config.activation == 'gelu':
-        model_config.activation = models.layers.activation.gelu
-    else:
-        model_config.activation = getattr(t, model_config.activation, None) or getattr(F, model_config.activation, None)
-
     collate_fn = lambda batch: collect_multigraph(model_config.need_norm, model_config.concat_ab, batch)
 
     phase = 'test'
@@ -79,13 +70,10 @@ def predict(args):
     dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                             shuffle=False, collate_fn=collate_fn, num_workers=1)
 
-    epochs = args.best_epochs
-    epochs = epochs.split(',')
-    assert len(epochs) == 10
     total_proba = None
-    for fold, epoch in enumerate(epochs):
+    for fold in range(10):
         model = model_class(**model_config.values)
-        ckpt_file = os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(fold, epoch))
+        ckpt_file = os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(fold))
         if os.path.isfile(ckpt_file):
             load_ckpt(ckpt_file, model)
         else:
@@ -123,7 +111,6 @@ def predict(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('best_epochs', type=str)
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--data', type=str, default="./inputs/train", help="input/target data name")

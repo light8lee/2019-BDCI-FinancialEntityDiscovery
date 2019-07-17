@@ -192,10 +192,14 @@ def train(args):
                                 epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                             save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
                                                 epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+                            save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.best.pt.tar'.format(args.fold, args.local_rank)),
+                                                epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                     else:
                         Log('dev Epoch {}: Saving New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                             epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
                         save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
+                                               epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+                        save_ckpt(os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(args.fold)),
                                                epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                 else:
                     if args.multi_gpu:
