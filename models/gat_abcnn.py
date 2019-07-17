@@ -12,12 +12,14 @@ from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 class GAT_ABCNN1(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate,
                  embedding_dim, window_size, hidden_dims:list, attn,
-                 pred_dims:list, readout_pool:str, need_norm:bool=False, gnn_channels:list=None,
+                 readout_pool:str, mode:str='concat', pred_dims:list=None,
+                 need_norm:bool=False, gnn_channels:list=None,
                  init_weight=None, activation=None, pred_act:str='ELU', need_embed:bool=False,
-                 residual:bool=False, freeze:bool=False, mode='add_norm', **kwargs):
+                 residual:bool=False, freeze:bool=False, **kwargs):
 
         super(GAT_ABCNN1, self).__init__()
         assert window_size % 2 == 1
+        assert mode in ['cos', 'concat']
         gnn_channels = ["gcn", "gat"] if gnn_channels is None else gnn_channels
         pred_act = getattr(Act, pred_act, nn.ELU)
 
@@ -31,7 +33,7 @@ class GAT_ABCNN1(nn.Module):
         # self.num_heads = num_heads
         self.gnn_channels = gnn_channels
         self.freeze = freeze
-        self.activation = activation
+        self.activation = getattr(Act, activation)
         self.mode = mode
         self.need_embed = need_embed
         self.need_norm = need_norm
@@ -57,32 +59,37 @@ class GAT_ABCNN1(nn.Module):
         for i, hidden_dim in enumerate(hidden_dims):
             if "gat" in gnn_channels:
                 self.outer_gat_layers.append(
-                    GATLayer(in_dim, in_dim, num_heads[i], activation, residual=residual, last_layer=False)
+                    GATLayer(in_dim, in_dim, num_heads[i], self.activation, residual=residual, last_layer=False)
                 )
             if "gcn" in gnn_channels:
                 self.outer_gcn_layers.append(
-                    GCNLayer(in_dim, in_dim, activation, residual=residual)
+                    GCNLayer(in_dim, in_dim, self.activation, residual=residual)
                 )
             self.cnn_layers.append(
-                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, activation,
+                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, self.activation,
                        num_extra_channel=len(gnn_channels), attn=attn)
             )
             in_dim = hidden_dim
-        out_dim = sum(hidden_dims) * 4 # + 4
-        self.concat_norm = nn.LayerNorm(out_dim)
-        pred_layers = []
-        for pred_dim in pred_dims:
+        if mode == 'concat':
+            out_dim = sum(hidden_dims) * 4 # + 4
+            self.concat_norm = nn.LayerNorm(out_dim)
+            pred_layers = []
+            for pred_dim in pred_dims:
+                pred_layers.append(
+                    nn.Linear(out_dim, pred_dim)
+                )
+                pred_layers.append(pred_act())
+                pred_layers.append(nn.Dropout(p=self.drop_rate))
+                out_dim = pred_dim
             pred_layers.append(
-                nn.Linear(out_dim, pred_dim)
+                nn.Linear(out_dim, 2)
             )
-            pred_layers.append(pred_act())
-            pred_layers.append(nn.Dropout(p=self.drop_rate))
-            out_dim = pred_dim
-        pred_layers.append(
-            nn.Linear(out_dim, 2)
-        )
 
-        self.dense = nn.Sequential(*pred_layers)
+            self.dense = nn.Sequential(*pred_layers)
+        elif mode == 'cos':
+            self.dense = nn.Sequential(
+                nn.Linear(4, 2)
+            )
 
     def init_unit_embedding(self, init_weight=None, padding_idx=0):
         vecs = nn.Embedding(self.vocab_size, self.embedding_dim,
@@ -110,7 +117,8 @@ class GAT_ABCNN1(nn.Module):
             d_inv_sqrt = torch.pow(row_sum, -0.5)  # [b, t]
             d_inv_sqrt *= input_masks  # [b, t], keep padding values to 0
             normalization = d_inv_sqrt.unsqueeze(-1) * d_inv_sqrt.unsqueeze(1) # [b, t, t]
-            input_adjs *= normalization
+            norm_adjs = input_adjs * normalization
+            input_adjs = norm_adjs.masked_fill(input_adjs==0, 0)
         return input_adjs
 
     def _cos_sim(self, inputs_a, inputs_b):
@@ -132,14 +140,15 @@ class GAT_ABCNN1(nn.Module):
         """
         inputs_a, inputs_b = input_ids
         masks_a, masks_b = input_masks
+        len_a = torch.sum(masks_a, -1) / 80
+        len_b = torch.sum(masks_b, -1) / 80
         input_masks = torch.cat(input_masks, 1)  # [b, 2t]
         
         inputs_a = self.embedding(inputs_a)  # [b, t, e]
         inputs_b = self.embedding(inputs_b)  # [b, t, e]
 
-        input_adjs = self._normalize_adjs(input_masks, input_adjs),
+        input_adjs = self._normalize_adjs(input_masks, input_adjs)
 
-        sim_outputs = []
         # sim_outputs.append(
         #     self._cos_sim(
         #         self.readout_pool(inputs_a, 1),
@@ -153,8 +162,11 @@ class GAT_ABCNN1(nn.Module):
         masks_a = masks_a.unsqueeze(-1)
         masks_b = masks_b.unsqueeze(-1)
 
+        outputs_a = inputs_a
+        outputs_b = inputs_b
+
         for i, cnn_layer in enumerate(self.cnn_layers):
-            outputs = torch.cat([inputs_a, inputs_b], 1)  # [b, 2t, e]
+            outputs = torch.cat([outputs_a, outputs_b], 1)  # [b, 2t, e]
 
             extra_a_inputs = []
             extra_b_inputs = []
@@ -185,19 +197,35 @@ class GAT_ABCNN1(nn.Module):
                 extra_a_inputs.append(gcn_a_outputs * masks_a)
                 extra_b_inputs.append(gcn_b_outputs * masks_b)
 
-            inputs_a, inputs_b = cnn_layer(inputs_a, inputs_b, extra_a_inputs, extra_b_inputs)
-            inputs_a = inputs_a * masks_a
-            inputs_b = inputs_b * masks_b
+            outputs_a, outputs_b = cnn_layer(outputs_a, outputs_b, extra_a_inputs, extra_b_inputs)
+            outputs_a = outputs_a * masks_a
+            outputs_b = outputs_b * masks_b
 
-            pool_a = self.readout_pool(inputs_a, 1)
-            pool_b = self.readout_pool(inputs_b, 1)
+        if self.mode == 'concat':
+            sim_outputs = []
+            pool_a = self.readout_pool(outputs_a, 1)
+            pool_b = self.readout_pool(outputs_b, 1)
             # sim_outputs.append(self._cos_sim(pool_a, pool_b).unsqueeze(-1))
             sim_outputs.append(pool_a)
             sim_outputs.append(pool_b)
             sim_outputs.append(torch.abs(pool_a - pool_b))
             sim_outputs.append(pool_a * pool_b)
-        outputs = torch.cat(sim_outputs, -1)  # [b, h]
-        # outputs = self.concat_norm(outputs)
+            outputs = torch.cat(sim_outputs, -1)  # [b, h]
+            # outputs = self.concat_norm(outputs)
+        elif self.mode == 'cos':
+            sim_outputs = [len_a, len_b]
+            pool_a = self.readout_pool(inputs_a, 1)
+            pool_b = self.readout_pool(inputs_b, 1)
+            sim_outputs.append(
+                self._cos_sim(pool_a, pool_b)
+            )
+
+            pool_a = self.readout_pool(outputs_a, 1)
+            pool_b = self.readout_pool(outputs_b, 1)
+            sim_outputs.append(
+                self._cos_sim(pool_a, pool_b)
+            )
+            outputs = torch.stack(sim_outputs, -1)  # [b, 2]
 
         outputs = self.dense(outputs)
         outputs = torch.log_softmax(outputs, 1)
