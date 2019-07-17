@@ -68,15 +68,6 @@ def train(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
-    if model_config.activation is None:
-        pass
-    elif model_config.activation == 'identical':
-        model_config.activation = lambda v: v
-    elif model_config.activation == 'gelu':
-        model_config.activation = models.layers.activation.gelu
-    else:
-        model_config.activation = getattr(t, model_config.activation, None) or getattr(F, model_config.activation, None)
-
     model = model_class(**model_config.values)
 
     criterion = nn.NLLLoss()

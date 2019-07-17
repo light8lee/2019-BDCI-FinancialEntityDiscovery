@@ -2,6 +2,11 @@ import numpy as np
 import torch as t
 import torch.nn as nn
 from torch.nn.modules.activation import *
+from torch.nn.functional import *
+
+def identical(x):
+    return x
+
 
 def gelu(x):
     cdf = 0.5 * (1.0 + t.tanh(
@@ -16,3 +21,11 @@ class GeLU(nn.Module):
 
     def forward(self, x):
         return gelu(x)
+
+
+class Identical(nn.Module):
+    def __init__(self):
+        super(Identical, self).__init__()
+
+    def forward(self, x):
+        return identical(x)
