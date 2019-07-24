@@ -33,11 +33,13 @@ flags.add_argument("input_dir")
 flags.add_argument("output_dir")
 flags.add_argument("vocab_file")
 flags.add_argument('--type', default='kfold', type=str, choices=['kfold', 'origin'])
-flags.add_argument('--do_lower_case', default=True, type=bool)
+flags.add_argument('--do_lower_case', action='store_true', dest='do_lower_case')
+flags.set_defaults(do_lower_case=False)
 flags.add_argument('--max_seq_length', default=50, type=int)
 flags.add_argument('--random_seed', type=int, default=12345)
 
 FLAGS = flags.parse_args()
+print(FLAGS)
 
 
 def get_padded_tokens(tokens, tokenizer, max_seq_length, pad='after'):
@@ -69,9 +71,23 @@ def create_adj_from_tokens(instance, max_seq_length):
     outer_positions = []
     for i in range(len(instance.tokens_a)):
         for j in range(len(instance.tokens_b)):
-            if instance.tokens_a[i] != instance.tokens_b[j]:
+            if instance.tokens_a[i] == instance.tokens_b[j]:
                 outer_positions.append((i, j+max_seq_length))
 
+#     return outer_positions
+# def create_adj_from_tokens(instance, max_seq_length):
+#     pos1 = get_pos(instance.tokens_a)
+#     pos2 = get_pos(instance.tokens_b, max_seq_length)
+#     up_positions = []
+#     for key in pos1:
+#         up_positions.extend(itertools.product(pos1[key], pos2[key]))  # 只记录了tokens_a到tokens_b的边对应的邻接矩阵
+    for i in range(len(instance.tokens_a)-1):
+        outer_positions.append((i, i+1))  # 句子内指向下个字的边
+    for j in range(len(instance.tokens_b)-1):
+        i = j + max_seq_length
+        outer_positions.append((i, i+1))  # 句子内指向下个字的边
+    # rows, cols = zip(*up_positions)  #  上三角矩阵
+    # return rows, cols
     return outer_positions
 
 

@@ -23,6 +23,10 @@ class ABCNN1(nn.Module):
             self.left_mlp = self.get_mlp(2)
             self.right_mlp = self.get_mlp(2)
             self.num_channel += 1
+        elif attn == 'none':
+            pass
+        else:
+            raise ValueError("No such attn: `{}`".format(attn))
         self.conv = nn.Conv2d(self.num_channel, out_dim, kernel_size=(window_size, in_dim),
                               padding=(window_size//2, 0), stride=1, dilation=1)
         
@@ -61,7 +65,7 @@ class ABCNN1(nn.Module):
         mask_a = (xa.sum(-1, keepdim=True) == 0).transpose(-1, -2)  # [b, 1, t1]
         mask_b = (xb.sum(-1, keepdim=True) == 0).transpose(-1, -2)  # [b, 1, t2]
         xa = self.left_mlp(xa)
-        xb = self.left_mlp(xb)
+        xb = self.right_mlp(xb)
 
         attn = torch.matmul(
             xa,
