@@ -203,6 +203,6 @@ class RNN(nn.Module):
 
         outputs = torch.cat(sim_outputs, -1)
         outputs = self.dense(outputs)  # [b, 1]
-        # outputs = torch.log_softmax(outputs, 1)
+        outputs = torch.log_softmax(outputs, 1)
 
         return outputs
