@@ -33,7 +33,6 @@ class RNN(nn.Module):
         self.freeze = freeze
         self.need_norm = need_norm
         self.gnn_channels = gnn_channels
-        self.extra_dim = extra_dim
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.rnn_layers = nn.ModuleList()  # to be replaced in subclass
@@ -99,7 +98,6 @@ class RNN(nn.Module):
 
         self.pred_dims = pred_dims
         pred_layers = []
-        out_dim += extra_dim
         for pred_dim in pred_dims:
             pred_layers.append(
                 nn.Linear(out_dim, pred_dim)

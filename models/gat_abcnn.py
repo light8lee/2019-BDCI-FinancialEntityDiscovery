@@ -41,7 +41,6 @@ class GAT_ABCNN1(nn.Module):
         self.mode = mode
         self.need_embed = need_embed
         self.need_norm = need_norm
-        self.extra_dim = extra_dim
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
