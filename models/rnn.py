@@ -18,6 +18,8 @@ class RNN(nn.Module):
                  gnn_channels:list=None, init_weight=None, freeze:bool=False,
                  pred_dims:list=None, pred_act:str='ELU', **kwargs):
         super(RNN, self).__init__()
+        rnn = rnn.lower()
+        assert rnn in ['lstm', 'gru']
         for rnn_hidden_dim in rnn_hidden_dims:
             assert rnn_hidden_dim % 2 == 0
         gnn_channels = gnn_channels if gnn_channels else []
@@ -163,16 +165,11 @@ class RNN(nn.Module):
         outputs_b = self.embedding(inputs_b)  # [b, t, e]
 
         for i, rnn_layer in enumerate(self.rnn_layers):
-            extra_a_inputs = [outputs_a]
-            extra_b_inputs = [outputs_b]
 
-            inputs_a = torch.cat(extra_a_inputs, -1)  # [b, t, h]
-            inputs_b = torch.cat(extra_b_inputs, -1)  # [b, t, h]
-
-            outputs_a, _ = rnn_layer(inputs_a)  # [b, t, h]
+            outputs_a, _ = rnn_layer(outputs_a)  # [b, t, h]
             outputs_a = outputs_a * masks_a  # [b, t, h]
 
-            outputs_b, _ = rnn_layer(inputs_b)  # [b, t, h]
+            outputs_b, _ = rnn_layer(outputs_b)  # [b, t, h]
             outputs_b = outputs_b * masks_b  # [b, t, h]
 
         pool_a = self.readout_pool(outputs_a, 1)  # [b, h]
