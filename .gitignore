@@ -2,3 +2,9 @@ inputs/*
 **/__pycache__/
 *.pyc
 outputs/*
+**.tgt
+**.pos
+**.pkl
+**.fea
+spm.*
+**.txt
