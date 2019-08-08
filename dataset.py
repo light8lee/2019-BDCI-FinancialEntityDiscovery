@@ -26,10 +26,8 @@ class GraphDataset(Dataset):
 def collect_multigraph(batch):
     batch_size = len(batch)
     features, targets = zip(*batch)
-    batch_inputs_a, batch_mask_a, batch_inputs_b, batch_mask_b, \
-        batch_outer_rows, batch_outer_cols = zip(*features)
+    batch_inputs_a, batch_mask_a, batch_inputs_b, batch_mask_b = zip(*features)
     seq_len = len(batch_inputs_a[0])
-    shape = (2*seq_len, 2*seq_len)
 
     batch_inputs_a = t.from_numpy(np.array(batch_inputs_a)).long()
     batch_inputs_b = t.from_numpy(np.array(batch_inputs_b)).long()
