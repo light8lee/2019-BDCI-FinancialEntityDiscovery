@@ -23,9 +23,7 @@ class GraphDataset(Dataset):
         return feature, target
 
 
-def collect_multigraph(need_norm, concat_ab, batch):
-    concat_ab = True if concat_ab is None else concat_ab
-
+def collect_multigraph(batch):
     batch_size = len(batch)
     features, targets = zip(*batch)
     batch_inputs_a, batch_mask_a, batch_inputs_b, batch_mask_b, \
@@ -33,44 +31,17 @@ def collect_multigraph(need_norm, concat_ab, batch):
     seq_len = len(batch_inputs_a[0])
     shape = (2*seq_len, 2*seq_len)
 
-    if concat_ab:
-        batch_inputs = []
-        for inputs_a, inputs_b in zip(batch_inputs_a, batch_inputs_b):
-            batch_inputs.append(inputs_a)
-            batch_inputs.append(inputs_b)
+    batch_inputs_a = t.from_numpy(np.array(batch_inputs_a)).long()
+    batch_inputs_b = t.from_numpy(np.array(batch_inputs_b)).long()
+    batch_inputs = (batch_inputs_a, batch_inputs_b)
 
-        batch_masks = []
-        for mask_a, mask_b in zip(batch_mask_a, batch_mask_b):
-            batch_masks.append(mask_a)
-            batch_masks.append(mask_b)
-
-        batch_inputs = t.from_numpy(np.array(batch_inputs)).long()
-        batch_masks = t.from_numpy(np.array(batch_masks)).float()
-    else:
-        batch_inputs_a = t.from_numpy(np.array(batch_inputs_a)).long()
-        batch_inputs_b = t.from_numpy(np.array(batch_inputs_b)).long()
-        batch_inputs = (batch_inputs_a, batch_inputs_b)
-
-        batch_mask_a = t.from_numpy(np.array(batch_mask_a)).float()
-        batch_mask_b = t.from_numpy(np.array(batch_mask_b)).float()
-        batch_masks = (batch_mask_a, batch_mask_b)
-
-    def _collect_adjs(batch_rows, batch_cols):
-        batch_adjs = []
-        for rows, cols in zip(batch_rows, batch_cols):
-            data = np.ones_like(rows)
-            mtx = sp.coo_matrix((data, (rows, cols)), shape=shape)
-            mtx = mtx.transpose() + mtx  # 下三角加上上三角构成完整的邻接矩阵
-            mtx = sparse_scipy2torch(mtx)
-            batch_adjs.append(mtx)
-        return batch_adjs
-    batch_outer_adjs = _collect_adjs(batch_outer_rows, batch_outer_cols)
-    batch_outer_adjs = t.stack(batch_outer_adjs, 0)
-    batch_outer_adjs = batch_outer_adjs.to_dense().float()
+    batch_mask_a = t.from_numpy(np.array(batch_mask_a)).float()
+    batch_mask_b = t.from_numpy(np.array(batch_mask_b)).float()
+    batch_masks = (batch_mask_a, batch_mask_b)
 
     targets = t.from_numpy(np.array(targets)).long()
 
-    return (batch_inputs, batch_masks, batch_outer_adjs), targets
+    return (batch_inputs, batch_masks), targets
 
 
 if __name__ == '__main__':

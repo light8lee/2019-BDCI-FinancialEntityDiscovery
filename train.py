@@ -25,7 +25,7 @@ F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 def infer(data, model, criterion, cuda):
     features, targets = data
-    batch_ids, batch_masks, batch_adjs = features
+    batch_ids, batch_masks = features
     labels = targets.numpy()
 
     if cuda:
@@ -35,13 +35,8 @@ def infer(data, model, criterion, cuda):
         else:
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
-
-        if isinstance(batch_adjs, t.Tensor):
-            batch_adjs = batch_adjs.cuda()
-        else:
-            batch_adjs = [v.cuda() for v in batch_adjs]
         targets = targets.cuda()
-    log_pred = model(batch_ids, batch_masks, batch_adjs)
+    log_pred = model(batch_ids, batch_masks)
     loss = criterion(log_pred, targets)
     predictions = log_pred.argmax(1).cpu().numpy()
     tn, fp, fn, tp = confusion_matrix(labels, predictions, labels=[0, 1]).ravel()

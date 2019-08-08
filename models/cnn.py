@@ -4,41 +4,42 @@ import torch.nn.functional as F
 import torch.sparse as sp
 import math
 from itertools import zip_longest
-from .layers.diffpool import DiffPool
-from .layers.graph_sage import SAGELayer
 from .layers.gat import GATLayer
 from .layers.gcn import GCNLayer
+from .layers.graph_sage import SAGELayer
+from .layers.diffpool import DiffPool
+from .layers.abcnn import ABCNN1
 from .layers import activation as Act
 from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 from .layers.normalization import normalize_adjs
 
-class RNN(nn.Module):
-    def __init__(self, vocab_size, max_seq_len, drop_rate, readout_pool,
-                 embedding_dim, gnn_hidden_dims, rnn_hidden_dims, rnn,
-                 activation, residual, need_norm, gnn,
-                 init_weight=None, freeze:bool=False,
-                 pred_dims:list=None, pred_act:str='ELU', **kwargs):
-        super(RNN, self).__init__()
-        rnn = rnn.lower()
-        assert rnn in ['lstm', 'gru']
+class CNN(nn.Module):
+    def __init__(self, vocab_size, max_seq_len, drop_rate, gnn_hidden_dims:list,
+                 embedding_dim, window_size, cnn_hidden_dims:list, attn, gnn,
+                 readout_pool:str, mode:str='concat', pred_dims:list=None, need_norm:bool=False,
+                 init_weight=None, activation=None, pred_act:str='ELU',
+                 residual:bool=False, freeze:bool=False, **kwargs):
+
+        super(CNN, self).__init__()
+        assert window_size % 2 == 1
         assert gnn in ["diffpool", "gcn", "gat"]
-        for rnn_hidden_dim in rnn_hidden_dims:
-            assert rnn_hidden_dim % 2 == 0
-        pred_dims = pred_dims if pred_dims else []
+        pred_act = getattr(Act, pred_act, nn.ELU)
 
         self.vocab_size = vocab_size
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
         self.embedding_dim = embedding_dim
+        self.window_size = window_size
+        self.cnn_hidden_dims = cnn_hidden_dims
         self.gnn_hidden_dims = gnn_hidden_dims
-        self.rnn_hidden_dims = rnn_hidden_dims
-        self.activation = getattr(Act, activation)
+        self.pred_dims = pred_dims
         self.freeze = freeze
-        self.need_norm = need_norm
+        self.activation = getattr(Act, activation)
         self.gnn = gnn
+        self.need_norm = need_norm
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
-        self.rnn_layers = nn.ModuleList()  # to be replaced in subclass
+        self.cnn_layers = nn.ModuleList()
         self.gnn_layers = nn.ModuleList()
 
         if readout_pool == 'max':
@@ -50,16 +51,13 @@ class RNN(nn.Module):
         else:
             raise ValueError()
 
-        in_dim = embedding_dim
-        for rnn_hidden_dim in rnn_hidden_dims:
-            # out_dim = embedding_dim
-            if rnn == 'lstm':
-                self.rnn_layers.append(nn.LSTM(in_dim, rnn_hidden_dim//2, 1,
-                                    bidirectional=True, batch_first=True))
-            elif rnn == 'gru':
-                self.rnn_layers.append(nn.GRU(in_dim, rnn_hidden_dim//2, 1,
-                                    bidirectional=True, batch_first=True))
-            in_dim = rnn_hidden_dim
+        in_dim = self.embedding_dim
+        for i, hidden_dim in enumerate(cnn_hidden_dims):
+            self.cnn_layers.append(
+                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, self.activation,
+                       num_extra_channel=0, attn=attn)
+            )
+            in_dim = hidden_dim
 
         out_dim = in_dim * 4
         in_size = self.max_seq_len * 2
@@ -82,9 +80,6 @@ class RNN(nn.Module):
             in_dim = gnn_hidden_dim
         out_dim += in_dim
 
-        pred_act = getattr(Act, pred_act, nn.ELU)
-
-        self.pred_dims = pred_dims
         pred_layers = []
         for pred_dim in pred_dims:
             pred_layers.append(
@@ -106,8 +101,9 @@ class RNN(nn.Module):
             vecs.weight = nn.Parameter(
                 torch.cat([
                     torch.zeros(1, self.embedding_dim),  # [PAD]
-                    torch.FloatTensor(self.vocab_size-1, self.embedding_dim).uniform_(-0.5 / \
-                                                                             self.embedding_dim, 0.5/self.embedding_dim)
+                    torch.FloatTensor(self.vocab_size-1,
+                                      self.embedding_dim).uniform_(-0.5 / self.embedding_dim,
+                                                                   0.5/self.embedding_dim)
                 ])
             )
         else:
@@ -119,32 +115,31 @@ class RNN(nn.Module):
         """[summary]
 
         Arguments:
-            input_ids [2b, t] -- [description]
-            input_masks [2b, t] -- [description]
-            input_adjs [b, 2t, 2t] -- [description]
+            input_ids ([b, t], [b, t]) -- [description]
+            input_masks ([b, t], [b, t]) -- [description]
 
         Returns:
             [type] -- [description]
         """
         inputs_a, inputs_b = input_ids
         masks_a, masks_b = input_masks
+        input_masks = torch.cat(input_masks, 1)  # [b, 2t]
+
+        inputs_a = self.embedding(inputs_a)  # [b, t, e]
+        inputs_b = self.embedding(inputs_b)  # [b, t, e]
+
         masks_a = masks_a.unsqueeze(-1)
         masks_b = masks_b.unsqueeze(-1)
 
-        input_masks = torch.cat(input_masks, 1)  # [b, 2t]
+        outputs_a = inputs_a
+        outputs_b = inputs_b
 
-        outputs_a = self.embedding(inputs_a)  # [b, t, e]
-        outputs_b = self.embedding(inputs_b)  # [b, t, e]
+        for i, cnn_layer in enumerate(self.cnn_layers):
+            outputs = torch.cat([outputs_a, outputs_b], 1)  # [b, 2t, e]
 
-        for i, rnn_layer in enumerate(self.rnn_layers):
-            outputs_a, _ = rnn_layer(outputs_a)  # [b, t, h]
-            outputs_a = outputs_a * masks_a  # [b, t, h]
-
-            outputs_b, _ = rnn_layer(outputs_b)  # [b, t, h]
-            outputs_b = outputs_b * masks_b  # [b, t, h]
-
-        pool_a = self.readout_pool(outputs_a, 1)  # [b, h]
-        pool_b = self.readout_pool(outputs_b, 1)  # [b, h]
+            outputs_a, outputs_b = cnn_layer(outputs_a, outputs_b)
+            outputs_a = outputs_a * masks_a
+            outputs_b = outputs_b * masks_b
 
         sim_outputs = []
         pool_a = self.readout_pool(outputs_a, 1)
@@ -167,8 +162,8 @@ class RNN(nn.Module):
                 outputs = gnn_layer(input_adjs, outputs)
                 sim_outputs.append(self.readout_pool(outputs, 1))
 
-        outputs = torch.cat(sim_outputs, -1)
-        outputs = self.dense(outputs)  # [b, 1]
+        outputs = torch.cat(sim_outputs, -1)  # [b, h]
+        outputs = self.dense(outputs)
         outputs = torch.log_softmax(outputs, 1)
 
         return outputs

@@ -32,7 +32,7 @@ class GATLayer(nn.Module):
 
     def forward(self, A, X):
         head_outputs = []
-        mask = (-1e9 * (1.0 - A)).unsqueeze(1)  # [b, 1, t, t]
+        mask = (-1e9 * (1 - (A > 0)).float()).unsqueeze(1)  # [b, 1, t, t]
 
         inputs = torch.matmul(X, self.weight)  # [b, t, h]
         shape = inputs.shape

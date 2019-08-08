@@ -99,20 +99,20 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
         feature["input_mask_a"] = input_mask_a  # mask ids的padding部分
         feature["inputs_b"] = inputs_b  # 输入ids
         feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
-        outer_pos = create_adj_from_tokens(instance, max_seq_length)
-        try:
-            outer_rows, outer_cols = zip(*outer_pos)
-        except:
-            print(output_file)
-            print(instance.tokens_a)
-            print(instance.tokens_b)
-            print(inputs_a)
-            print(inputs_b)
-            exit(0)
+        # outer_pos = create_adj_from_tokens(instance, max_seq_length)
+        # try:
+        #     outer_rows, outer_cols = zip(*outer_pos)
+        # except:
+        #     print(output_file)
+        #     print(instance.tokens_a)
+        #     print(instance.tokens_b)
+        #     print(inputs_a)
+        #     print(inputs_b)
+        #     exit(0)
         # feature['inter_rows'] = inter_rows
         # feature['inter_cols'] = inter_cols
-        feature['outer_rows'] = outer_rows
-        feature['outer_cols'] = outer_cols
+        # feature['outer_rows'] = outer_rows
+        # feature['outer_cols'] = outer_cols
 
         feature = tuple(feature.values())
         feature = pickle.dumps(feature)

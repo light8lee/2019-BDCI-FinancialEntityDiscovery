@@ -23,7 +23,7 @@ F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 def infer(data, model, seq_len, cuda):
     features, targets = data
-    batch_ids, batch_masks, batch_adjs = features
+    batch_ids, batch_masks = features
     labels = targets.numpy()
 
     if cuda:
@@ -34,12 +34,8 @@ def infer(data, model, seq_len, cuda):
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
 
-        if isinstance(batch_adjs, t.Tensor):
-            batch_adjs = batch_adjs.cuda()
-        else:
-            batch_adjs = [v.cuda() for v in batch_adjs]
         targets = targets.cuda()
-    log_pred = model(batch_ids, batch_masks, batch_adjs)
+    log_pred = model(batch_ids, batch_masks)
     return np.exp(log_pred.cpu().numpy())
 
 def predict(args):
