@@ -60,25 +60,26 @@ class CNN(nn.Module):
             in_dim = hidden_dim
 
         out_dim = in_dim * 4
-        in_size = self.max_seq_len * 2
-        for i, gnn_hidden_dim in enumerate(gnn_hidden_dims):
-            if gnn == "diffpool":
-                self.gnn_layers.append(
-                    DiffPool(in_dim, in_size, kwargs['ratio'],
-                            gnn='gcn', activation=self.activation, residual=residual)
-                )
-                in_size = int(in_size * kwargs['ratio'])
-            elif gnn == "gat":
-                num_head = kwargs['num_heads'][i]
-                self.gnn_layers.append(
-                    GATLayer(in_dim, gnn_hidden_dim, num_head, self.activation, residual=residual, last_layer=False)
-                )
-            elif gnn == "gcn":
-                self.gnn_layers.append(
-                    GCNLayer(in_dim, gnn_hidden_dim, self.activation, residual=residual)
-                )
-            in_dim = gnn_hidden_dim
-        out_dim += in_dim
+        if gnn != "none":
+            in_size = self.max_seq_len * 2
+            for i, gnn_hidden_dim in enumerate(gnn_hidden_dims):
+                if gnn == "diffpool":
+                    self.gnn_layers.append(
+                        DiffPool(in_dim, in_size, kwargs['ratio'],
+                                gnn='gcn', activation=self.activation, residual=residual)
+                    )
+                    in_size = int(in_size * kwargs['ratio'])
+                elif gnn == "gat":
+                    num_head = kwargs['num_heads'][i]
+                    self.gnn_layers.append(
+                        GATLayer(in_dim, gnn_hidden_dim, num_head, self.activation, residual=residual, last_layer=False)
+                    )
+                elif gnn == "gcn":
+                    self.gnn_layers.append(
+                        GCNLayer(in_dim, gnn_hidden_dim, self.activation, residual=residual)
+                    )
+                in_dim = gnn_hidden_dim
+                out_dim += in_dim
 
         pred_layers = []
         for pred_dim in pred_dims:
