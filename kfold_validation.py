@@ -51,8 +51,6 @@ def predict(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
-    collate_fn = lambda batch: collect_multigraph(model_config.need_norm, model_config.concat_ab, batch)
-
     phase = 'test'
     fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
     tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
@@ -64,7 +62,7 @@ def predict(args):
         positions = [int(v.strip()) for v in f]
     dataset = GraphDataset(fea_file, targets, positions)
     dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                            shuffle=False, collate_fn=collate_fn, num_workers=1)
+                                            shuffle=False, collate_fn=collect_multigraph, num_workers=1)
 
     total_proba = None
     for fold in range(10):
