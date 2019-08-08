@@ -22,7 +22,7 @@ class CNN(nn.Module):
 
         super(CNN, self).__init__()
         assert window_size % 2 == 1
-        assert gnn in ["diffpool", "gcn", "gat"]
+        assert gnn in ["diffpool", "gcn", "gat", "none"]
         pred_act = getattr(Act, pred_act, nn.ELU)
 
         self.vocab_size = vocab_size

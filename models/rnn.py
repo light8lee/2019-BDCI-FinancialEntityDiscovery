@@ -21,7 +21,7 @@ class RNN(nn.Module):
         super(RNN, self).__init__()
         rnn = rnn.lower()
         assert rnn in ['lstm', 'gru']
-        assert gnn in ["diffpool", "gcn", "gat"]
+        assert gnn in ["diffpool", "gcn", "gat", "none"]
         for rnn_hidden_dim in rnn_hidden_dims:
             assert rnn_hidden_dim % 2 == 0
         pred_dims = pred_dims if pred_dims else []
