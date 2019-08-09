@@ -17,11 +17,12 @@ class CNN(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate, gnn_hidden_dims:list,
                  embedding_dim, window_size, cnn_hidden_dims:list, attn, gnn,
                  readout_pool:str, mode:str='concat', pred_dims:list=None, need_norm:bool=False,
-                 init_weight=None, activation=None, pred_act:str='ELU',
+                 init_weight=None, activation=None, pred_act:str='ELU', sim="dot",
                  residual:bool=False, freeze:bool=False, **kwargs):
 
         super(CNN, self).__init__()
         assert window_size % 2 == 1
+        assert sim in ["dot", "cos"]
         assert gnn in ["diffpool", "gcn", "gat", "none"]
         pred_act = getattr(Act, pred_act, nn.ELU)
 
@@ -37,6 +38,7 @@ class CNN(nn.Module):
         self.activation = getattr(Act, activation)
         self.gnn = gnn
         self.need_norm = need_norm
+        self.sim = sim
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
@@ -153,7 +155,12 @@ class CNN(nn.Module):
 
         outputs = torch.cat([outputs_a, outputs_b], 1)  # [b, 2t, e]
         for gnn_layer in self.gnn_layers:
-            input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
+            if self.sim == "dot":
+                input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
+            elif self.sim == "cos":
+                input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
+                norm = torch.norm(outputs, dim=-1) + 1e-7
+                input_adjs = input_adjs / (norm.unsqueeze(-1) * norm.unsqueeze(1))
             if self.need_norm:
                 input_adjs = normalize_adjs(input_masks, input_adjs)
             input_adjs = torch.relu(input_adjs)
