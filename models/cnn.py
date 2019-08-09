@@ -156,6 +156,7 @@ class CNN(nn.Module):
             input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
             if self.need_norm:
                 input_adjs = normalize_adjs(input_masks, input_adjs)
+            input_adjs = torch.relu(input_adjs)
             if self.gnn == 'diffpool':
                 input_adjs, outputs = gnn_layer(input_adjs, outputs)  # [b, 2t, e]
                 sim_outputs.append(self.readout_pool(outputs, 1))
