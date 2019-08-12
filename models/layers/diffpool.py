@@ -9,22 +9,22 @@ from .graph_sage import SAGELayer
 
 
 class DiffPool(nn.Module):
-    def __init__(self, in_dim, in_size, ratio, gnn='gcn', activation=None, **kwargs):
+    def __init__(self, in_dim, out_dim, in_size, ratio, gnn='gcn', activation=None, **kwargs):
         super(DiffPool, self).__init__()
         if gnn == 'gcn':
-            self.gnn_embed = GCNLayer(in_dim, in_dim, activation=activation,
+            self.gnn_embed = GCNLayer(in_dim, out_dim, activation=activation,
                                       residual=kwargs['residual'])
             self.gnn_pool = GCNLayer(in_dim, int(in_size*ratio), activation=activation,
                                      residual=kwargs['residual'])
         elif gnn == 'gat':
-            self.gnn_embed = GATLayer(in_dim, in_dim, kwargs['num_head'],
+            self.gnn_embed = GATLayer(in_dim, out_dim, kwargs['num_head'],
                                       activation=activation, residual=kwargs['residual'],
                                       last_layer=False)
             self.gnn_pool = GATLayer(in_dim, int(in_size*ratio), kwargs['num_head'],
                                      activation=activation, residual=kwargs['residual'],
                                      last_layer=False)
         elif gnn == 'sage':
-            self.gnn_embed = SAGELayer(in_dim, in_dim, activation=activation,
+            self.gnn_embed = SAGELayer(in_dim, out_dim, activation=activation,
                                        pooling=kwargs['pooling'])
             self.gnn_pool = SAGELayer(in_dim, int(in_size*ratio), activation=activation,
                                       pooling=kwargs['pooling'])

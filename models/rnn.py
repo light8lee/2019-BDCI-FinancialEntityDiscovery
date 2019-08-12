@@ -70,7 +70,7 @@ class RNN(nn.Module):
             for i, gnn_hidden_dim in enumerate(gnn_hidden_dims):
                 if gnn == "diffpool":
                     self.gnn_layers.append(
-                        DiffPool(in_dim, in_size, kwargs['ratio'],
+                        DiffPool(in_dim, gnn_hidden_dim, in_size, kwargs['ratio'],
                                 gnn='gcn', activation=self.activation, residual=residual)
                     )
                     in_size = int(in_size * kwargs['ratio'])
