@@ -16,7 +16,7 @@ class RNN(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate, readout_pool,
                  embedding_dim, gnn_hidden_dims, rnn_hidden_dims, rnn,
                  activation, residual, need_norm, gnn, sim="dot",
-                 init_weight=None, freeze:bool=False,
+                 init_weight=None, freeze:bool=False, adj_act:str="relu",
                  pred_dims:list=None, pred_act:str='ELU', **kwargs):
         super(RNN, self).__init__()
         rnn = rnn.lower()
@@ -38,6 +38,7 @@ class RNN(nn.Module):
         self.need_norm = need_norm
         self.gnn = gnn
         self.sim = sim
+        self.adj_act = getattr(Act, adj_act)
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.rnn_layers = nn.ModuleList()  # to be replaced in subclass
@@ -168,7 +169,7 @@ class RNN(nn.Module):
                 input_adjs = input_adjs / (norm.unsqueeze(-1) * norm.unsqueeze(1))
             if self.need_norm:
                 input_adjs = normalize_adjs(input_masks, input_adjs)
-            input_adjs = torch.relu(input_adjs)
+            input_adjs = self.adj_act(input_adjs)
             if self.gnn == 'diffpool':
                 input_adjs, outputs = gnn_layer(input_adjs, outputs)  # [b, 2t, e]
                 sim_outputs.append(self.readout_pool(outputs, 1))

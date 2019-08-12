@@ -17,7 +17,7 @@ class CNN(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate, gnn_hidden_dims:list,
                  embedding_dim, window_size, cnn_hidden_dims:list, attn, gnn,
                  readout_pool:str, mode:str='concat', pred_dims:list=None, need_norm:bool=False,
-                 init_weight=None, activation=None, pred_act:str='ELU', sim="dot",
+                 init_weight=None, activation=None, pred_act:str='ELU', sim="dot", adj_act:str="relu",
                  residual:bool=False, freeze:bool=False, **kwargs):
 
         super(CNN, self).__init__()
@@ -39,6 +39,7 @@ class CNN(nn.Module):
         self.gnn = gnn
         self.need_norm = need_norm
         self.sim = sim
+        self.adj_act = getattr(Act, adj_act)
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.cnn_layers = nn.ModuleList()
@@ -163,7 +164,7 @@ class CNN(nn.Module):
                 input_adjs = input_adjs / (norm.unsqueeze(-1) * norm.unsqueeze(1))
             if self.need_norm:
                 input_adjs = normalize_adjs(input_masks, input_adjs)
-            input_adjs = torch.relu(input_adjs)
+            input_adjs = self.adj_act(input_adjs)
             if self.gnn == 'diffpool':
                 input_adjs, outputs = gnn_layer(input_adjs, outputs)  # [b, 2t, e]
                 sim_outputs.append(self.readout_pool(outputs, 1))
