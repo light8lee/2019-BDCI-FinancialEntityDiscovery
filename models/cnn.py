@@ -93,7 +93,7 @@ class CNN(nn.Module):
             pred_layers.append(nn.Dropout(p=self.drop_rate))
             out_dim = pred_dim
         pred_layers.append(
-            nn.Linear(out_dim, 2)
+            nn.Linear(out_dim, 1)
         )
 
         self.dense = nn.Sequential(*pred_layers)
@@ -174,6 +174,6 @@ class CNN(nn.Module):
 
         outputs = torch.cat(sim_outputs, -1)  # [b, h]
         outputs = self.dense(outputs)
-        outputs = torch.log_softmax(outputs, 1)
+        # outputs = torch.log_softmax(outputs, 1)
 
         return outputs
