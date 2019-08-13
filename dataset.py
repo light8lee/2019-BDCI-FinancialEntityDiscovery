@@ -37,7 +37,7 @@ def collect_multigraph(batch):
     batch_mask_b = t.from_numpy(np.array(batch_mask_b)).float()
     batch_masks = (batch_mask_a, batch_mask_b)
 
-    targets = t.from_numpy(np.array(targets)).long()
+    targets = t.from_numpy(np.array(targets)).float().unsqueeze(-1)
 
     return (batch_inputs, batch_masks), targets
 
