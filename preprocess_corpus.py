@@ -234,7 +234,7 @@ def prepare_kfold():
             input_file = os.path.join(FLAGS.input_dir, 'fold{}'.format(k), '{}.txt'.format(name))
             output_file = os.path.join(output_dir, name)
             _prepare(tokenizer, input_file, output_file)
-    input_file = os.path.join(FLAGS.input_dir, 'test_k.txt')
+    input_file = os.path.join(FLAGS.input_dir, 'test.txt')
     output_file = os.path.join(FLAGS.output_dir, 'test')
     _prepare(tokenizer, input_file, output_file)
 
