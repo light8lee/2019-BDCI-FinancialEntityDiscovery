@@ -62,8 +62,7 @@ def predict(args):
         targets = [float(v.strip()) for v in f]
     with open(pos_filename, 'r') as f:
         positions = [int(v.strip()) for v in f]
-    extra_features = joblib.load(os.path.join(args.data, '{}.pkl'.format(phase)))
-    dataset = GraphDataset(fea_file, targets, positions, extra_features)
+    dataset = GraphDataset(fea_file, targets, positions)
     dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                             shuffle=False, collate_fn=collect_multigraph, num_workers=1)
 
