@@ -1,4 +1,5 @@
 import models
+from sklearn.externals import joblib
 from proj_utils.files import save_ckpt, load_ckpt, load_config_from_json
 from proj_utils.configuration import Config
 from proj_utils.logs import log_info
@@ -17,10 +18,11 @@ from tensorboardX import SummaryWriter
 from sklearn.metrics import confusion_matrix
 from collections import Counter
 import pdb
+from scipy.stats import pearsonr
 
-Precision = lambda tp, fp: tp / (tp + fp)
-Recall = lambda tp, fn: tp / (tp + fn)
-F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
+# Precision = lambda tp, fp: tp / (tp + fp)
+# Recall = lambda tp, fn: tp / (tp + fn)
+# F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 
 def infer(data, model, criterion, cuda):
@@ -35,18 +37,17 @@ def infer(data, model, criterion, cuda):
         else:
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
+
         targets = targets.cuda()
-    log_pred = model(batch_ids, batch_masks)
-    loss = criterion(log_pred, targets)
-    predictions = log_pred.argmax(1).cpu().numpy()
-    tn, fp, fn, tp = confusion_matrix(labels, predictions, labels=[0, 1]).ravel()
-    result = Counter({
-        'tn': tn,
-        'fp': fp,
-        'fn': fn,
-        'tp': tp,
-        'total': tn+fp+fn+tp
-    })
+    preds = model(batch_ids, batch_masks)
+    loss = criterion(preds, targets)
+    predictions = preds.detach().cpu().numpy()
+
+    result = {
+        'preds': predictions,
+        'labels': labels,
+        'size': labels.shape[0]
+    }
 
     return result, loss
 
@@ -63,9 +64,18 @@ def train(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
+    # if model_config.activation is None:
+    #     pass
+    # elif model_config.activation == 'identical':
+    #     model_config.activation = lambda v: v
+    # elif model_config.activation == 'gelu':
+    #     model_config.activation = models.layers.activation.gelu
+    # else:
+    #     model_config.activation = getattr(t, model_config.activation, None) or getattr(F, model_config.activation, None)
+
     model = model_class(**model_config.values)
 
-    criterion = nn.NLLLoss()
+    criterion = nn.MSELoss()
 
     dataloaders = {}
     datasets = {}
@@ -81,7 +91,7 @@ def train(args):
             pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
         fea_file = open(fea_filename, 'rb')
         with open(tgt_filename, 'r') as f:
-            targets = [int(v.strip()) for v in f]
+            targets = [float(v.strip()) for v in f]
         with open(pos_filename, 'r') as f:
             positions = [int(v.strip()) for v in f]
         dataset = GraphDataset(fea_file, targets, positions)
@@ -121,7 +131,7 @@ def train(args):
         model = model.cuda()
 
     epoch_loss = 10000
-    best_f1 = 0
+    best_pea = 0
     # pdb.set_trace()
     if args.log:
         writer = SummaryWriter(os.path.join(args.save_dir, 'logs'))
@@ -134,7 +144,9 @@ def train(args):
             else:
                 model.eval()
             running_loss = 0.
-            running_results = Counter()
+            running_preds = []
+            running_labels = []
+            running_size = 0
 
             pbar = tqdm(dataloaders[phase], position=args.local_rank)
             pbar.set_description("[{} Epoch {}]".format(phase, epoch))
@@ -147,64 +159,62 @@ def train(args):
                         loss.backward()
                         # t.nn.utils.clip_grad_norm_(model.parameters(), 7)
                         optimizer.step()
-                running_results += result
                 running_loss += loss.item()
+                running_preds.append(result['preds'])
+                running_labels.append(result['labels'])
+                running_size += result['size']
 
                 if phase == 'train':
                     curr_lr = optimizer.param_groups[0]['lr']
                     if args.multi_gpu:
-                        pbar.set_postfix(rank=args.local_rank, mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'], lr=curr_lr)
+                        pbar.set_postfix(rank=args.local_rank, mean_loss=running_loss/running_size, lr=curr_lr)
                     else:
-                        pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'], lr=curr_lr)
+                        pbar.set_postfix(mean_loss=running_loss/running_size, lr=curr_lr)
                 else:
-                    pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'])
-            epoch_loss = running_loss / running_results['total']
-            epoch_precision = Precision(running_results['tp'], running_results['fp'])
-            epoch_recall = Recall(running_results['tp'], running_results['fn'])
-            epoch_acc = (running_results['tp'] + running_results['tn']) / running_results['total']
-            epoch_f1 = F1(epoch_precision, epoch_recall)
+                    pbar.set_postfix(mean_loss=running_loss/running_size)
+            try:
+                epoch_loss = running_loss / running_size
+                preds = np.concatenate(running_preds, axis=0)
+                labels = np.concatenate(running_labels, axis=0)
+                epoch_pea = pearsonr(preds, labels)[0][0]
+            except Exception as e:
+                raise e
             if args.log:
                 writer.add_scalars('loss', {
                     phase: epoch_loss,
-                }, epoch)
-                writer.add_scalars('acc', {
-                    phase: epoch_acc,
-                }, epoch)
-                writer.add_scalars('f1', {
-                    phase: epoch_f1,
                 }, epoch)
             if phase == 'dev':
                 if scheduler_config.name == 'ReduceLROnPlateau':
                     scheduler.step(epoch_loss)
                 else:
                     scheduler.step()
-                if epoch_f1 > best_f1:
-                    best_f1 = epoch_f1
+                if epoch_pea > best_pea:
+                    best_pea = epoch_pea
                     if args.multi_gpu:
                         if args.local_rank == 0:
-                            Log('dev Epoch {}: Saving Rank({}) New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
-                                epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+                            Log('dev Epoch {}: Saving Rank({}) New Record... Pea: {}, Loss: {}'.format(
+                                epoch, args.local_rank, epoch_pea, epoch_loss))
                             save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
                                                 epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                             save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.best.pt.tar'.format(args.fold, args.local_rank)),
                                                 epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                     else:
-                        Log('dev Epoch {}: Saving New Record... Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
-                            epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+                        Log('dev Epoch {}: Saving New Record... Pea: {}, Loss: {}'.format(
+                            epoch, epoch_pea, epoch_loss))
                         save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
                                                epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                         save_ckpt(os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(args.fold)),
                                                epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                 else:
                     if args.multi_gpu:
-                        Log('dev Epoch {}:  Rank({}) Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
-                            epoch, args.local_rank, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+                        Log('dev Epoch {}: Rank({}) Not Improved. Pea: {}, Loss: {}'.format(
+                            epoch, args.local_rank, epoch_pea, epoch_loss))
                     else:
-                        Log('dev Epoch {}: Not Improved. Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
-                            epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+                        Log('dev Epoch {}: Not Improved. Pea: {}, Loss: {}'.format(
+                            epoch, epoch_pea, epoch_loss))
             else:
-                Log('{} Epoch {}: Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
-                    phase, epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+                Log('{} Epoch {}: Pea: {}, Loss: {}'.format(
+                    phase, epoch, epoch_pea, epoch_loss))
     if args.log:
         writer.close()
 

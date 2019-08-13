@@ -1,4 +1,5 @@
 import models
+from sklearn.externals import joblib
 from proj_utils.files import save_ckpt, load_ckpt, load_config_from_json
 from proj_utils.configuration import Config
 from proj_utils.logs import log_info
@@ -15,6 +16,7 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import confusion_matrix
 from collections import Counter
+from scipy.stats import pearsonr
 
 Precision = lambda tp, fp: tp / (tp + fp)
 Recall = lambda tp, fn: tp / (tp + fn)
@@ -35,8 +37,8 @@ def infer(data, model, seq_len, cuda):
             batch_masks = [v.cuda() for v in batch_masks]
 
         targets = targets.cuda()
-    log_pred = model(batch_ids, batch_masks)
-    return np.exp(log_pred.cpu().numpy())
+    preds = model(batch_ids, batch_masks)
+    return preds.cpu().numpy()
 
 def predict(args):
     Log = log_info(os.path.join(args.save_dir, 'kfold.info'))
@@ -57,14 +59,18 @@ def predict(args):
     pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
     fea_file = open(fea_filename, 'rb')
     with open(tgt_filename, 'r') as f:
-        targets = [int(v.strip()) for v in f]
+        targets = [float(v.strip()) for v in f]
     with open(pos_filename, 'r') as f:
         positions = [int(v.strip()) for v in f]
-    dataset = GraphDataset(fea_file, targets, positions)
+    extra_features = joblib.load(os.path.join(args.data, '{}.pkl'.format(phase)))
+    dataset = GraphDataset(fea_file, targets, positions, extra_features)
     dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                             shuffle=False, collate_fn=collect_multigraph, num_workers=1)
 
-    total_proba = None
+    # epochs = args.best_epochs
+    # epochs = epochs.split(',')
+    # assert len(epochs) == 10
+    total_preds = None
     for fold in range(10):
         model = model_class(**model_config.values)
         ckpt_file = os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(fold))
@@ -77,34 +83,30 @@ def predict(args):
 
         model.eval()
         running_loss = 0.
-        running_results = Counter()
 
-        curr_proba = []
+        curr_preds = []
         pbar = tqdm(dataloader)
         pbar.set_description("[Fold: {}]".format(fold))
         for data in pbar:
             with t.no_grad():
-                proba = infer(data, model, model_config.seq_len, args.cuda)
-                curr_proba.append(proba)
-        curr_proba = np.concatenate(curr_proba, axis=0)
-        if total_proba is None:
-            total_proba = curr_proba
+                preds = infer(data, model, model_config.seq_len, args.cuda)
+                curr_preds.append(preds)
+        curr_preds = np.concatenate(curr_preds, axis=0)
+        if total_preds is None:
+            total_preds = curr_preds
         else:
-            assert total_proba.shape == curr_proba.shape
-            total_proba += curr_proba
+            assert total_preds.shape == curr_preds.shape
+            total_preds += curr_preds
     
-    predictions = total_proba.argmax(1)
-    tn, fp, fn, tp = confusion_matrix(dataset.targets, predictions, labels=[0, 1]).ravel()
-    precision = Precision(tp, fp)
-    recall = Recall(tp, fn)
-    acc = (tp + tn) / (tn + fp + fn + tp)
-    f1 = F1(precision, recall)
-    Log('Acc: {}, P: {}, R: {}, F1: {}'.format(
-        acc, precision, recall, f1))
+    avg_preds = total_preds / 10
+    labels = np.array(dataset.targets).reshape((-1, 1))
+    pea = pearsonr(avg_preds, labels)[0][0]
+    Log("Pea: {}".format(pea))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    # parser.add_argument('best_epochs', type=str)
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--data', type=str, default="./inputs/train", help="input/target data name")

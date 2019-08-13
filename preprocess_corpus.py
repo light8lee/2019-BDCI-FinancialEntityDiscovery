@@ -138,7 +138,7 @@ def create_training_instances(input_file, tokenizer, max_seq_length, rng):
                 continue
             line = ''.join(line.split('@@'))
             _, line_a, line_b, label = line.split('##')
-            label = int(label)
+            label = float(label)
 
             tokens_a = tokenizer.tokenize(line_a)
             tokens_b = tokenizer.tokenize(line_b)
