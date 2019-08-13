@@ -136,14 +136,13 @@ def create_training_instances(input_file, tokenizer, max_seq_length, rng):
             line = line.strip()
             if not line:
                 continue
-            line = ''.join(line.split('@@'))
             _, line_a, line_b, label = line.split('##')
             label = float(label)
 
-            tokens_a = tokenizer.tokenize(line_a)
-            tokens_b = tokenizer.tokenize(line_b)
-            assert len(tokens_a) == len(line_a)
-            assert len(tokens_b) == len(line_b)
+            tokens_a = line_a.split('@@')
+            tokens_b = line_b.split('@@')
+            if not tokens_a or not tokens_b:
+                continue
             yield create_instance(tokens_a, tokens_b, label, max_seq_length, rng)
 
 
