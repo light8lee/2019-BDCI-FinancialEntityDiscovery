@@ -58,7 +58,7 @@ class CNN(nn.Module):
         in_dim = self.embedding_dim
         for i, hidden_dim in enumerate(cnn_hidden_dims):
             self.cnn_layers.append(
-                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, self.activation,
+                ABCNN1(in_dim, hidden_dim, max_seq_len, window_size, self.cnn_act,
                        num_extra_channel=0, attn=attn)
             )
             in_dim = hidden_dim
