@@ -8,8 +8,8 @@ class ESimLayer(nn.Module):
     def __init__(self, in_dim, out_dim):
         assert out_dim % 2 == 0
         super(ESimLayer, self).__init__()
-        self.rnn1 = nn.LSTM(in_dim, out_dim//2, 1, bidirectiona=True, batch_first=True)
-        self.rnn2 = nn.LSTM(out_dim*4, out_dim//2, 1, bidirectiona=True, batch_first=True)
+        self.rnn1 = nn.LSTM(in_dim, out_dim//2, 1, bidirectional=True, batch_first=True)
+        self.rnn2 = nn.LSTM(out_dim*4, out_dim//2, 1, bidirectional=True, batch_first=True)
     
     def forward(self, inputs_a, inputs_b, masks_a, masks_b):
         outputs_a = self.rnn1(inputs_a)  # [b, t1, h]
