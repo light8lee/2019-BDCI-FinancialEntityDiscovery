@@ -15,12 +15,11 @@ from .layers.esim import ESimLayer
 
 class ESim(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate, readout_pool,
-                 embedding_dim, gnn_hidden_dims, hidden_dim, mode="pool",
-                 activation, residual, need_norm, gnn, sim="dot",
+                 embedding_dim, gnn_hidden_dims, hidden_dim,
+                 activation, residual, need_norm, gnn, sim="dot", mode="pool",
                  init_weight=None, freeze:bool=False, adj_act:str="relu",
                  pred_dims:list=None, pred_act:str='ELU', **kwargs):
         super(ESim, self).__init__()
-        rnn = rnn.lower()
         assert sim in ["dot", "cos"]
         assert mode in ["pool", "mix"]
         assert gnn in ["diffpool", "gcn", "gat", "none"]
