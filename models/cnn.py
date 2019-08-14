@@ -18,7 +18,7 @@ class CNN(nn.Module):
                  embedding_dim, window_size, cnn_hidden_dims:list, attn, gnn,
                  readout_pool:str, mode:str='concat', pred_dims:list=None, need_norm:bool=False,
                  init_weight=None, activation=None, pred_act:str='ELU', sim="dot", adj_act:str="relu",
-                 residual:bool=False, freeze:bool=False, **kwargs):
+                 cnn_act="relu", residual:bool=False, freeze:bool=False, **kwargs):
 
         super(CNN, self).__init__()
         assert window_size % 2 == 1
@@ -36,6 +36,7 @@ class CNN(nn.Module):
         self.pred_dims = pred_dims
         self.freeze = freeze
         self.activation = getattr(Act, activation)
+        self.cnn_act = getattr(Act, cnn_act)
         self.gnn = gnn
         self.need_norm = need_norm
         self.sim = sim
