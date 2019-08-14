@@ -52,6 +52,7 @@ class ESim(nn.Module):
             raise ValueError()
 
         self.esim_layer = ESimLayer(embedding_dim, hidden_dim)
+        self.gnn_layers = nn.ModuleList()
 
         out_dim = hidden_dim * 4
         if gnn != "none": 
