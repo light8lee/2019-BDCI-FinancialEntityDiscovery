@@ -12,9 +12,9 @@ class ESimLayer(nn.Module):
         self.rnn2 = nn.LSTM(out_dim*4, out_dim//2, 1, bidirectional=True, batch_first=True)
     
     def forward(self, inputs_a, inputs_b, masks_a, masks_b):
-        outputs_a = self.rnn1(inputs_a)  # [b, t1, h]
+        outputs_a, _ = self.rnn1(inputs_a)  # [b, t1, h]
         outputs_a = outputs_a * masks_a  # [b, t, h]
-        outputs_b = self.rnn1(inputs_b)  # [b, t2, h]
+        outputs_b, _ = self.rnn1(inputs_b)  # [b, t2, h]
         outputs_b = outputs_b * masks_b  # [b, t, h]
 
         attn = torch.bmm(outputs_a, outputs_b.transpose(-1, -2))  # [b, t1, t2]
@@ -28,8 +28,8 @@ class ESimLayer(nn.Module):
         mb = torch.cat([outputs_b, attn_b, outputs_b-attn_b, outputs_b*attn_b], -1)  # [b, t1, 4h]
         mb = mb * masks_b
 
-        outputs_a = self.rnn2(ma)
+        outputs_a, _ = self.rnn2(ma)
         outputs_a = outputs_a * masks_a  # [b, t, h]
-        outputs_b = self.rnn2(mb)
+        outputs_b, _ = self.rnn2(mb)
         outputs_b = outputs_b * masks_b  # [b, t, h]
         return outputs_a, outputs_b
