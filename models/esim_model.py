@@ -11,20 +11,20 @@ from .layers.gcn import GCNLayer
 from .layers import activation as Act
 from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 from .layers.normalization import normalize_adjs
+from .layers.esim import ESimLayer
 
-class RNN(nn.Module):
+class ESim(nn.Module):
     def __init__(self, vocab_size, max_seq_len, drop_rate, readout_pool,
-                 embedding_dim, gnn_hidden_dims, rnn_hidden_dims, rnn,
+                 embedding_dim, gnn_hidden_dims, hidden_dim, mode="pool",
                  activation, residual, need_norm, gnn, sim="dot",
                  init_weight=None, freeze:bool=False, adj_act:str="relu",
                  pred_dims:list=None, pred_act:str='ELU', **kwargs):
-        super(RNN, self).__init__()
+        super(ESim, self).__init__()
         rnn = rnn.lower()
         assert sim in ["dot", "cos"]
-        assert rnn in ['lstm', 'gru']
+        assert mode in ["pool", "mix"]
         assert gnn in ["diffpool", "gcn", "gat", "none"]
-        for rnn_hidden_dim in rnn_hidden_dims:
-            assert rnn_hidden_dim % 2 == 0
+        assert hidden_dim % 2 == 0
         pred_dims = pred_dims if pred_dims else []
 
         self.vocab_size = vocab_size
@@ -32,17 +32,16 @@ class RNN(nn.Module):
         self.drop_rate = drop_rate
         self.embedding_dim = embedding_dim
         self.gnn_hidden_dims = gnn_hidden_dims
-        self.rnn_hidden_dims = rnn_hidden_dims
+        self.hidden_dim = hidden_dim
         self.activation = getattr(Act, activation)
         self.freeze = freeze
         self.need_norm = need_norm
+        self.mode = mode
         self.gnn = gnn
         self.sim = sim
         self.adj_act = getattr(Act, adj_act)
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
-        self.rnn_layers = nn.ModuleList()  # to be replaced in subclass
-        self.gnn_layers = nn.ModuleList()
 
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
@@ -53,18 +52,9 @@ class RNN(nn.Module):
         else:
             raise ValueError()
 
-        in_dim = embedding_dim
-        for rnn_hidden_dim in rnn_hidden_dims:
-            # out_dim = embedding_dim
-            if rnn == 'lstm':
-                self.rnn_layers.append(nn.LSTM(in_dim, rnn_hidden_dim//2, 1,
-                                    bidirectional=True, batch_first=True))
-            elif rnn == 'gru':
-                self.rnn_layers.append(nn.GRU(in_dim, rnn_hidden_dim//2, 1,
-                                    bidirectional=True, batch_first=True))
-            in_dim = rnn_hidden_dim
+        self.esim_layer = ESimLayer(embedding_dim, hidden_dim)
 
-        out_dim = in_dim * 4
+        out_dim = hidden_dim * 4
         if gnn != "none": 
             in_size = self.max_seq_len * 2
             for i, gnn_hidden_dim in enumerate(gnn_hidden_dims):
@@ -140,21 +130,24 @@ class RNN(nn.Module):
         outputs_a = self.embedding(inputs_a)  # [b, t, e]
         outputs_b = self.embedding(inputs_b)  # [b, t, e]
 
-        for i, rnn_layer in enumerate(self.rnn_layers):
-            outputs_a, _ = rnn_layer(outputs_a)  # [b, t, h]
-            outputs_a = outputs_a * masks_a  # [b, t, h]
-
-            outputs_b, _ = rnn_layer(outputs_b)  # [b, t, h]
-            outputs_b = outputs_b * masks_b  # [b, t, h]
+        outputs_a, outputs_b = self.esim_layer(outputs_a, outputs_b, masks_a, masks_b)
 
         sim_outputs = []
-        pool_a = self.readout_pool(outputs_a, 1)
-        pool_b = self.readout_pool(outputs_b, 1)
-        # sim_outputs.append(self._cos_sim(pool_a, pool_b).unsqueeze(-1))
-        sim_outputs.append(pool_a)
-        sim_outputs.append(pool_b)
-        sim_outputs.append(torch.abs(pool_a - pool_b))
-        sim_outputs.append(pool_a * pool_b)
+        if self.mode == 'mix':
+            pool_a = self.readout_pool(outputs_a, 1)  # [b, h]
+            pool_b = self.readout_pool(outputs_b, 1)  # [b, h]
+            # sim_outputs.append(self._cos_sim(pool_a, pool_b).unsqueeze(-1))
+            sim_outputs.append(pool_a)
+            sim_outputs.append(pool_b)
+            sim_outputs.append(torch.abs(pool_a - pool_b))
+            sim_outputs.append(pool_a * pool_b)
+        elif self.mode == 'pool':
+            max_pool = MaxPooling()
+            avg_pool = AvgPooling()
+            sim_outputs.append(max_pool(outputs_a))
+            sim_outputs.append(avg_pool(outputs_a))
+            sim_outputs.append(max_pool(outputs_b))
+            sim_outputs.append(avg_pool(outputs_b))
 
         outputs = torch.cat([outputs_a, outputs_b], 1)  # [b, 2t, e]
         for gnn_layer in self.gnn_layers:
