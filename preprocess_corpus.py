@@ -34,7 +34,8 @@ flags.add_argument("output_dir")
 flags.add_argument("vocab_file")
 flags.add_argument('--type', default='kfold', type=str, choices=['kfold', 'origin'])
 flags.add_argument('--do_lower_case', action='store_true', dest='do_lower_case')
-flags.set_defaults(do_lower_case=False)
+flags.add_argument('--bert_style', action='store_true', dest='bert_style')
+flags.set_defaults(do_lower_case=False, bert_style=False)
 flags.add_argument('--max_seq_length', default=50, type=int)
 flags.add_argument('--random_seed', type=int, default=12345)
 
@@ -45,6 +46,8 @@ print(FLAGS)
 def get_padded_tokens(tokens, tokenizer, max_seq_length, pad='after'):
     input_ids = tokenizer.convert_tokens_to_ids(tokens)
     input_mask = [1] * len(input_ids)
+    if FLAGS.bert_style:
+        max_seq_length += 2
     assert len(input_ids) <= max_seq_length
 
     to_pad = [0] * (max_seq_length - len(input_ids))
@@ -67,13 +70,13 @@ def get_pos(s, offset=0):
     return pos_mat
 
 
-def create_adj_from_tokens(instance, max_seq_length):
-    outer_positions = []
-    for i in range(len(instance.tokens_a)):
-        for j in range(len(instance.tokens_b)):
-            if instance.tokens_a[i] != instance.tokens_b[j]:
-                outer_positions.append((i, j+max_seq_length))
-    return outer_positions
+# def create_adj_from_tokens(instance, max_seq_length):
+#     outer_positions = []
+#     for i in range(len(instance.tokens_a)):
+#         for j in range(len(instance.tokens_b)):
+#             if instance.tokens_a[i] != instance.tokens_b[j]:
+#                 outer_positions.append((i, j+max_seq_length))
+#     return outer_positions
 
 
 def write_instance_to_example_files(instances, tokenizer, max_seq_length, output_file, rng):
@@ -99,20 +102,6 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
         feature["input_mask_a"] = input_mask_a  # mask ids的padding部分
         feature["inputs_b"] = inputs_b  # 输入ids
         feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
-        # outer_pos = create_adj_from_tokens(instance, max_seq_length)
-        # try:
-        #     outer_rows, outer_cols = zip(*outer_pos)
-        # except:
-        #     print(output_file)
-        #     print(instance.tokens_a)
-        #     print(instance.tokens_b)
-        #     print(inputs_a)
-        #     print(inputs_b)
-        #     exit(0)
-        # feature['inter_rows'] = inter_rows
-        # feature['inter_cols'] = inter_cols
-        # feature['outer_rows'] = outer_rows
-        # feature['outer_cols'] = outer_cols
 
         feature = tuple(feature.values())
         feature = pickle.dumps(feature)
@@ -136,6 +125,8 @@ def create_training_instances(input_file, tokenizer, max_seq_length, rng):
             line = line.strip()
             if not line:
                 continue
+            if FLAGS.do_lower_case:
+                line = line.lower()
             _, line_a, line_b, label = line.split('##')
             label = float(label)
 
@@ -153,10 +144,11 @@ def create_instance(tokens_a, tokens_b, label, max_seq_length, rng):
     max_num_tokens = max_seq_length
     truncate_seq(tokens_a, max_num_tokens, rng)
     truncate_seq(tokens_b, max_num_tokens, rng)
-    # tokens_a.insert(0, '[CLS]')
-    # tokens_b.insert(0, '[CLS]')
-    # tokens_a.append('[SEP]')
-    # tokens_b.append('[SEP]')
+    if FLAGS.bert_style:
+        tokens_a.insert(0, '[CLS]')
+        tokens_b.insert(0, '[CLS]')
+        tokens_a.append('[SEP]')
+        tokens_b.append('[SEP]')
     instance = Instance(tokens_a, tokens_b, label)
     return instance
 
@@ -191,18 +183,15 @@ def _prepare(tokenizer, input_file, output_file):
 
 
 class Tokenizer(object):
-    def __init__(self, vocab_file, do_lower_case=True, unk='[UNK]'):
+    def __init__(self, vocab_file, unk='[UNK]'):
         with open(vocab_file, encoding='utf-8') as f:
             self.id2char = list(map(str.strip, f))
             self.char2id = {ch: id for id, ch in enumerate(self.id2char)}
         self.unk = unk
-        self.do_lower_case = do_lower_case
     
     def convert_tokens_to_ids(self, tokens):
         token_ids = []
         for token in tokens:
-            if self.do_lower_case:
-                token = token.lower()
             token_ids.append(
                 self.char2id[token] if token in self.char2id else self.char2id[self.unk]
             )
@@ -214,7 +203,7 @@ class Tokenizer(object):
 
 def prepare_origin():
     tokenizer = Tokenizer(
-        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+        vocab_file=FLAGS.vocab_file)
 
     for name in ['train', 'test', 'dev']:
         input_file = os.path.join(FLAGS.input_dir, '{}.txt'.format(name))
@@ -224,7 +213,7 @@ def prepare_origin():
 
 def prepare_kfold():
     tokenizer = Tokenizer(
-        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+        vocab_file=FLAGS.vocab_file)
 
     for k in range(10):
         output_dir = os.path.join(FLAGS.output_dir, 'fold{}'.format(k))
