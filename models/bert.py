@@ -39,6 +39,7 @@ class BERT_Pretrained(nn.Module):
 
         self.bert4pretrain = BertForPreTraining.from_pretrained(pretrained_model_path, from_tf=True).bert
         out_dim = bert_dim
+        in_dim = bert_dim
         if gnn != "none": 
             in_size = self.max_seq_len * 2
             for i, gnn_hidden_dim in enumerate(gnn_hidden_dims):
