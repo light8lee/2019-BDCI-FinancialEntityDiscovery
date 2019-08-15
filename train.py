@@ -3,7 +3,7 @@ from sklearn.externals import joblib
 from proj_utils.files import save_ckpt, load_ckpt, load_config_from_json
 from proj_utils.configuration import Config
 from proj_utils.logs import log_info
-from dataset import GraphDataset, collect_multigraph
+from dataset import GraphDataset, collect_multigraph, collect_single
 import sys
 from tqdm import tqdm
 import os
@@ -80,6 +80,10 @@ def train(args):
     dataloaders = {}
     datasets = {}
     sampler = None
+    if model_config.name.find("BERT") != -1:
+        collate_fn = collect_single
+    else:
+        collate_fn = collect_multigraph
     for phase in ['train', 'dev', 'test']:
         if phase != 'test' and args.fold:
             fea_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.fea'.format(phase))
@@ -98,10 +102,10 @@ def train(args):
         if args.multi_gpu and phase == 'train':
             sampler = t.utils.data.distributed.DistributedSampler(dataset)
             dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
-                                                collate_fn=collect_multigraph, sampler=sampler, num_workers=1)
+                                                collate_fn=collate_fn, sampler=sampler, num_workers=1)
         else:
             dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                                shuffle=(phase=='train'), collate_fn=collect_multigraph, num_workers=1)
+                                                shuffle=(phase=='train'), collate_fn=collate_fn, num_workers=1)
         dataloaders[phase] = dataloader
         datasets[phase] = dataset
 

@@ -19,6 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import tokenization
 import itertools
 from tqdm import tqdm
 import random
@@ -96,12 +97,22 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
         feature = collections.OrderedDict()
         target = collections.OrderedDict()
 
-        inputs_a, input_mask_a = get_padded_tokens(instance.tokens_a, tokenizer, max_seq_length)
-        inputs_b, input_mask_b = get_padded_tokens(instance.tokens_b, tokenizer, max_seq_length)
-        feature["inputs_a"] = inputs_a  # 输入ids
-        feature["input_mask_a"] = input_mask_a  # mask ids的padding部分
-        feature["inputs_b"] = inputs_b  # 输入ids
-        feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
+        if FLAGS.bert_style:
+            inputs = ['[CLS]']
+            inputs.extend(instance.tokens_a)
+            inputs.append('[SEP]')
+            inputs.extend(instance.tokens_b)
+            inputs.append('[SEP]')
+            inputs, input_masks = get_padded_tokens(inputs, tokenizer, 2*max_seq_length)
+            feature["inputs"] = inputs
+            feature["input_masks"] = input_masks
+        else:
+            inputs_a, input_mask_a = get_padded_tokens(instance.tokens_a, tokenizer, max_seq_length)
+            inputs_b, input_mask_b = get_padded_tokens(instance.tokens_b, tokenizer, max_seq_length)
+            feature["inputs_a"] = inputs_a  # 输入ids
+            feature["input_mask_a"] = input_mask_a  # mask ids的padding部分
+            feature["inputs_b"] = inputs_b  # 输入ids
+            feature["input_mask_b"] = input_mask_b  # mask ids的padding部分
 
         feature = tuple(feature.values())
         feature = pickle.dumps(feature)
@@ -125,13 +136,15 @@ def create_training_instances(input_file, tokenizer, max_seq_length, rng):
             line = line.strip()
             if not line:
                 continue
-            if FLAGS.do_lower_case:
-                line = line.lower()
             _, line_a, line_b, label = line.split('##')
             label = float(label)
 
-            tokens_a = line_a.split('@@')
-            tokens_b = line_b.split('@@')
+            if FLAGS.bert_style:
+                tokens_a = tokenizer.tokenize(line_a.replace('@@', ' '))
+                tokens_b = tokenizer.tokenize(line_b.replace('@@', ' '))
+            else:
+                tokens_a = line_a.split('@@')
+                tokens_b = line_b.split('@@')
             if not tokens_a or not tokens_b:
                 continue
             yield create_instance(tokens_a, tokens_b, label, max_seq_length, rng)
@@ -144,11 +157,6 @@ def create_instance(tokens_a, tokens_b, label, max_seq_length, rng):
     max_num_tokens = max_seq_length
     truncate_seq(tokens_a, max_num_tokens, rng)
     truncate_seq(tokens_b, max_num_tokens, rng)
-    if FLAGS.bert_style:
-        tokens_a.insert(0, '[CLS]')
-        tokens_b.insert(0, '[CLS]')
-        tokens_a.append('[SEP]')
-        tokens_b.append('[SEP]')
     instance = Instance(tokens_a, tokens_b, label)
     return instance
 
@@ -183,15 +191,18 @@ def _prepare(tokenizer, input_file, output_file):
 
 
 class Tokenizer(object):
-    def __init__(self, vocab_file, unk='[UNK]'):
+    def __init__(self, vocab_file, do_lower_case, unk='[UNK]'):
         with open(vocab_file, encoding='utf-8') as f:
             self.id2char = list(map(str.strip, f))
             self.char2id = {ch: id for id, ch in enumerate(self.id2char)}
         self.unk = unk
+        self.do_lower_case = do_lower_case
     
     def convert_tokens_to_ids(self, tokens):
         token_ids = []
         for token in tokens:
+            if self.do_lower_case:
+                token = token.lower()
             token_ids.append(
                 self.char2id[token] if token in self.char2id else self.char2id[self.unk]
             )
@@ -202,8 +213,10 @@ class Tokenizer(object):
 
 
 def prepare_origin():
-    tokenizer = Tokenizer(
-        vocab_file=FLAGS.vocab_file)
+    if FLAGS.bert_style:
+        tokenizer = tokenization.FullTokenizer(FLAGS.vocab_file, FLAGS.do_lower_case)
+    else:
+        tokenizer = Tokenizer(FLAGS.vocab_file, FLAGS.do_lower_case)
 
     for name in ['train', 'test', 'dev']:
         input_file = os.path.join(FLAGS.input_dir, '{}.txt'.format(name))
@@ -212,8 +225,10 @@ def prepare_origin():
 
 
 def prepare_kfold():
-    tokenizer = Tokenizer(
-        vocab_file=FLAGS.vocab_file)
+    if FLAGS.bert_style:
+        tokenizer = tokenization.FullTokenizer(FLAGS.vocab_file, FLAGS.do_lower_case)
+    else:
+        tokenizer = Tokenizer(FLAGS.vocab_file, FLAGS.do_lower_case)
 
     for k in range(10):
         output_dir = os.path.join(FLAGS.output_dir, 'fold{}'.format(k))

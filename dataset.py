@@ -42,6 +42,20 @@ def collect_multigraph(batch):
     return (batch_inputs, batch_masks), targets
 
 
+def collect_single(batch):
+    batch_size = len(batch)
+    features, targets = zip(*batch)
+    batch_inputs, batch_masks = zip(*features)
+    seq_len = len(batch_inputs[0])
+
+    batch_inputs = t.from_numpy(np.array(batch_inputs)).long()
+    batch_masks = t.from_numpy(np.array(batch_masks)).float()
+
+    targets = t.from_numpy(np.array(targets)).float().unsqueeze(-1)
+
+    return (batch_inputs, batch_masks), targets
+
+
 if __name__ == '__main__':
     fea_file = open('inputs/dev.fea', 'rb')
     with open('inputs/dev.tgt', 'r') as f:
