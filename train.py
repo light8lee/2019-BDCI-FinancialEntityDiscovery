@@ -110,7 +110,21 @@ def train(args):
         datasets[phase] = dataset
 
     total_steps = int(args.epoch * len(datasets['train']) / args.batch_size)
-    optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
+    if model_config.name.find("BERT") != -1:
+        params = []
+        for name, param in model.named_parameters():
+            if name.find('bert4pretrain') != -1:
+                params.append({
+                    'params': param,
+                    'lr': model_config.bert_lr
+                })
+            else:
+                params.append({
+                    'params': param,
+                })
+        optimizer = getattr(optim, optimizer_config.name)(params, **optimizer_config.values)
+    else:
+        optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
     scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)
 
     if not os.path.isdir(args.save_dir):
