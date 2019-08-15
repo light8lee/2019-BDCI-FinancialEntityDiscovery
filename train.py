@@ -198,15 +198,15 @@ def train(args):
                         if args.local_rank == 0:
                             Log('dev Epoch {}: Saving Rank({}) New Record... Pea: {}, Loss: {}'.format(
                                 epoch, args.local_rank, epoch_pea, epoch_loss))
-                            save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
-                                                epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+                            # save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
+                            #                     epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                             save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.best.pt.tar'.format(args.fold, args.local_rank)),
                                                 epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                     else:
                         Log('dev Epoch {}: Saving New Record... Pea: {}, Loss: {}'.format(
                             epoch, epoch_pea, epoch_loss))
-                        save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
-                                               epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+                        # save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
+                        #                        epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                         save_ckpt(os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(args.fold)),
                                                epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
                 else:

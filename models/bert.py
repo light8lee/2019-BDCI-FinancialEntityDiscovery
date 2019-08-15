@@ -89,6 +89,7 @@ class BERT_Pretrained(nn.Module):
         sim_outputs = []
         sim_outputs.append(pooled_outputs)
         input_masks = input_masks.unsqueeze(-1)
+        outputs = outputs * input_masks
 
         for gnn_layer in self.gnn_layers:
             if self.sim == "dot":
