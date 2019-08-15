@@ -80,9 +80,10 @@ class BERT_Pretrained(nn.Module):
     def forward(self, input_ids, input_masks):
         """ 由training来控制finetune还是固定 """
 
-        self.bert4pretrain.eval()
-        with torch.set_grad_enabled(not self.freeze):
-            outputs, pooled_outputs = self.bert4pretrain(input_ids, attention_mask=input_masks, output_all_encoded_layers=False)
+        if self.freeze:
+            self.bert4pretrain.eval()
+        
+        outputs, pooled_outputs = self.bert4pretrain(input_ids, attention_mask=input_masks, output_all_encoded_layers=False)
 
         sim_outputs = []
         sim_outputs.append(pooled_outputs)
