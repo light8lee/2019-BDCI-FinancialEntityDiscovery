@@ -11,7 +11,7 @@ from pytorch_pretrained_bert import BertModel, BertConfig, BertForPreTraining
 
 class BERT_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, readout_pool, bert_dim,
-                 gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot",
+                 gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot", need_pooled_output:bool=True,
                  adj_act="relu", pred_dims=None, pred_act='ELU', **kwargs):
         super(BERT_Pretrained, self).__init__()
         assert sim in ["dot", "cos"]
@@ -26,6 +26,7 @@ class BERT_Pretrained(nn.Module):
         self.sim = sim
         self.adj_act = getattr(Act, adj_act)
         self.gnn_layers = nn.ModuleList()
+        self.need_pooled_output = need_pooled_output
 
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
@@ -37,7 +38,7 @@ class BERT_Pretrained(nn.Module):
             raise ValueError()
 
         self.bert4pretrain = BertForPreTraining.from_pretrained(pretrained_model_path, from_tf=True).bert
-        out_dim = bert_dim
+        out_dim = bert_dim if need_pooled_output else 0
         in_dim = bert_dim
         if gnn != "none": 
             in_size = self.max_seq_len * 2
@@ -83,7 +84,8 @@ class BERT_Pretrained(nn.Module):
         outputs, pooled_outputs = self.bert4pretrain(input_ids, attention_mask=input_masks, output_all_encoded_layers=False)
 
         sim_outputs = []
-        sim_outputs.append(pooled_outputs)
+        if self.need_pooled_output:
+            sim_outputs.append(pooled_outputs)
         outputs = outputs * input_masks.unsqueeze(-1)
 
         for gnn_layer in self.gnn_layers:
