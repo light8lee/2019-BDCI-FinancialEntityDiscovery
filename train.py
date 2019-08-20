@@ -64,15 +64,6 @@ def train(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
-    # if model_config.activation is None:
-    #     pass
-    # elif model_config.activation == 'identical':
-    #     model_config.activation = lambda v: v
-    # elif model_config.activation == 'gelu':
-    #     model_config.activation = models.layers.activation.gelu
-    # else:
-    #     model_config.activation = getattr(t, model_config.activation, None) or getattr(F, model_config.activation, None)
-
     model = model_class(**model_config.values)
 
     criterion = nn.MSELoss()
@@ -111,18 +102,10 @@ def train(args):
 
     total_steps = int(args.epoch * len(datasets['train']) / args.batch_size)
     if model_config.name.find("BERT") != -1:
-        params = []
-        for name, param in model.named_parameters():
-            if name.find('bert4pretrain') != -1:
-                params.append({
-                    'params': param,
-                    'lr': model_config.bert_lr
-                })
-            else:
-                params.append({
-                    'params': param,
-                })
-        optimizer = getattr(optim, optimizer_config.name)(params, **optimizer_config.values)
+        if model_config.freeze:
+            for param in model.bert4pretrain.parameters():
+                param.requires_grad = False
+        optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
     else:
         optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
     scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)

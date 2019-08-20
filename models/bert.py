@@ -11,7 +11,7 @@ from pytorch_pretrained_bert import BertModel, BertConfig, BertForPreTraining
 
 class BERT_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, readout_pool, bert_dim,
-                 gnn_hidden_dims, activation, residual, freeze, need_norm, gnn, sim="dot",
+                 gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot",
                  adj_act="relu", pred_dims=None, pred_act='ELU', **kwargs):
         super(BERT_Pretrained, self).__init__()
         assert sim in ["dot", "cos"]
@@ -23,7 +23,6 @@ class BERT_Pretrained(nn.Module):
         self.activation = getattr(Act, activation)
         self.need_norm = need_norm
         self.gnn = gnn
-        self.freeze = freeze
         self.sim = sim
         self.adj_act = getattr(Act, adj_act)
         self.gnn_layers = nn.ModuleList()
@@ -81,9 +80,6 @@ class BERT_Pretrained(nn.Module):
     def forward(self, input_ids, input_masks):
         """ 由training来控制finetune还是固定 """
 
-        if self.freeze:
-            self.bert4pretrain.eval()
-        
         outputs, pooled_outputs = self.bert4pretrain(input_ids, attention_mask=input_masks, output_all_encoded_layers=False)
 
         sim_outputs = []
