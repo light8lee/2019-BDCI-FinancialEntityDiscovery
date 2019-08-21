@@ -50,7 +50,7 @@ def collect_single(batch):
 
     batch_inputs = t.from_numpy(np.array(batch_inputs)).long()
     batch_masks = t.from_numpy(np.array(batch_masks)).float()
-    batch_types = t.from_numpy(np.array(batch_types)).float()
+    batch_types = t.from_numpy(np.array(batch_types)).long()
 
     targets = t.from_numpy(np.array(targets)).float().unsqueeze(-1)
 
