@@ -17,7 +17,7 @@ class RNN(nn.Module):
                  embedding_dim, gnn_hidden_dims, rnn_hidden_dims, rnn,
                  activation, residual, need_norm, gnn, sim="dot",
                  init_weight=None, freeze:bool=False, adj_act:str="relu",
-                 pred_dims:list=None, pred_act:str='ELU', **kwargs):
+                 rescale:bool=False, pred_dims:list=None, pred_act:str='ELU', **kwargs):
         super(RNN, self).__init__()
         rnn = rnn.lower()
         assert sim in ["dot", "cos"]
@@ -39,6 +39,9 @@ class RNN(nn.Module):
         self.gnn = gnn
         self.sim = sim
         self.adj_act = getattr(Act, adj_act)
+        self.rescale = rescale
+        self.rescale_ws = nn.ParameterList()
+        self.rescale_bs = nn.ParameterList()
 
         self.embedding = self.init_unit_embedding(init_weight=init_weight)
         self.rnn_layers = nn.ModuleList()  # to be replaced in subclass
@@ -68,6 +71,9 @@ class RNN(nn.Module):
         if gnn != "none": 
             in_size = self.max_seq_len * 2
             for i, gnn_hidden_dim in enumerate(gnn_hidden_dims):
+                if rescale:
+                    self.rescale_ws.append(nn.Parameter(torch.ones(1, 1, 1)))
+                    self.rescale_bs.append(nn.Parameter(torch.zeros(1, 1, 1)))
                 if gnn == "diffpool":
                     self.gnn_layers.append(
                         DiffPool(in_dim, gnn_hidden_dim, in_size, kwargs['ratio'],
@@ -157,13 +163,15 @@ class RNN(nn.Module):
         sim_outputs.append(pool_a * pool_b)
 
         outputs = torch.cat([outputs_a, outputs_b], 1)  # [b, 2t, e]
-        for gnn_layer in self.gnn_layers:
+        for i, gnn_layer in enumerate(self.gnn_layers):
             if self.sim == "dot":
                 input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
             elif self.sim == "cos":
                 input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
                 norm = torch.norm(outputs, dim=-1) + 1e-7
                 input_adjs = input_adjs / (norm.unsqueeze(-1) * norm.unsqueeze(1))
+            if self.rescale:
+                input_adjs = input_adjs * self.rescale_ws[i] + self.rescale_bs[i]
             if self.need_norm:
                 input_adjs = normalize_adjs(input_masks, input_adjs)
             input_adjs = self.adj_act(input_adjs)
