@@ -84,10 +84,10 @@ class BERT_Pretrained(nn.Module):
 
         self.dense = nn.Sequential(*pred_layers)
 
-    def forward(self, input_ids, input_masks):
+    def forward(self, input_ids, input_masks, input_types):
         """ 由training来控制finetune还是固定 """
 
-        outputs, pooled_outputs = self.bert4pretrain(input_ids, attention_mask=input_masks, output_all_encoded_layers=False)
+        outputs, pooled_outputs = self.bert4pretrain(input_ids, token_type_ids=input_types, attention_mask=input_masks, output_all_encoded_layers=False)
 
         sim_outputs = []
         if self.need_pooled_output:

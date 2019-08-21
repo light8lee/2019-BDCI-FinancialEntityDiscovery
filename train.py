@@ -25,21 +25,31 @@ from scipy.stats import pearsonr
 # F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 
-def infer(data, model, criterion, cuda):
+def infer(data, model, criterion, cuda, is_bert):
     features, targets = data
-    batch_ids, batch_masks = features
+    if is_bert:
+        batch_ids, batch_masks, batch_types = features
+    else:
+        batch_ids, batch_masks = features
     labels = targets.numpy()
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
             batch_ids = batch_ids.cuda()
             batch_masks = batch_masks.cuda()
+            if is_bert:
+                batch_types = batch_types.cuda()
         else:
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
+            if is_bert:
+                batch_types = [v.cuda() for v in batch_types]
 
         targets = targets.cuda()
-    preds = model(batch_ids, batch_masks)
+    if is_bert:
+        preds = model(batch_ids, batch_masks, batch_types)
+    else:
+        preds = model(batch_ids, batch_masks)
     loss = criterion(preds, targets)
     predictions = preds.detach().cpu().numpy()
 
@@ -155,7 +165,7 @@ def train(args):
                 optimizer.zero_grad()
 
                 with t.set_grad_enabled(phase == 'train'):
-                    result, loss = infer(data, model, criterion, args.cuda)
+                    result, loss = infer(data, model, criterion, args.cuda, model_config.name.find("BERT")!=-1)
                     if phase == 'train':
                         loss.backward()
                         # t.nn.utils.clip_grad_norm_(model.parameters(), 7)

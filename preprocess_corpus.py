@@ -48,7 +48,7 @@ def get_padded_tokens(tokens, tokenizer, max_seq_length, pad='after'):
     input_ids = tokenizer.convert_tokens_to_ids(tokens)
     input_mask = [1] * len(input_ids)
     if FLAGS.bert_style:
-        max_seq_length += 2
+        max_seq_length += 3
     assert len(input_ids) <= max_seq_length
 
     to_pad = [0] * (max_seq_length - len(input_ids))
@@ -101,11 +101,17 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length, output
             inputs = ['[CLS]']
             inputs.extend(instance.tokens_a)
             inputs.append('[SEP]')
+            ea_size = len(inputs)
+            token_types = [0] * ea_size
             inputs.extend(instance.tokens_b)
             inputs.append('[SEP]')
+            eb_size = len(inputs) - ea_size
+            token_types += [1] * eb_size
             inputs, input_masks = get_padded_tokens(inputs, tokenizer, 2*max_seq_length)
+            token_types += [0] * (len(inputs) - ea_size - eb_size)
             feature["inputs"] = inputs
             feature["input_masks"] = input_masks
+            feature['token_types'] = token_types
         else:
             inputs_a, input_mask_a = get_padded_tokens(instance.tokens_a, tokenizer, max_seq_length)
             inputs_b, input_mask_b = get_padded_tokens(instance.tokens_b, tokenizer, max_seq_length)

@@ -45,15 +45,16 @@ def collect_multigraph(batch):
 def collect_single(batch):
     batch_size = len(batch)
     features, targets = zip(*batch)
-    batch_inputs, batch_masks = zip(*features)
+    batch_inputs, batch_masks, batch_types = zip(*features)
     seq_len = len(batch_inputs[0])
 
     batch_inputs = t.from_numpy(np.array(batch_inputs)).long()
     batch_masks = t.from_numpy(np.array(batch_masks)).float()
+    batch_types = t.from_numpy(np.array(batch_types)).float()
 
     targets = t.from_numpy(np.array(targets)).float().unsqueeze(-1)
 
-    return (batch_inputs, batch_masks), targets
+    return (batch_inputs, batch_masks, batch_types), targets
 
 
 if __name__ == '__main__':
