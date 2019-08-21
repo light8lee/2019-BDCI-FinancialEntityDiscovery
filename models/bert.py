@@ -12,7 +12,7 @@ from pytorch_pretrained_bert import BertModel, BertConfig, BertForPreTraining
 class BERT_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, readout_pool, bert_dim,
                  gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot", need_pooled_output:bool=True,
-                 adj_act="relu", pred_dims=None, pred_act='ELU', **kwargs):
+                 rescale:bool=False, adj_act="relu", pred_dims=None, pred_act='ELU', **kwargs):
         super(BERT_Pretrained, self).__init__()
         assert sim in ["dot", "cos"]
         assert gnn in ["diffpool", "gcn", "gat", "none"]
@@ -27,6 +27,9 @@ class BERT_Pretrained(nn.Module):
         self.adj_act = getattr(Act, adj_act)
         self.gnn_layers = nn.ModuleList()
         self.need_pooled_output = need_pooled_output
+        self.rescale = rescale
+        self.rescale_ws = nn.ParameterList()
+        self.rescale_bs = nn.ParameterList()
 
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
@@ -43,6 +46,9 @@ class BERT_Pretrained(nn.Module):
         if gnn != "none": 
             in_size = self.max_seq_len * 2
             for i, gnn_hidden_dim in enumerate(gnn_hidden_dims):
+                if rescale:
+                    self.rescale_ws.append(nn.Parameter(torch.ones(1, 1, 1)))
+                    self.rescale_bs.append(nn.Parameter(torch.zeros(1, 1, 1)))
                 if gnn == "diffpool":
                     self.gnn_layers.append(
                         DiffPool(in_dim, gnn_hidden_dim, in_size, kwargs['ratio'],
@@ -88,13 +94,16 @@ class BERT_Pretrained(nn.Module):
             sim_outputs.append(pooled_outputs)
         outputs = outputs * input_masks.unsqueeze(-1)
 
-        for gnn_layer in self.gnn_layers:
+        for i, gnn_layer in enumerate(self.gnn_layers):
             if self.sim == "dot":
                 input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
             elif self.sim == "cos":
                 input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
                 norm = torch.norm(outputs, dim=-1) + 1e-7
                 input_adjs = input_adjs / (norm.unsqueeze(-1) * norm.unsqueeze(1))
+            
+            if self.rescale:
+                input_adjs = input_adjs * self.rescale_ws[i] + self.rescale_bs[i]
             if self.need_norm:
                 input_adjs = normalize_adjs(input_masks, input_adjs)
             input_adjs = self.adj_act(input_adjs)
