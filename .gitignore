@@ -7,4 +7,5 @@ outputs/*
 **.pkl
 **.fea
 spm.*
+stanford**
 **.txt
