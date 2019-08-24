@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
+import csv
 import argparse
 
 flags = argparse.ArgumentParser()
@@ -44,7 +45,9 @@ def prepare_sts(args, tokenizer, vocabs, phase):
     fea_pos_writer = open('{}.pos'.format(output_file), 'w')
 
     input_file = os.path.join(args.input_dir, 'STS-B', '{}.tsv'.format(phase))
-    datas = pd.read_csv(input_file, sep='\t', error_bad_lines=False, warn_bad_lines=True)
+    datas = pd.read_csv(input_file, sep='\t', error_bad_lines=False,
+                        warn_bad_lines=True, engine='python', encoding='utf-8',
+                        quoting=csv.QUOTE_NONE)
     datas.dropna(inplace=True)
     if phase == 'test':
         datas['score'] = 0
@@ -94,7 +97,9 @@ def prepare_qqp(args, tokenizer, vocabs, phase):
     fea_pos_writer = open('{}.pos'.format(output_file), 'w')
 
     input_file = os.path.join(args.input_dir, 'QQP', '{}.tsv'.format(phase))
-    datas = pd.read_csv(input_file, sep='\t', error_bad_lines=False, warn_bad_lines=True)
+    datas = pd.read_csv(input_file, sep='\t', error_bad_lines=False,
+                        warn_bad_lines=True, engine='python', encoding='utf-8',
+                        quoting=csv.QUOTE_NONE)
     datas.dropna(inplace=True)
     if phase == 'test':
         datas['is_duplicate'] = 0
@@ -142,6 +147,7 @@ def main(args):
     tokenizer = tokenization.FullTokenizer(args.vocab_file, args.do_lower_case)
 
     for phase in ['test', 'train', 'dev']:
+        print('phase:', phase)
         if args.task == 'QQP':
             prepare_qqp(args, tokenizer, vocabs, phase)
         elif args.task == 'STS':
