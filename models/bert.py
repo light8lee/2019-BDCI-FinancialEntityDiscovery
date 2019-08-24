@@ -10,7 +10,7 @@ from .layers.normalization import normalize_adjs
 from pytorch_pretrained_bert import BertModel, BertConfig, BertForPreTraining
 
 class BERT_Pretrained(nn.Module):
-    def __init__(self, pretrained_model_path, max_seq_len, drop_rate, readout_pool, bert_dim,
+    def __init__(self, output_dim, pretrained_model_path, max_seq_len, drop_rate, readout_pool, bert_dim,
                  gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot", need_pooled_output:bool=True,
                  rescale:bool=False, adj_act="relu", pred_dims=None, pred_act='ELU', **kwargs):
         super(BERT_Pretrained, self).__init__()
@@ -79,14 +79,12 @@ class BERT_Pretrained(nn.Module):
             pred_layers.append(nn.Dropout(p=self.drop_rate))
             out_dim = pred_dim
         pred_layers.append(
-            nn.Linear(out_dim, 1)
+            nn.Linear(out_dim, output_dim)
         )
 
         self.dense = nn.Sequential(*pred_layers)
 
     def forward(self, input_ids, input_masks, input_types):
-        """ 由training来控制finetune还是固定 """
-
         outputs, pooled_outputs = self.bert4pretrain(input_ids, token_type_ids=input_types, attention_mask=input_masks, output_all_encoded_layers=False)
 
         sim_outputs = []
@@ -116,6 +114,5 @@ class BERT_Pretrained(nn.Module):
 
         outputs = torch.cat(sim_outputs, -1)
         outputs = self.dense(outputs)  # [b, 1]
-        # outputs = torch.log_softmax(outputs, 1)
 
         return outputs

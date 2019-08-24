@@ -13,7 +13,7 @@ from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 from .layers.normalization import normalize_adjs
 
 class RNN(nn.Module):
-    def __init__(self, vocab_size, max_seq_len, drop_rate, readout_pool,
+    def __init__(self, output_dim, vocab_size, max_seq_len, drop_rate, readout_pool,
                  embedding_dim, gnn_hidden_dims, rnn_hidden_dims, rnn,
                  activation, residual, need_norm, gnn, sim="dot",
                  init_weight=None, freeze:bool=False, adj_act:str="relu",
@@ -104,7 +104,7 @@ class RNN(nn.Module):
             pred_layers.append(nn.Dropout(p=self.drop_rate))
             out_dim = pred_dim
         pred_layers.append(
-            nn.Linear(out_dim, 1)
+            nn.Linear(out_dim, output_dim)
         )
 
         self.dense = nn.Sequential(*pred_layers)
@@ -184,6 +184,5 @@ class RNN(nn.Module):
 
         outputs = torch.cat(sim_outputs, -1)
         outputs = self.dense(outputs)  # [b, 1]
-        # outputs = torch.log_softmax(outputs, 1)
 
         return outputs

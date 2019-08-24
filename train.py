@@ -19,13 +19,10 @@ from sklearn.metrics import confusion_matrix
 from collections import Counter
 import pdb
 from scipy.stats import pearsonr
-
-# Precision = lambda tp, fp: tp / (tp + fp)
-# Recall = lambda tp, fn: tp / (tp + fn)
-# F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
+import task_metric as tm
 
 
-def infer(data, model, criterion, cuda, is_bert):
+def infer(data, model, criterion, cuda, is_bert, task):
     features, targets = data
     if is_bert:
         batch_ids, batch_masks, batch_types = features
@@ -50,15 +47,26 @@ def infer(data, model, criterion, cuda, is_bert):
         preds = model(batch_ids, batch_masks, batch_types)
     else:
         preds = model(batch_ids, batch_masks)
-    loss = criterion(preds, targets)
-    predictions = preds.detach().cpu().numpy()
-
-    result = {
-        'preds': predictions,
-        'labels': labels,
-        'size': labels.shape[0]
-    }
-
+    if task == 'QQP':
+        preds = t.log_softmax(preds, 1)
+        predictions = preds.argmax(1).cpu().numpy()
+        loss = criterion(preds, targets)
+        tn, fp, fn, tp = confusion_matrix(labels, predictions, labels=[0, 1]).ravel()
+        result = Counter({
+            'tn': tn,
+            'fp': fp,
+            'fn': fn,
+            'tp': tp,
+            'total': tn+fp+fn+tp
+        })
+    elif task == 'STS-B':
+        predictions = preds.detach().cpu().numpy()
+        loss = criterion(preds, targets)
+        result = {
+            'preds': predictions,
+            'labels': labels,
+            'size': labels.shape[0]
+        }
     return result, loss
 
 
@@ -74,9 +82,15 @@ def train(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
+    if args.task == 'QQP':
+        model_config.output_dim = 2
+        criterion = nn.NLLLoss()
+    elif args.task == 'STS-B':
+        model_config.output_dim = 1
+        criterion = nn.MSELoss()
+    else:
+        raise ValueError("No suck task: {}".format(args.task))
     model = model_class(**model_config.values)
-
-    criterion = nn.MSELoss()
 
     dataloaders = {}
     datasets = {}
@@ -141,23 +155,28 @@ def train(args):
     elif args.cuda:
         model = model.cuda()
 
-    epoch_loss = 10000
-    best_pea = 0
     # pdb.set_trace()
     if args.log:
         writer = SummaryWriter(os.path.join(args.save_dir, 'logs'))
+    if args.task == 'STS-B':
+        pre_fn, step_fn, post_fn = tm.sts_metric_builder(args, scheduler_config, model,
+                                                         optimizer, scheduler, writer, Log)
+    elif args.task == 'QQP':
+        pre_fn, step_fn, post_fn = tm.qqp_metric_builder(args, scheduler_config, model,
+                                                         optimizer, scheduler, writer, Log)
+
+    phases = ['train', 'dev']
+    if args.do_test:
+        phases.append('test')
     for epoch in range(conti, conti+args.epoch):
-        for phase in ['train', 'dev', 'test']:
+        for phase in phases:
+            pre_fn()
             if phase == 'train':
                 if sampler is not None:
                     sampler.set_epoch(epoch)
                 model.train()
             else:
                 model.eval()
-            running_loss = 0.
-            running_preds = []
-            running_labels = []
-            running_size = 0
 
             pbar = tqdm(dataloaders[phase], position=args.local_rank)
             pbar.set_description("[{} Epoch {}]".format(phase, epoch))
@@ -170,68 +189,15 @@ def train(args):
                         loss.backward()
                         # t.nn.utils.clip_grad_norm_(model.parameters(), 7)
                         optimizer.step()
-                running_loss += loss.item()
-                running_preds.append(result['preds'])
-                running_labels.append(result['labels'])
-                running_size += result['size']
-
-                if phase == 'train':
-                    curr_lr = optimizer.param_groups[0]['lr']
-                    if args.multi_gpu:
-                        pbar.set_postfix(rank=args.local_rank, mean_loss=running_loss/running_size, lr=curr_lr)
-                    else:
-                        pbar.set_postfix(mean_loss=running_loss/running_size, lr=curr_lr)
-                else:
-                    pbar.set_postfix(mean_loss=running_loss/running_size)
-            try:
-                epoch_loss = running_loss / running_size
-                preds = np.concatenate(running_preds, axis=0)
-                labels = np.concatenate(running_labels, axis=0)
-                epoch_pea = pearsonr(preds, labels)[0][0]
-            except Exception as e:
-                raise e
-            if args.log:
-                writer.add_scalars('loss', {
-                    phase: epoch_loss,
-                }, epoch)
-            if phase == 'dev':
-                if scheduler_config.name == 'ReduceLROnPlateau':
-                    scheduler.step(epoch_loss)
-                else:
-                    scheduler.step()
-                if epoch_pea > best_pea:
-                    best_pea = epoch_pea
-                    if args.multi_gpu:
-                        if args.local_rank == 0:
-                            Log('dev Epoch {}: Saving Rank({}) New Record... Pea: {}, Loss: {}'.format(
-                                epoch, args.local_rank, epoch_pea, epoch_loss))
-                            # save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
-                            #                     epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
-                            save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.best.pt.tar'.format(args.fold, args.local_rank)),
-                                                epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
-                    else:
-                        Log('dev Epoch {}: Saving New Record... Pea: {}, Loss: {}'.format(
-                            epoch, epoch_pea, epoch_loss))
-                        # save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
-                        #                        epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
-                        save_ckpt(os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(args.fold)),
-                                               epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
-                else:
-                    if args.multi_gpu:
-                        Log('dev Epoch {}: Rank({}) Not Improved. Pea: {}, Loss: {}'.format(
-                            epoch, args.local_rank, epoch_pea, epoch_loss))
-                    else:
-                        Log('dev Epoch {}: Not Improved. Pea: {}, Loss: {}'.format(
-                            epoch, epoch_pea, epoch_loss))
-            else:
-                Log('{} Epoch {}: Pea: {}, Loss: {}'.format(
-                    phase, epoch, epoch_pea, epoch_loss))
+                step_fn(result, loss, pbar, phase)
+            post_fn(phase, epoch)
     if args.log:
         writer.close()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('task', type=str, choices=['QQP', 'STS-B'])
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--log', dest='log', action='store_true', help='whether use tensorboard')
@@ -243,8 +209,9 @@ if __name__ == '__main__':
     parser.add_argument('--conti', type=int, default=None, help="the start epoch for continue training")
     parser.add_argument('--multi_gpu', dest='multi_gpu', action='store_true', help="use multi gpu")
     parser.add_argument('--fold', type=str, default='')
+    parser.add_argument('--do_test', dest='do_test', action='store_true')
     parser.add_argument('--seed', type=int, default=2019)
-    parser.set_defaults(multi_gpu=False, log=False)
+    parser.set_defaults(multi_gpu=False, log=False, do_test=False)
     parser.add_argument("--local_rank", type=int)
     args = parser.parse_args()
     t.manual_seed(args.seed)

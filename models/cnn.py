@@ -14,7 +14,7 @@ from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 from .layers.normalization import normalize_adjs
 
 class CNN(nn.Module):
-    def __init__(self, vocab_size, max_seq_len, drop_rate, gnn_hidden_dims:list,
+    def __init__(self, output_dim, vocab_size, max_seq_len, drop_rate, gnn_hidden_dims:list,
                  embedding_dim, window_size, cnn_hidden_dims:list, attn, gnn,
                  readout_pool:str, mode:str='concat', pred_dims:list=None, need_norm:bool=False,
                  init_weight=None, activation=None, pred_act:str='ELU', sim="dot", adj_act:str="relu",
@@ -100,7 +100,7 @@ class CNN(nn.Module):
             pred_layers.append(nn.Dropout(p=self.drop_rate))
             out_dim = pred_dim
         pred_layers.append(
-            nn.Linear(out_dim, 1)
+            nn.Linear(out_dim, output_dim)
         )
 
         self.dense = nn.Sequential(*pred_layers)
@@ -183,6 +183,5 @@ class CNN(nn.Module):
 
         outputs = torch.cat(sim_outputs, -1)  # [b, h]
         outputs = self.dense(outputs)
-        # outputs = torch.log_softmax(outputs, 1)
 
         return outputs
