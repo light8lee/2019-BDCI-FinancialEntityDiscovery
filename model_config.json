@@ -1,20 +1,27 @@
-
 {
     "optimizer": {
         "name": "Adam",
-        "lr": 1e-3
+        "lr": 5e-5
     },
     "model": {
-        "name": "GRU_ResGCN",
-        "drop_rate": 0.1,
+        "name": "BERT_Pretrained",
+        "drop_rate": 0.2,
+        "max_seq_len": 103,
+        "readout_pool": "max",
+        "pred_dims": [200],
+        "residual": true,
+        "pred_act": "ReLU",
+        "pretrained_model_path": "uncased_L-12_H-768_A-12",
+        "bert_dim": 768,
+        "freeze": false,
+        "need_pooled_output": true,
+
+        "rescale": false,
+        "gnn": "none",
+        "sim": "cos",
+        "need_norm": false,
         "activation": "tanh",
-        "vocab_size": 2458,
-        "max_seq_len": 50,
-        "embedding_dim": 300,
-        "num_rnn_layer": 2,
-        "hidden_dims": [400, 300],
-        "num_gcn_layer": 1,
-        "need_norm": true,
-        "init_weight_path": "data/med.vec"
+        "adj_act": "sigmoid",
+        "gnn_hidden_dims": []
     }
 }

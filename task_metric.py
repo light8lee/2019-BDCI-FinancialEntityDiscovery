@@ -113,7 +113,7 @@ def qqp_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
         nonlocal running_results
 
         running_loss += loss.item()
-        running_size += result
+        running_results += result
         if phase == 'train':
             curr_lr = optimizer.param_groups[0]['lr']
             if args.multi_gpu:

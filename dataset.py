@@ -14,6 +14,7 @@ class GraphDataset(Dataset):
 
     def __len__(self):
         return len(self.targets)
+        # return 100
 
     def __getitem__(self, idx):
         pos = self.postions[idx]
@@ -37,7 +38,7 @@ def collect_multigraph(batch):
     batch_mask_b = t.from_numpy(np.array(batch_mask_b)).float()
     batch_masks = (batch_mask_a, batch_mask_b)
 
-    targets = t.from_numpy(np.array(targets)).float().unsqueeze(-1)
+    targets = t.from_numpy(np.array(targets))
 
     return (batch_inputs, batch_masks), targets
 
@@ -45,26 +46,13 @@ def collect_multigraph(batch):
 def collect_single(batch):
     batch_size = len(batch)
     features, targets = zip(*batch)
-    batch_inputs, batch_masks, batch_types = zip(*features)
+    idx, batch_inputs, batch_masks, batch_types = zip(*features)
     seq_len = len(batch_inputs[0])
 
     batch_inputs = t.from_numpy(np.array(batch_inputs)).long()
     batch_masks = t.from_numpy(np.array(batch_masks)).float()
     batch_types = t.from_numpy(np.array(batch_types)).long()
 
-    targets = t.from_numpy(np.array(targets)).float().unsqueeze(-1)
+    targets = t.from_numpy(np.array(targets))
 
-    return (batch_inputs, batch_masks, batch_types), targets
-
-
-if __name__ == '__main__':
-    fea_file = open('inputs/dev.fea', 'rb')
-    with open('inputs/dev.tgt', 'r') as f:
-        targets = [int(v.strip()) for v in f]
-    with open('inputs/dev.pos', 'r') as f:
-        positions = [int(v.strip()) for v in f]
-    dataset = GraphDataset(fea_file, targets, positions)
-    dl = t.utils.data.DataLoader(
-        dataset, batch_size=2, collate_fn=collect_multigraph)
-    for data in dl:
-        print(data)
+    return (idx, batch_inputs, batch_masks, batch_types), targets

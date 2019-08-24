@@ -21,8 +21,9 @@ from scipy.stats import pearsonr
 
 
 def infer(data, model, seq_len, cuda, task):
-    features, _ = data
+    features, targets = data
     idxs, batch_ids, batch_masks, batch_types = features
+    labels = targets.numpy()
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
@@ -33,9 +34,10 @@ def infer(data, model, seq_len, cuda, task):
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
             batch_types = batch_types.cuda()
+        targets = targets.cuda()
     preds = model(batch_ids, batch_masks, batch_types)
     if task == 'QQP':
-        predictions = preds.argmax(1).cpu.numpy()
+        predictions = preds.argmax(1).cpu().numpy()
     elif task == 'STS':
         predictions = preds.cpu().numpy()
     return idxs, predictions
@@ -63,7 +65,12 @@ def predict(args):
     dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                             shuffle=False, collate_fn=collect_single, num_workers=1)
 
-    total_preds = None
+    if args.task == 'QQP':
+        model_config.output_dim = 2
+    elif args.task == 'STS':
+        model_config.output_dim = 1
+    else:
+        raise ValueError("No suck task: {}".format(args.task))
     model = model_class(**model_config.values)
     ckpt_file = os.path.join(args.save_dir, 'model.best.pt.tar')
     if os.path.isfile(ckpt_file):
@@ -81,8 +88,8 @@ def predict(args):
         with t.no_grad():
             idxs, preds = infer(data, model, model_config.seq_len, args.cuda, args.task)
             curr_preds.append(preds)
+            curr_idxs.extend(idxs)
     curr_preds = np.concatenate(curr_preds, axis=0)
-    curr_idxs.extend(idxs)
     result = pd.DataFrame({'index': curr_idxs, 'prediction': curr_preds})
     if args.task == 'QQP':
         result.to_csv(os.path.join(args.save_dir, 'QQP.tsv'), sep='\t', index=False)

@@ -22,31 +22,27 @@ from scipy.stats import pearsonr
 import task_metric as tm
 
 
-def infer(data, model, criterion, cuda, is_bert, task):
+def infer(data, model, criterion, cuda, task):
     features, targets = data
-    if is_bert:
-        batch_ids, batch_masks, batch_types = features
-    else:
-        batch_ids, batch_masks = features
+    if task == 'QQP':
+        targets = targets.long()
+    elif task == 'STS':
+        targets = targets.float().unsqueeze(-1)
+    idx, batch_ids, batch_masks, batch_types = features
     labels = targets.numpy()
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
             batch_ids = batch_ids.cuda()
             batch_masks = batch_masks.cuda()
-            if is_bert:
-                batch_types = batch_types.cuda()
+            batch_types = batch_types.cuda()
         else:
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
-            if is_bert:
-                batch_types = [v.cuda() for v in batch_types]
+            batch_types = [v.cuda() for v in batch_types]
 
         targets = targets.cuda()
-    if is_bert:
-        preds = model(batch_ids, batch_masks, batch_types)
-    else:
-        preds = model(batch_ids, batch_masks)
+    preds = model(batch_ids, batch_masks, batch_types)
     if task == 'QQP':
         preds = t.log_softmax(preds, 1)
         predictions = preds.argmax(1).cpu().numpy()
@@ -59,7 +55,7 @@ def infer(data, model, criterion, cuda, is_bert, task):
             'tp': tp,
             'total': tn+fp+fn+tp
         })
-    elif task == 'STS-B':
+    elif task == 'STS':
         predictions = preds.detach().cpu().numpy()
         loss = criterion(preds, targets)
         result = {
@@ -85,7 +81,7 @@ def train(args):
     if args.task == 'QQP':
         model_config.output_dim = 2
         criterion = nn.NLLLoss()
-    elif args.task == 'STS-B':
+    elif args.task == 'STS':
         model_config.output_dim = 1
         criterion = nn.MSELoss()
     else:
@@ -158,7 +154,9 @@ def train(args):
     # pdb.set_trace()
     if args.log:
         writer = SummaryWriter(os.path.join(args.save_dir, 'logs'))
-    if args.task == 'STS-B':
+    else:
+        writer = None
+    if args.task == 'STS':
         pre_fn, step_fn, post_fn = tm.sts_metric_builder(args, scheduler_config, model,
                                                          optimizer, scheduler, writer, Log)
     elif args.task == 'QQP':
@@ -184,7 +182,7 @@ def train(args):
                 optimizer.zero_grad()
 
                 with t.set_grad_enabled(phase == 'train'):
-                    result, loss = infer(data, model, criterion, args.cuda, model_config.name.find("BERT")!=-1)
+                    result, loss = infer(data, model, criterion, args.cuda, args.task)
                     if phase == 'train':
                         loss.backward()
                         # t.nn.utils.clip_grad_norm_(model.parameters(), 7)
@@ -197,7 +195,7 @@ def train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('task', type=str, choices=['QQP', 'STS-B'])
+    parser.add_argument('task', type=str, choices=['QQP', 'STS'])
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--log', dest='log', action='store_true', help='whether use tensorboard')
