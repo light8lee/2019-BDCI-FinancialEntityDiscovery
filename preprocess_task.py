@@ -47,11 +47,10 @@ def prepare_sts(args, tokenizer, vocabs, phase):
     input_file = os.path.join(args.input_dir, 'STS-B', '{}.tsv'.format(phase))
     datas = pd.read_csv(input_file, sep='\t', error_bad_lines=False,
                         warn_bad_lines=True, engine='python', encoding='utf-8',
-                        quoting=csv.QUOTE_NONE)
+                        quoting=csv.QUOTE_NONE, dtype=str)
     datas.dropna(inplace=True)
     if phase == 'test':
         datas['score'] = 0
-    datas['score'] = datas['score'].astype(np.int)
     fea_pos = 0
     for idx, line_a, line_b, score in zip(datas['index'], datas['sentence1'], datas['sentence2'], datas['score']):
         tokens_a = tokenizer.tokenize(line_a)

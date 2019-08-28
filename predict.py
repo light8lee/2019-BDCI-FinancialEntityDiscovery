@@ -39,7 +39,7 @@ def infer(data, model, seq_len, cuda, task):
     if task == 'QQP':
         predictions = preds.argmax(1).cpu().numpy()
     elif task == 'STS':
-        predictions = preds.cpu().numpy()
+        predictions = preds.squeeze(-1).cpu().numpy()
     return idxs, predictions
 
 def predict(args):
