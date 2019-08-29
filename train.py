@@ -43,7 +43,7 @@ def infer(data, model, criterion, cuda, task):
 
         targets = targets.cuda()
     preds = model(batch_ids, batch_masks, batch_types)
-    if task == 'QQP':
+    if task in ['QQP', 'QNLI']:
         preds = t.log_softmax(preds, 1)
         predictions = preds.argmax(1).cpu().numpy()
         loss = criterion(preds, targets)
@@ -78,7 +78,7 @@ def train(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
-    if args.task == 'QQP':
+    if args.task in ['QNLI', 'QQP']:
         model_config.output_dim = 2
         criterion = nn.NLLLoss()
     elif args.task == 'STS':
