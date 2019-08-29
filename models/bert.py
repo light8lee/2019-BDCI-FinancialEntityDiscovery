@@ -12,7 +12,7 @@ from pytorch_pretrained_bert import BertModel, BertConfig, BertForPreTraining
 
 class BERT_Pretrained(nn.Module):
     def __init__(self, output_dim, pretrained_model_path, max_seq_len, drop_rate, readout_pool, bert_dim,
-                 gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot", need_pooled_output:bool=True,
+                 gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot",
                  rescale:bool=False, adj_act="relu", pred_dims=None, pred_act='ELU', **kwargs):
         super(BERT_Pretrained, self).__init__()
         assert sim in ["dot", "cos", "self"]
@@ -27,7 +27,6 @@ class BERT_Pretrained(nn.Module):
         self.sim = sim
         self.adj_act = getattr(Act, adj_act)
         self.gnn_layers = nn.ModuleList()
-        self.need_pooled_output = need_pooled_output
         self.rescale = rescale
         self.bert_dim = bert_dim
         self.rescale_ws = nn.ParameterList()
@@ -43,7 +42,8 @@ class BERT_Pretrained(nn.Module):
             raise ValueError()
 
         self.bert4pretrain = BertForPreTraining.from_pretrained(pretrained_model_path, from_tf=True).bert
-        out_dim = bert_dim if need_pooled_output else 0
+        out_dim = pred_dims[0]
+        self.pooled_fc = nn.Linear(bert_dim, pred_dims[0])
         in_dim = bert_dim
         if gnn != "none": 
             in_size = self.max_seq_len * 2
@@ -67,13 +67,16 @@ class BERT_Pretrained(nn.Module):
                         GCNLayer(in_dim, gnn_hidden_dim, self.activation, residual=residual)
                     )
                 in_dim = gnn_hidden_dim
-                out_dim += in_dim
+            out_dim *= 2
+            self.gnn_fc = nn.Linear(sum(gnn_hidden_dims), pred_dims[0])
+        else:
+            self.gnn_fc = None
 
         pred_act = getattr(Act, pred_act, nn.ELU)
 
         self.pred_dims = pred_dims
         pred_layers = []
-        for pred_dim in pred_dims:
+        for pred_dim in pred_dims[1:]:
             pred_layers.append(
                 nn.Linear(out_dim, pred_dim)
             )
@@ -90,10 +93,12 @@ class BERT_Pretrained(nn.Module):
         outputs, pooled_outputs = self.bert4pretrain(input_ids, token_type_ids=input_types, attention_mask=input_masks, output_all_encoded_layers=False)
 
         sim_outputs = []
-        if self.need_pooled_output:
-            sim_outputs.append(pooled_outputs)
         outputs = outputs * input_masks.unsqueeze(-1)
-
+        sim_outputs.append(
+            self.pooled_fc(pooled_outputs)
+        )
+        
+        gnn_outputs = []
         for i, gnn_layer in enumerate(self.gnn_layers):
             if self.sim == "dot":
                 input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
@@ -115,7 +120,12 @@ class BERT_Pretrained(nn.Module):
             else:
                 outputs = gnn_layer(input_adjs, outputs)
             outputs = outputs * input_masks.unsqueeze(-1)
-            sim_outputs.append(self.readout_pool(outputs, 1))
+            gnn_outputs.append(self.readout_pool(outputs, 1))
+        if self.gnn_fc:
+            gnn_outputs = torch.cat(gnn_outputs, -1)
+            sim_outputs.append(
+                self.gnn_fc(gnn_outputs)
+            )
 
         outputs = torch.cat(sim_outputs, -1)
         outputs = self.dense(outputs)  # [b, 1]
