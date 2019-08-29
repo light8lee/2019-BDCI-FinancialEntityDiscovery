@@ -24,7 +24,7 @@ import task_metric as tm
 
 def infer(data, model, criterion, cuda, task):
     features, targets = data
-    if task in ['QQP', 'QNLI']:
+    if task in ['QQP', 'QNLI', 'SST']:
         targets = targets.long()
     elif task == 'STS':
         targets = targets.float().unsqueeze(-1)
@@ -43,7 +43,7 @@ def infer(data, model, criterion, cuda, task):
 
         targets = targets.cuda()
     preds = model(batch_ids, batch_masks, batch_types)
-    if task in ['QQP', 'QNLI']:
+    if task in ['QQP', 'QNLI', 'SST']:
         preds = t.log_softmax(preds, 1)
         predictions = preds.argmax(1).cpu().numpy()
         loss = criterion(preds, targets)
@@ -78,7 +78,7 @@ def train(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
-    if args.task in ['QNLI', 'QQP']:
+    if args.task in ['QNLI', 'QQP', 'SST']:
         model_config.output_dim = 2
         criterion = nn.NLLLoss()
     elif args.task == 'STS':
@@ -159,11 +159,8 @@ def train(args):
     if args.task == 'STS':
         pre_fn, step_fn, post_fn = tm.sts_metric_builder(args, scheduler_config, model,
                                                          optimizer, scheduler, writer, Log)
-    elif args.task == 'QQP':
-        pre_fn, step_fn, post_fn = tm.qqp_metric_builder(args, scheduler_config, model,
-                                                         optimizer, scheduler, writer, Log)
-    elif args.task == 'QNLI':
-        pre_fn, step_fn, post_fn = tm.qnli_metric_builder(args, scheduler_config, model,
+    elif args.task in ['QQP', 'QNLI', 'SST']:
+        pre_fn, step_fn, post_fn = tm.acc_metric_builder(args, scheduler_config, model,
                                                          optimizer, scheduler, writer, Log)
 
     phases = ['train', 'dev']
@@ -198,7 +195,7 @@ def train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('task', type=str, choices=['QQP', 'STS', 'QNLI'])
+    parser.add_argument('task', type=str)
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--log', dest='log', action='store_true', help='whether use tensorboard')

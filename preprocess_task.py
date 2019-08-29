@@ -193,6 +193,53 @@ def prepare_qqp(args, tokenizer, vocabs, phase):
     fea_pos_writer.close()
 
 
+def prepare_sst(args, tokenizer, vocabs, phase):
+    output_file = os.path.join(args.output_dir, 'SST', phase)
+    tgt_writer = open('{}.tgt'.format(output_file), 'w')
+    fea_writer = open('{}.fea'.format(output_file), 'wb')
+    fea_pos_writer = open('{}.pos'.format(output_file), 'w')
+
+    input_file = os.path.join(args.input_dir, 'SST-2', '{}.tsv'.format(phase))
+    datas = pd.read_csv(input_file, sep='\t', error_bad_lines=False,
+                        warn_bad_lines=True, encoding='utf-8',
+                        quoting=csv.QUOTE_NONE)
+    datas.dropna(inplace=True)
+    if phase == 'test':
+        datas['label'] = 0
+    else:
+        datas['index'] = np.arange(datas.shape[0])
+    
+    datas['label'] = datas['label'].astype(np.int)
+    fea_pos = 0
+    for idx, line_a, label in zip(datas['index'], datas['sentence'], datas['label']):
+        tokens_a = tokenizer.tokenize(line_a)
+        if not tokens_a:
+            continue
+        tokens_a = tokens_a[:args.max_seq_length]
+        inputs = ['[CLS]']
+        inputs.extend(tokens_a)
+        inputs.append('[SEP]')
+
+        inputs, input_masks = get_padded_tokens(inputs, tokenizer, vocabs, args.max_seq_length+3)
+        token_types = [0] * len(inputs)
+
+        feature = collections.OrderedDict()
+        feature["index"] = idx
+        feature["inputs"] = inputs
+        feature["input_masks"] = input_masks
+        feature['token_types'] = token_types
+        feature = tuple(feature.values())
+        feature = pickle.dumps(feature)
+
+        sz = fea_writer.write(feature)
+        tgt_writer.write('{}\n'.format(label))
+        fea_pos_writer.write('{}\n'.format(fea_pos))
+        fea_pos += sz
+    tgt_writer.close()
+    fea_writer.close()
+    fea_pos_writer.close()
+
+
 def main(args):
     vocabs = tokenization.load_vocab(args.vocab_file)
     tokenizer = tokenization.FullTokenizer(args.vocab_file, args.do_lower_case)
@@ -205,6 +252,8 @@ def main(args):
             prepare_sts(args, tokenizer, vocabs, phase)
         elif args.task == 'QNLI':
             prepare_qnli(args, tokenizer, vocabs, phase)
+        elif args.task == 'SST':
+            prepare_sst(args, tokenizer, vocabs, phase)
 
 
 if __name__ == '__main__':

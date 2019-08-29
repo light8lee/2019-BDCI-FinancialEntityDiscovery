@@ -36,7 +36,7 @@ def infer(data, model, seq_len, cuda, task):
             batch_types = batch_types.cuda()
         targets = targets.cuda()
     preds = model(batch_ids, batch_masks, batch_types)
-    if task == 'QQP':
+    if task in ['QQP', 'QNLI', 'SST']:
         predictions = preds.argmax(1).cpu().numpy()
     elif task == 'STS':
         predictions = preds.squeeze(-1).cpu().numpy()
@@ -65,7 +65,7 @@ def predict(args):
     dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                             shuffle=False, collate_fn=collect_single, num_workers=1)
 
-    if args.task == 'QQP':
+    if args.task in ['QQP', 'SST', 'QNLI']:
         model_config.output_dim = 2
     elif args.task == 'STS':
         model_config.output_dim = 1
@@ -90,16 +90,25 @@ def predict(args):
             curr_preds.append(preds)
             curr_idxs.extend(idxs)
     curr_preds = np.concatenate(curr_preds, axis=0)
-    result = pd.DataFrame({'index': curr_idxs, 'prediction': curr_preds})
+    if args.task in ['QQP', 'STS', 'SST']:
+        result = pd.DataFrame({'index': curr_idxs, 'prediction': curr_preds})
+    elif args.task == 'QNLI':
+        curr_preds = ['entailment' if v == 1 else 'not_entailment' for v in curr_preds]
+        result = pd.DataFrame({'index': curr_idxs, 'prediction': curr_preds})
+
     if args.task == 'QQP':
         result.to_csv(os.path.join(args.save_dir, 'QQP.tsv'), sep='\t', index=False)
     elif args.task == 'STS':
         result.to_csv(os.path.join(args.save_dir, 'STS-B.tsv'), sep='\t', index=False)
+    elif args.task == 'QNLI':
+        result.to_csv(os.path.join(args.save_dir, 'QNLI.tsv'), sep='\t', index=False)
+    elif args.task == 'SST':
+        result.to_csv(os.path.join(args.save_dir, 'SST-2.tsv'), sep='\t', index=False)
     
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('task', type=str, choices=['QQP', 'STS'])
+    parser.add_argument('task', type=str)
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--data', type=str, default="./inputs/train", help="input/target data name")
