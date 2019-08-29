@@ -24,7 +24,7 @@ import task_metric as tm
 
 def infer(data, model, criterion, cuda, task):
     features, targets = data
-    if task == 'QQP':
+    if task in ['QQP', 'QNLI']:
         targets = targets.long()
     elif task == 'STS':
         targets = targets.float().unsqueeze(-1)
