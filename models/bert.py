@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 from .layers.diffpool import DiffPool
@@ -14,7 +15,7 @@ class BERT_Pretrained(nn.Module):
                  gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot", need_pooled_output:bool=True,
                  rescale:bool=False, adj_act="relu", pred_dims=None, pred_act='ELU', **kwargs):
         super(BERT_Pretrained, self).__init__()
-        assert sim in ["dot", "cos"]
+        assert sim in ["dot", "cos", "self"]
         assert gnn in ["diffpool", "gcn", "gat", "none"]
         pred_dims = pred_dims if pred_dims else []
         self.max_seq_len = max_seq_len
@@ -28,6 +29,7 @@ class BERT_Pretrained(nn.Module):
         self.gnn_layers = nn.ModuleList()
         self.need_pooled_output = need_pooled_output
         self.rescale = rescale
+        self.bert_dim = bert_dim
         self.rescale_ws = nn.ParameterList()
         self.rescale_bs = nn.ParameterList()
 
@@ -99,6 +101,9 @@ class BERT_Pretrained(nn.Module):
                 input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
                 norm = torch.norm(outputs, dim=-1) + 1e-7
                 input_adjs = input_adjs / (norm.unsqueeze(-1) * norm.unsqueeze(1))
+            elif self.sim == "self":
+                input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
+                input_adjs = input_adjs / math.sqrt(self.bert_dim)
             
             if self.rescale:
                 input_adjs = input_adjs * self.rescale_ws[i] + self.rescale_bs[i]
@@ -107,10 +112,10 @@ class BERT_Pretrained(nn.Module):
             input_adjs = self.adj_act(input_adjs)
             if self.gnn == 'diffpool':
                 input_adjs, outputs = gnn_layer(input_adjs, outputs)  # [b, 2t, e]
-                sim_outputs.append(self.readout_pool(outputs, 1))
             else:
                 outputs = gnn_layer(input_adjs, outputs)
-                sim_outputs.append(self.readout_pool(outputs, 1))
+            outputs = outputs * input_masks.unsqueeze(-1)
+            sim_outputs.append(self.readout_pool(outputs, 1))
 
         outputs = torch.cat(sim_outputs, -1)
         outputs = self.dense(outputs)  # [b, 1]
