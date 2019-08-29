@@ -38,6 +38,58 @@ def get_padded_tokens(tokens, tokenizer, vocabs, max_seq_length, pad='after'):
     return input_ids, input_mask
 
 
+def prepare_qnli(args, tokenizer, vocabs, phase):
+    output_file = os.path.join(args.output_dir, 'QNLI', phase)
+    tgt_writer = open('{}.tgt'.format(output_file), 'w')
+    fea_writer = open('{}.fea'.format(output_file), 'wb')
+    fea_pos_writer = open('{}.pos'.format(output_file), 'w')
+
+    input_file = os.path.join(args.input_dir, 'QNLI', '{}.tsv'.format(phase))
+    datas = pd.read_csv(input_file, sep='\t', error_bad_lines=False,
+                        warn_bad_lines=True, encoding='utf-8',
+                        quoting=csv.QUOTE_NONE, dtype=str)
+    datas.dropna(inplace=True)
+    if phase == 'test':
+        datas['label'] = 'not_entailment'
+    fea_pos = 0
+    for idx, line_a, line_b, label in zip(datas['index'], datas['question'], datas['sentence'], datas['label']):
+        tokens_a = tokenizer.tokenize(line_a)
+        tokens_b = tokenizer.tokenize(line_b)
+        if not tokens_a or not tokens_b:
+            continue
+        tokens_a = tokens_a[:args.max_seq_length]
+        tokens_b = tokens_b[:args.max_seq_length]
+        inputs = ['[CLS]']
+        inputs.extend(tokens_a)
+        inputs.append('[SEP]')
+        ea_size = len(inputs)
+        token_types = [0] * ea_size
+
+        inputs.extend(tokens_b)
+        inputs.append('[SEP]')
+        eb_size = len(inputs) - ea_size
+        token_types += [1] * eb_size
+        inputs, input_masks = get_padded_tokens(inputs, tokenizer, vocabs, 2*args.max_seq_length+3)
+        token_types += [0] * (len(inputs) - ea_size - eb_size)
+
+        feature = collections.OrderedDict()
+        feature["index"] = idx
+        feature["inputs"] = inputs
+        feature["input_masks"] = input_masks
+        feature['token_types'] = token_types
+        feature = tuple(feature.values())
+        feature = pickle.dumps(feature)
+
+        sz = fea_writer.write(feature)
+        label = 1 if label == 'entailment' else 0
+        tgt_writer.write('{}\n'.format(label))
+        fea_pos_writer.write('{}\n'.format(fea_pos))
+        fea_pos += sz
+    tgt_writer.close()
+    fea_writer.close()
+    fea_pos_writer.close()
+
+
 def prepare_sts(args, tokenizer, vocabs, phase):
     output_file = os.path.join(args.output_dir, 'STS', phase)
     tgt_writer = open('{}.tgt'.format(output_file), 'w')
@@ -151,6 +203,8 @@ def main(args):
             prepare_qqp(args, tokenizer, vocabs, phase)
         elif args.task == 'STS':
             prepare_sts(args, tokenizer, vocabs, phase)
+        elif args.task == 'QNLI':
+            prepare_qnli(args, tokenizer, vocabs, phase)
 
 
 if __name__ == '__main__':

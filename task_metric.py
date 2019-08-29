@@ -177,3 +177,80 @@ def qqp_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
             Log('{} Epoch {}: Acc: {}, P: {}, R: {}, F1: {} Loss: {}'.format(
                 phase, epoch, epoch_acc, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
     return pre_fn, step_fn, post_fn
+
+
+def qnli_metric_builder(args, scheduler_config, model, optimizer, scheduler, writer, Log):
+    best_acc = 0
+    epoch_loss = 10000
+    running_loss = 0.
+    running_results = Counter()
+    def pre_fn():
+        nonlocal running_loss
+        nonlocal running_results
+
+        running_loss = 0.
+        running_results = Counter()
+
+    def step_fn(result, loss, pbar, phase):
+        nonlocal running_loss
+        nonlocal running_results
+
+        running_loss += loss.item()
+        running_results += result
+        if phase == 'train':
+            curr_lr = optimizer.param_groups[0]['lr']
+            if args.multi_gpu:
+                pbar.set_postfix(rank=args.local_rank, mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'], lr=curr_lr)
+            else:
+                pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'], lr=curr_lr)
+        else:
+            pbar.set_postfix(mean_loss=running_loss/running_results['total'], mean_acc=(running_results['tp']+running_results['tn'])/running_results['total'])
+
+    def post_fn(phase, epoch):
+        nonlocal epoch_loss
+        nonlocal running_loss
+        nonlocal running_results
+        nonlocal best_acc
+
+        epoch_loss = running_loss / running_results['total']
+        epoch_acc = (running_results['tp'] + running_results['tn']) / running_results['total']
+        if args.log:
+            writer.add_scalars('loss', {
+                phase: epoch_loss,
+            }, epoch)
+            writer.add_scalars('acc', {
+                phase: epoch_acc,
+            }, epoch)
+        if phase == 'dev':
+            if scheduler_config.name == 'ReduceLROnPlateau':
+                scheduler.step(epoch_loss)
+            else:
+                scheduler.step()
+            if epoch_acc > best_acc:
+                best_acc = epoch_acc
+                if args.multi_gpu:
+                    if args.local_rank == 0:
+                        Log('dev Epoch {}: Saving Rank({}) New Record... Acc: {}, Loss: {}'.format(
+                            epoch, args.local_rank, epoch_acc, epoch_loss))
+                        # save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
+                        #                     epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+                        save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.best.pt.tar'.format(args.fold, args.local_rank)),
+                                            epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+                else:
+                    Log('dev Epoch {}: Saving New Record... Acc: {}, Loss: {}'.format(
+                        epoch, epoch_acc, epoch_loss))
+                    # save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
+                    #                        epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+                    save_ckpt(os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(args.fold)),
+                                            epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+            else:
+                if args.multi_gpu:
+                    Log('dev Epoch {}:  Rank({}) Not Improved. Acc: {}, Loss: {}'.format(
+                        epoch, args.local_rank, epoch_acc, epoch_loss))
+                else:
+                    Log('dev Epoch {}: Not Improved. Acc: {}, Loss: {}'.format(
+                        epoch, epoch_acc, epoch_loss))
+        else:
+            Log('{} Epoch {}: Acc: {}, Loss: {}'.format(
+                phase, epoch, epoch_acc, epoch_loss))
+    return pre_fn, step_fn, post_fn

@@ -162,6 +162,9 @@ def train(args):
     elif args.task == 'QQP':
         pre_fn, step_fn, post_fn = tm.qqp_metric_builder(args, scheduler_config, model,
                                                          optimizer, scheduler, writer, Log)
+    elif args.task == 'QNLI':
+        pre_fn, step_fn, post_fn = tm.qnli_metric_builder(args, scheduler_config, model,
+                                                         optimizer, scheduler, writer, Log)
 
     phases = ['train', 'dev']
     if args.do_test:
@@ -195,7 +198,7 @@ def train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('task', type=str, choices=['QQP', 'STS'])
+    parser.add_argument('task', type=str, choices=['QQP', 'STS', 'QNLI'])
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--log', dest='log', action='store_true', help='whether use tensorboard')
