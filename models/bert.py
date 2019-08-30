@@ -119,7 +119,7 @@ class BERT_Pretrained(nn.Module):
                 input_adjs, outputs = gnn_layer(input_adjs, outputs)  # [b, 2t, e]
             else:
                 outputs = gnn_layer(input_adjs, outputs)
-            outputs = outputs * input_masks.unsqueeze(-1)
+                outputs = outputs * input_masks.unsqueeze(-1)
             gnn_outputs.append(self.readout_pool(outputs, 1))
         if self.gnn_fc:
             gnn_outputs = torch.cat(gnn_outputs, -1)
