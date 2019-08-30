@@ -8,12 +8,13 @@ from .layers.gcn import GCNLayer
 from .layers import activation as Act
 from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 from .layers.normalization import normalize_adjs
+from torchcrf import CRF
 from pytorch_pretrained_bert import BertModel, BertConfig, BertForPreTraining
 
 class BERT_Pretrained(nn.Module):
-    def __init__(self, output_dim, pretrained_model_path, max_seq_len, drop_rate, readout_pool, bert_dim,
+    def __init__(self, pretrained_model_path, max_seq_len, drop_rate, readout_pool, bert_dim,
                  gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot",
-                 rescale:bool=False, adj_act="relu", pred_dims=None, pred_act='ELU', **kwargs):
+                 rescale:bool=False, adj_act="relu", **kwargs):
         super(BERT_Pretrained, self).__init__()
         assert sim in ["dot", "cos", "self"]
         assert gnn in ["diffpool", "gcn", "gat", "none"]
@@ -31,6 +32,7 @@ class BERT_Pretrained(nn.Module):
         self.bert_dim = bert_dim
         self.rescale_ws = nn.ParameterList()
         self.rescale_bs = nn.ParameterList()
+        self.crf = CRF(5, batch_first=True)
 
         if readout_pool == 'max':
             self.readout_pool = MaxPooling()
@@ -42,8 +44,7 @@ class BERT_Pretrained(nn.Module):
             raise ValueError()
 
         self.bert4pretrain = BertForPreTraining.from_pretrained(pretrained_model_path, from_tf=True).bert
-        out_dim = pred_dims[0]
-        self.pooled_fc = nn.Linear(bert_dim, pred_dims[0])
+        out_dim = bert_dim
         in_dim = bert_dim
         if gnn != "none": 
             in_size = self.max_seq_len * 2
@@ -67,37 +68,14 @@ class BERT_Pretrained(nn.Module):
                         GCNLayer(in_dim, gnn_hidden_dim, self.activation, residual=residual)
                     )
                 in_dim = gnn_hidden_dim
-            out_dim *= 2
-            self.gnn_fc = nn.Linear(sum(gnn_hidden_dims), pred_dims[0])
-        else:
-            self.gnn_fc = None
+                out_dim = gnn_hidden_dim
+        self.hidden2tags = nn.Linear(out_dim, 5)
 
-        pred_act = getattr(Act, pred_act, nn.ELU)
+    def forward(self, input_ids, input_masks, target_tags):
+        outputs, _ = self.bert4pretrain(input_ids, attention_mask=input_masks, output_all_encoded_layers=False)
 
-        self.pred_dims = pred_dims
-        pred_layers = []
-        for pred_dim in pred_dims[1:]:
-            pred_layers.append(
-                nn.Linear(out_dim, pred_dim)
-            )
-            pred_layers.append(pred_act())
-            pred_layers.append(nn.Dropout(p=self.drop_rate))
-            out_dim = pred_dim
-        pred_layers.append(
-            nn.Linear(out_dim, output_dim)
-        )
-
-        self.dense = nn.Sequential(*pred_layers)
-
-    def forward(self, input_ids, input_masks, input_types):
-        outputs, pooled_outputs = self.bert4pretrain(input_ids, token_type_ids=input_types, attention_mask=input_masks, output_all_encoded_layers=False)
-
-        sim_outputs = []
         outputs = outputs * input_masks.unsqueeze(-1)
-        sim_outputs.append(
-            self.pooled_fc(pooled_outputs)
-        )
-        
+
         gnn_outputs = []
         for i, gnn_layer in enumerate(self.gnn_layers):
             if self.sim == "dot":
@@ -109,7 +87,7 @@ class BERT_Pretrained(nn.Module):
             elif self.sim == "self":
                 input_adjs = torch.bmm(outputs, outputs.transpose(-1, -2))  # [b, 2t, 2t]
                 input_adjs = input_adjs / math.sqrt(self.bert_dim)
-            
+
             if self.rescale:
                 input_adjs = input_adjs * self.rescale_ws[i] + self.rescale_bs[i]
             if self.need_norm:
@@ -120,14 +98,9 @@ class BERT_Pretrained(nn.Module):
             else:
                 outputs = gnn_layer(input_adjs, outputs)
                 outputs = outputs * input_masks.unsqueeze(-1)
-            gnn_outputs.append(self.readout_pool(outputs, 1))
-        if self.gnn_fc:
-            gnn_outputs = torch.cat(gnn_outputs, -1)
-            sim_outputs.append(
-                self.gnn_fc(gnn_outputs)
-            )
+        emissions = self.hidden2tags(outputs)
+        scores = self.crf(emissions, target_tags, input_masks.byte())
+        return emissions, scores
 
-        outputs = torch.cat(sim_outputs, -1)
-        outputs = self.dense(outputs)  # [b, 1]
-
-        return outputs
+    def decode(self, emissions, input_masks):
+        return self.crf.decode(emissions, input_masks.byte())

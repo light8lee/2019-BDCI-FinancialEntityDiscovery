@@ -22,47 +22,26 @@ from scipy.stats import pearsonr
 import task_metric as tm
 
 
-def infer(data, model, criterion, cuda, task):
-    features, targets = data
-    if task in ['QQP', 'QNLI', 'SST']:
-        targets = targets.long()
-    elif task == 'STS':
-        targets = targets.float().unsqueeze(-1)
-    idx, batch_ids, batch_masks, batch_types = features
-    labels = targets.numpy()
+def infer(data, model, cuda, task):
+    batch_ids, batch_masks, batch_tags = data
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
             batch_ids = batch_ids.cuda()
             batch_masks = batch_masks.cuda()
-            batch_types = batch_types.cuda()
+            batch_tags = batch_tags.cuda()
         else:
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
-            batch_types = [v.cuda() for v in batch_types]
+            batch_tags = [v.cuda() for v in batch_tags]
 
-        targets = targets.cuda()
-    preds = model(batch_ids, batch_masks, batch_types)
-    if task in ['QQP', 'QNLI', 'SST']:
-        preds = t.log_softmax(preds, 1)
-        predictions = preds.argmax(1).cpu().numpy()
-        loss = criterion(preds, targets)
-        tn, fp, fn, tp = confusion_matrix(labels, predictions, labels=[0, 1]).ravel()
-        result = Counter({
-            'tn': tn,
-            'fp': fp,
-            'fn': fn,
-            'tp': tp,
-            'total': tn+fp+fn+tp
-        })
-    elif task == 'STS':
-        predictions = preds.detach().cpu().numpy()
-        loss = criterion(preds, targets)
-        result = {
-            'preds': predictions,
-            'labels': labels,
-            'size': labels.shape[0]
-        }
+    emissions, loss = model(batch_ids, batch_masks, batch_tags)
+    result = {
+        'target_tag_ids': batch_tags,
+        'pred_tag_ids': model.decode(emissions, batch_masks).tolist(),
+        'max_lens': batch_masks.sum(-1).tolist(),
+        'batch_size': batch_masks.shape[0]
+    }
     return result, loss
 
 
@@ -78,14 +57,6 @@ def train(args):
     else:
         model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
 
-    if args.task in ['QNLI', 'QQP', 'SST']:
-        model_config.output_dim = 2
-        criterion = nn.NLLLoss()
-    elif args.task == 'STS':
-        model_config.output_dim = 1
-        criterion = nn.MSELoss()
-    else:
-        raise ValueError("No suck task: {}".format(args.task))
     model = model_class(**model_config.values)
 
     dataloaders = {}
@@ -156,12 +127,8 @@ def train(args):
         writer = SummaryWriter(os.path.join(args.save_dir, 'logs'))
     else:
         writer = None
-    if args.task == 'STS':
-        pre_fn, step_fn, post_fn = tm.sts_metric_builder(args, scheduler_config, model,
-                                                         optimizer, scheduler, writer, Log)
-    elif args.task in ['QQP', 'QNLI', 'SST']:
-        pre_fn, step_fn, post_fn = tm.acc_metric_builder(args, scheduler_config, model,
-                                                         optimizer, scheduler, writer, Log)
+    pre_fn, step_fn, post_fn = tm.acc_metric_builder(args, scheduler_config, model,
+                                                        optimizer, scheduler, writer, Log)
 
     phases = ['train', 'dev']
     if args.do_test:
@@ -182,7 +149,7 @@ def train(args):
                 optimizer.zero_grad()
 
                 with t.set_grad_enabled(phase == 'train'):
-                    result, loss = infer(data, model, criterion, args.cuda, args.task)
+                    result, loss = infer(data, model, args.cuda, args.task)
                     if phase == 'train':
                         loss.backward()
                         # t.nn.utils.clip_grad_norm_(model.parameters(), 7)

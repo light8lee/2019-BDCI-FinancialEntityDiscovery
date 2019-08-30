@@ -11,3 +11,7 @@ class Unit2idx:
 
     def __call__(self, unit):
         return get_unit_idx(self.unit_idxs, unit)
+
+
+BIO_ID2TAG = ['O', 'B', 'I', '[CLS]', '[SEP]']
+BIO_TAG2ID = {name: idx for idx, name in enumerate(BIO_ID2TAG)}
