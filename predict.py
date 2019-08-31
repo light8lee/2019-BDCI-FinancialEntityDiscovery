@@ -37,7 +37,7 @@ def infer(data, model, inv_vocabs, cuda):
     results = defaultdict(set)
     for idx, entities, input_ids in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_ids):
         for start, end in entities:
-            results[idx].add(''.join(convert_ids_to_tokens(inv_vocabs, input_ids[start:end])))
+            results[idx].add(''.join(convert_ids_to_tokens(inv_vocabs, input_ids.tolist()[start:end])))
     return results
 
 
