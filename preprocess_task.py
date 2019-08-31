@@ -72,8 +72,8 @@ def prepare_ner(args, vocabs, phase):
                 feature["input_masks"] = input_masks
                 feature["tags"] = tag_ids
                 feature = tuple(feature.values())
-                feature = pickle.dumps(feature)
                 print(feature)
+                feature = pickle.dumps(feature)
 
                 sz = fea_writer.write(feature)
                 fea_pos_writer.write('{}\n'.format(fea_pos))
