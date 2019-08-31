@@ -57,10 +57,12 @@ def prepare_ner(args, vocabs, phase):
     idx = 0
     with open(input_file, 'r', encoding='utf-8') as f:
         for line in f:
-            line = line.strip()
+            line = line[:-1]
             if not line:
                 inputs = inputs[:args.max_seq_length]
                 tags = tags[:args.max_seq_length]
+                print(inputs)
+                print(tags)
                 inputs.insert(0, '[CLS]')
                 tags.insert(0, '[CLS]')
                 inputs.append('[SEP]')
@@ -80,10 +82,16 @@ def prepare_ner(args, vocabs, phase):
                 fea_pos += sz
                 inputs = []
                 tags = []
-            elif line.find(' ') == -1:
-                idx = line
             else:
                 pair = line.split(' ')
+                if len(pair) == 1:
+                    idx = line
+                    print(idx)
+                    continue
+                elif len(pair) != 2:
+                    continue
+                elif not pair[0] or not pair[1]:
+                    continue
                 char = pair[0].lower()
                 if char not in vocabs:
                     char = '[UNK]'
@@ -92,6 +100,7 @@ def prepare_ner(args, vocabs, phase):
                 if pair[1] == 'B':
                     num_entities += 1
 
+    print('totoal entities:', num_entities)
     fea_writer.close()
     fea_pos_writer.close()
 

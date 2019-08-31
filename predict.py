@@ -24,6 +24,7 @@ from tokenization import convert_ids_to_tokens, load_vocab
 
 def infer(data, model, inv_vocabs, cuda):
     idxs, batch_ids, batch_masks, batch_tags = data
+    print(idxs)
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
