@@ -54,10 +54,12 @@ def prepare_ner(args, vocabs, phase):
     num_entities = 0
     inputs = []
     tags = []
+    idx = 0
     with open(input_file, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if not line:
+                inputs = inputs[:args.max_seq_length]
                 inputs.insert(0, '[CLS]')
                 tags.insert(0, '[CLS]')
                 inputs.append('[SEP]')
