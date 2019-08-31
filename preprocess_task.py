@@ -62,8 +62,8 @@ def prepare_ner(args, vocabs, phase):
             if line.startswith('$'*10):
                 inputs = inputs[:args.max_seq_length]
                 tags = tags[:args.max_seq_length]
-                print(inputs)
-                print(tags)
+                # print(inputs)
+                # print(tags)
                 inputs.insert(0, '[CLS]')
                 tags.insert(0, '[CLS]')
                 inputs.append('[SEP]')
@@ -75,7 +75,7 @@ def prepare_ner(args, vocabs, phase):
                 feature["input_masks"] = input_masks
                 feature["tags"] = tag_ids
                 feature = tuple(feature.values())
-                print(feature)
+                # print(feature)
                 feature = pickle.dumps(feature)
 
                 sz = fea_writer.write(feature)

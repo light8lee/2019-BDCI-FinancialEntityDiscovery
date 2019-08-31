@@ -117,12 +117,12 @@ def findall(text, entity):
 def create_tags(text, entities):
     tags = ['O'] * len(text)
     for entity in entities:
-        print('entity:', entity)
+        # print('entity:', entity)
         for begin, end in findall(text, entity):
             tags[begin] = 'B'
             for i in range(begin+1, end):
                 tags[i] = 'I'
-    print(tags)
+    # print(tags)
     return tags
         
 
@@ -135,14 +135,14 @@ def create_data(data, output_filename):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
         for idx, text, entities in zip(data['id'], data['cleaned'], data['unknownEntities']):
-            print('---------------line:', line)
+            # print('---------------line:', line)
             entities = entities.split(';')
             
             for sub_text in comma_stop.split(text):
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
-                print(sub_text)
+                # print(sub_text)
                 for char, tag in zip(sub_text, create_tags(sub_text, entities)):
                     f.write('{} {}\n'.format(char, tag))
                 f.write('$'*10)
