@@ -15,7 +15,6 @@ flags = argparse.ArgumentParser()
 flags.add_argument("input_dir")
 flags.add_argument("output_dir")
 flags.add_argument("vocab_file")
-flags.add_argument("task")
 flags.add_argument('--do_lower_case', action='store_true', dest='do_lower_case')
 flags.set_defaults(do_lower_case=False, bert_style=False)
 flags.add_argument('--max_seq_length', default=50, type=int)
@@ -59,15 +58,16 @@ def prepare_ner(args, vocabs, phase):
         for line in f:
             line = line.strip()
             pair = line.split(' ')
-            if not pair:
+            if len(pair) != 2:
                 inputs.insert(0, '[CLS]')
                 tags.insert(0, '[CLS]')
                 inputs.append('[SEP]')
                 tags.append('[SEP]')
                 input_ids, input_masks, tag_ids = get_padded_tokens(inputs, tags, vocabs, args.max_seq_length+3)
                 feature = collections.OrderedDict()
-                feature["inputs"] = inputs
+                feature["inputs"] = input_ids
                 feature["input_masks"] = input_masks
+                feature["tags"] = tag_ids
                 feature = tuple(feature.values())
                 feature = pickle.dumps(feature)
                 print(feature)
@@ -78,7 +78,10 @@ def prepare_ner(args, vocabs, phase):
                 inputs = []
                 tags = []
             else:
-                input_ids.append(pair[0])
+                char = pair[0].lower()
+                if char not in vocabs:
+                    char = '[UNK]'
+                inputs.append(char)
                 tags.append(pair[1])
                 if pair[1] == 'B':
                     num_entities += 1

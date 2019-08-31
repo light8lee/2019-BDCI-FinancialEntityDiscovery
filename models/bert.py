@@ -18,7 +18,6 @@ class BERT_Pretrained(nn.Module):
         super(BERT_Pretrained, self).__init__()
         assert sim in ["dot", "cos", "self"]
         assert gnn in ["diffpool", "gcn", "gat", "none"]
-        pred_dims = pred_dims if pred_dims else []
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
         self.gnn_hidden_dims = gnn_hidden_dims
@@ -71,7 +70,7 @@ class BERT_Pretrained(nn.Module):
                 out_dim = gnn_hidden_dim
         self.hidden2tags = nn.Linear(out_dim, 5)
 
-    def forward(self, input_ids, input_masks, target_tags):
+    def tag_outputs(self, input_ids, input_masks):
         outputs, _ = self.bert4pretrain(input_ids, attention_mask=input_masks, output_all_encoded_layers=False)
 
         outputs = outputs * input_masks.unsqueeze(-1)
@@ -99,8 +98,16 @@ class BERT_Pretrained(nn.Module):
                 outputs = gnn_layer(input_adjs, outputs)
                 outputs = outputs * input_masks.unsqueeze(-1)
         emissions = self.hidden2tags(outputs)
+        return emissions
+
+    def forward(self, input_ids, input_masks, target_tags):
+        emissions = self.tag_outputs(input_ids, input_masks)
         scores = self.crf(emissions, target_tags, input_masks.byte())
         return emissions, scores
 
     def decode(self, emissions, input_masks):
         return self.crf.decode(emissions, input_masks.byte())
+
+    def predict(self, input_ids, input_masks):
+        emissions = self.tag_outputs(input_ids, input_masks)
+        return self.decode(emissions, input_masks)

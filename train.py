@@ -3,7 +3,7 @@ from sklearn.externals import joblib
 from proj_utils.files import save_ckpt, load_ckpt, load_config_from_json
 from proj_utils.configuration import Config
 from proj_utils.logs import log_info
-from dataset import GraphDataset, collect_multigraph, collect_single
+from dataset import GraphDataset, collect_single
 import sys
 from tqdm import tqdm
 import os
@@ -22,7 +22,7 @@ from scipy.stats import pearsonr
 import task_metric as tm
 
 
-def infer(data, model, cuda, task):
+def infer(data, model, cuda):
     batch_ids, batch_masks, batch_tags = data
 
     if cuda:
@@ -38,11 +38,11 @@ def infer(data, model, cuda, task):
     emissions, loss = model(batch_ids, batch_masks, batch_tags)
     result = {
         'target_tag_ids': batch_tags,
-        'pred_tag_ids': model.decode(emissions, batch_masks).tolist(),
+        'pred_tag_ids': model.decode(emissions, batch_masks),
         'max_lens': batch_masks.sum(-1).tolist(),
         'batch_size': batch_masks.shape[0]
     }
-    return result, loss
+    return result, -loss
 
 
 def train(args):
@@ -69,18 +69,14 @@ def train(args):
     for phase in ['train', 'dev', 'test']:
         if phase != 'test' and args.fold:
             fea_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.fea'.format(phase))
-            tgt_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.tgt'.format(phase))
             pos_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.pos'.format(phase))
         else:
             fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
-            tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
             pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
         fea_file = open(fea_filename, 'rb')
-        with open(tgt_filename, 'r') as f:
-            targets = [float(v.strip()) for v in f]
         with open(pos_filename, 'r') as f:
             positions = [int(v.strip()) for v in f]
-        dataset = GraphDataset(fea_file, targets, positions)
+        dataset = GraphDataset(fea_file, positions)
         if args.multi_gpu and phase == 'train':
             sampler = t.utils.data.distributed.DistributedSampler(dataset)
             dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
@@ -149,7 +145,7 @@ def train(args):
                 optimizer.zero_grad()
 
                 with t.set_grad_enabled(phase == 'train'):
-                    result, loss = infer(data, model, args.cuda, args.task)
+                    result, loss = infer(data, model, args.cuda)
                     if phase == 'train':
                         loss.backward()
                         # t.nn.utils.clip_grad_norm_(model.parameters(), 7)
@@ -162,7 +158,6 @@ def train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('task', type=str)
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--log', dest='log', action='store_true', help='whether use tensorboard')

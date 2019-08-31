@@ -21,25 +21,19 @@ from scipy.stats import pearsonr
 
 
 def infer(data, model, seq_len, cuda, task):
-    features, targets = data
-    idxs, batch_ids, batch_masks, batch_types = features
+    batch_ids, batch_masks, batch_tags = data
     labels = targets.numpy()
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
             batch_ids = batch_ids.cuda()
             batch_masks = batch_masks.cuda()
-            batch_types = batch_types.cuda()
+            batch_tags = batch_tags.cuda()
         else:
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
-            batch_types = batch_types.cuda()
-        targets = targets.cuda()
+            batch_tags = batch_tags.cuda()
     preds = model(batch_ids, batch_masks, batch_types)
-    if task in ['QQP', 'QNLI', 'SST']:
-        predictions = preds.argmax(1).cpu().numpy()
-    elif task == 'STS':
-        predictions = preds.squeeze(-1).cpu().numpy()
     return idxs, predictions
 
 def predict(args):
@@ -54,23 +48,14 @@ def predict(args):
 
     phase = 'test'
     fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
-    tgt_filename = os.path.join(args.data, '{}.tgt'.format(phase))
     pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
     fea_file = open(fea_filename, 'rb')
-    with open(tgt_filename, 'r') as f:
-        targets = [float(v.strip()) for v in f]
     with open(pos_filename, 'r') as f:
         positions = [int(v.strip()) for v in f]
-    dataset = GraphDataset(fea_file, targets, positions)
+    dataset = GraphDataset(fea_file, positions)
     dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
                                             shuffle=False, collate_fn=collect_single, num_workers=1)
 
-    if args.task in ['QQP', 'SST', 'QNLI']:
-        model_config.output_dim = 2
-    elif args.task == 'STS':
-        model_config.output_dim = 1
-    else:
-        raise ValueError("No suck task: {}".format(args.task))
     model = model_class(**model_config.values)
     ckpt_file = os.path.join(args.save_dir, 'model.best.pt.tar')
     if os.path.isfile(ckpt_file):
@@ -90,25 +75,10 @@ def predict(args):
             curr_preds.append(preds)
             curr_idxs.extend(idxs)
     curr_preds = np.concatenate(curr_preds, axis=0)
-    if args.task in ['QQP', 'STS', 'SST']:
-        result = pd.DataFrame({'index': curr_idxs, 'prediction': curr_preds})
-    elif args.task == 'QNLI':
-        curr_preds = ['entailment' if v == 1 else 'not_entailment' for v in curr_preds]
-        result = pd.DataFrame({'index': curr_idxs, 'prediction': curr_preds})
 
-    if args.task == 'QQP':
-        result.to_csv(os.path.join(args.save_dir, 'QQP.tsv'), sep='\t', index=False)
-    elif args.task == 'STS':
-        result.to_csv(os.path.join(args.save_dir, 'STS-B.tsv'), sep='\t', index=False)
-    elif args.task == 'QNLI':
-        result.to_csv(os.path.join(args.save_dir, 'QNLI.tsv'), sep='\t', index=False)
-    elif args.task == 'SST':
-        result.to_csv(os.path.join(args.save_dir, 'SST-2.tsv'), sep='\t', index=False)
-    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('task', type=str)
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--data', type=str, default="./inputs/train", help="input/target data name")
