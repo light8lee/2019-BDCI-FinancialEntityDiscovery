@@ -60,6 +60,7 @@ def prepare_ner(args, vocabs, phase):
             line = line.strip()
             if not line:
                 inputs = inputs[:args.max_seq_length]
+                tags = tags[:args.max_seq_length]
                 inputs.insert(0, '[CLS]')
                 tags.insert(0, '[CLS]')
                 inputs.append('[SEP]')
