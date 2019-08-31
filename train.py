@@ -23,7 +23,7 @@ import task_metric as tm
 
 
 def infer(data, model, cuda):
-    batch_ids, batch_masks, batch_tags = data
+    idx, batch_ids, batch_masks, batch_tags = data
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):

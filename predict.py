@@ -16,27 +16,34 @@ import torch.nn.functional as F
 import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import confusion_matrix
-from collections import Counter
+from collections import Counter, defaultdict
 from scipy.stats import pearsonr
+from task_metric import get_BIO_entities
+from tokenization import convert_ids_to_tokens, load_vocab
 
 
-def infer(data, model, seq_len, cuda, task):
-    batch_ids, batch_masks, batch_tags = data
-    labels = targets.numpy()
+def infer(data, model, inv_vocabs, cuda):
+    idxs, batch_ids, batch_masks, batch_tags = data
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
-            batch_ids = batch_ids.cuda()
-            batch_masks = batch_masks.cuda()
-            batch_tags = batch_tags.cuda()
+            batch_ids_t = batch_ids.cuda()
+            batch_masks_t = batch_masks.cuda()
         else:
-            batch_ids = [v.cuda() for v in batch_ids]
-            batch_masks = [v.cuda() for v in batch_masks]
-            batch_tags = batch_tags.cuda()
-    preds = model(batch_ids, batch_masks, batch_types)
-    return idxs, predictions
+            batch_ids_t = [v.cuda() for v in batch_ids]
+            batch_masks_t = [v.cuda() for v in batch_masks]
+    batch_lens = batch_masks_t.sum(-1).tolist()
+    pred_tags = model.predict(batch_ids_t, batch_masks_t)
+    results = defaultdict(set)
+    for idx, entities, input_ids in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_ids):
+        for start, end in entities:
+            results[idx].add(''.join(convert_ids_to_tokens(inv_vocabs, input_ids[start:end])))
+    return results
+
 
 def predict(args):
+    vocabs = load_vocab(args.vocab)
+    inv_vocabs = {v: k for k, v in vocabs.items()}
     model_config, optimizer_config, _ = Config.from_json(args.config)
     model_name = model_config.name
     model_class = getattr(models, model_name)
@@ -66,19 +73,25 @@ def predict(args):
         model = model.cuda()
 
     model.eval()
-    curr_preds = []
-    curr_idxs = []
+    curr_preds = defaultdict(set)
     pbar = tqdm(dataloader)
     for data in pbar:
         with t.no_grad():
-            idxs, preds = infer(data, model, model_config.seq_len, args.cuda, args.task)
-            curr_preds.append(preds)
-            curr_idxs.extend(idxs)
-    curr_preds = np.concatenate(curr_preds, axis=0)
+            results = infer(data, model, inv_vocabs, args.cuda)
+            for key in results:
+                curr_preds[key].update(results[key])
+    idxs = []
+    entities = []
+    for key in curr_preds:
+        idxs.append(idxs)
+        entities.append(';'.join(curr_preds[key]))
+    preds = pd.DataFrame({'id': idxs, 'unkunknownEntities': entities})
+    preds.to_csv(os.path.join(args.save_dir, 'submit.csv'), index=False)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--vocab', type=str, default='bert_model/vocab.txt')
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--data', type=str, default="./inputs/train", help="input/target data name")

@@ -28,7 +28,7 @@ def get_BIO_entities(batch_tag_ids, max_lens):
                 continue
             elif (status == 1) and (tag_id == OTHER_TAG_ID):  # Bx(Ix) -> O
                 status = 0
-                entities.add((begin_pos, idx, label))
+                entities.add((begin_pos, idx))
         yield entities
 
 def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writer, Log):

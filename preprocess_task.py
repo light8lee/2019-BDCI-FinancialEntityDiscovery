@@ -57,14 +57,14 @@ def prepare_ner(args, vocabs, phase):
     with open(input_file, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
-            pair = line.split(' ')
-            if len(pair) != 2:
+            if not line:
                 inputs.insert(0, '[CLS]')
                 tags.insert(0, '[CLS]')
                 inputs.append('[SEP]')
                 tags.append('[SEP]')
                 input_ids, input_masks, tag_ids = get_padded_tokens(inputs, tags, vocabs, args.max_seq_length+3)
                 feature = collections.OrderedDict()
+                feature["id"] = idx
                 feature["inputs"] = input_ids
                 feature["input_masks"] = input_masks
                 feature["tags"] = tag_ids
@@ -77,7 +77,10 @@ def prepare_ner(args, vocabs, phase):
                 fea_pos += sz
                 inputs = []
                 tags = []
+            elif line.find(' ') == -1:
+                idx = line
             else:
+                pair = line.split(' ')
                 char = pair[0].lower()
                 if char not in vocabs:
                     char = '[UNK]'
