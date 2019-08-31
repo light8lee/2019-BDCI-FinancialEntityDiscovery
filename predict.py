@@ -37,6 +37,7 @@ def infer(data, model, inv_vocabs, cuda):
     pred_tags = model.predict(batch_ids_t, batch_masks_t)
     results = defaultdict(set)
     for idx, entities, input_ids in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_ids):
+        results[idx].add('')
         for start, end in entities:
             results[idx].add(''.join(convert_ids_to_tokens(inv_vocabs, input_ids.tolist()[start:end])))
     return results
@@ -86,6 +87,7 @@ def predict(args):
     for key in curr_preds:
         print(key)
         idxs.append(key)
+        curr_preds[key].remove('')
         entities.append(';'.join(curr_preds[key]))
     preds = pd.DataFrame({'id': idxs, 'unkunknownEntities': entities})
     preds.to_csv(os.path.join(args.save_dir, 'submit.csv'), index=False)

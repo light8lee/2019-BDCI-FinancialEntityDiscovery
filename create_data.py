@@ -39,7 +39,7 @@ test_data.fillna('', inplace=True)
 # In[13]:
 
 
-img = re.compile(r'\{IMG:\d\}')
+img = re.compile(r'\{IMG:\d{1,}\}')
 img2 = re.compile(r'<!--IMG_\d+-->')
 time = re.compile(r'(\d{4}-\d{2}-\d{2})|(\d{2}:\d{2}:\d{2})')
 tag = re.compile(r'<(\d|[a-z".A-Z/]|\s)+>')
@@ -139,11 +139,13 @@ def create_data(data, output_filename):
             entities = entities.split(';')
             
             for sub_text in comma_stop.split(text):
+                f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
                 print(sub_text)
                 for char, tag in zip(sub_text, create_tags(sub_text, entities)):
                     f.write('{} {}\n'.format(char, tag))
+                f.write('$'*10)
                 f.write('\n')
             line += 1
 
