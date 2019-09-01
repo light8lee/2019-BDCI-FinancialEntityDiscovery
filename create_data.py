@@ -133,7 +133,7 @@ def create_tags(text, entities):
 
 
 comma_stop = re.compile(r'[。，,?？]+')
-def create_data(data, output_filename):
+def create_data(data, output_filename, is_test):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
         for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
@@ -143,7 +143,9 @@ def create_data(data, output_filename):
             sub_texts.append(title)
 
             for sub_text in sub_texts:
-                if len(sub_text) < 6:
+                if not sub_text:
+                    continue
+                if not is_test and len(sub_text) < 6:
                     continue
                 f.write('^'*10)
                 f.write(idx)
@@ -159,16 +161,16 @@ def create_data(data, output_filename):
 # In[22]:
 
 
-create_data(train_data, 'inputs/train.txt')
+create_data(train_data, 'inputs/train.txt', False)
 
 
 # In[23]:
 
 
-create_data(dev_data, 'inputs/dev.txt')
+create_data(dev_data, 'inputs/dev.txt', False)
 
 
 # In[24]:
 
 
-create_data(test_data, 'inputs/test.txt')
+create_data(test_data, 'inputs/test.txt', True)
