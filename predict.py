@@ -23,7 +23,7 @@ from tokenization import convert_ids_to_tokens, load_vocab
 
 
 def infer(data, model, inv_vocabs, cuda):
-    idxs, batch_ids, batch_masks, batch_tags = data
+    idxs, batch_ids, batch_masks, batch_tags, batch_inputs = data
     print(idxs)
 
     if cuda:
@@ -36,10 +36,10 @@ def infer(data, model, inv_vocabs, cuda):
     batch_lens = batch_masks_t.sum(-1).tolist()
     pred_tags = model.predict(batch_ids_t, batch_masks_t)
     results = defaultdict(set)
-    for idx, entities, input_ids in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_ids):
+    for idx, entities, inputs in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_inputs):
         results[idx].add('')
         for start, end in entities:
-            results[idx].add(''.join(convert_ids_to_tokens(inv_vocabs, input_ids.tolist()[start:end])))
+            results[idx].add(inputs[start:end]))
     return results
 
 

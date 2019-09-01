@@ -22,6 +22,8 @@ flags.add_argument('--random_seed', type=int, default=12345)
 
 
 def get_padded_tokens(tokens, tags, vocabs, max_seq_length, pad='after'):
+    tokens = [token.lower() if token not in ['[CLS]', '[SEP]'] else token for token in tokens]
+    tokens = [token if token in vocabs else '[UNK]' for token in tokens]
     input_ids = tokenization.convert_tokens_to_ids(vocabs, tokens)
     input_mask = [1] * len(input_ids)
     tag_ids = [BIO_TAG2ID[tag] for tag in tags]
@@ -71,9 +73,10 @@ def prepare_ner(args, vocabs, phase):
                 input_ids, input_masks, tag_ids = get_padded_tokens(inputs, tags, vocabs, args.max_seq_length+3)
                 feature = collections.OrderedDict()
                 feature["id"] = idx
-                feature["inputs"] = input_ids
+                feature["input_ids"] = input_ids
                 feature["input_masks"] = input_masks
                 feature["tags"] = tag_ids
+                feature["inputs"] = inputs
                 feature = tuple(feature.values())
                 # print(feature)
                 feature = pickle.dumps(feature)
@@ -90,11 +93,9 @@ def prepare_ner(args, vocabs, phase):
                 pair = line.split(' ')
                 if not pair[0] or not pair[1]:
                     continue
-                char = pair[0].lower()
-                if char not in vocabs:
-                    char = '[UNK]'
-                inputs.append(char)
-                tags.append(pair[1])
+                token, tag = pair
+                inputs.append(token)
+                tags.append(tag)
                 if pair[1] == 'B':
                     num_entities += 1
 

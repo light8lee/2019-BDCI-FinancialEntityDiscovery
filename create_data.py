@@ -61,8 +61,10 @@ def clean(text):
 # In[14]:
 
 
-train_data['cleaned'] = train_data['text'].apply(clean)
-test_data['cleaned'] = test_data['text'].apply(clean)
+train_data['cleaned_text'] = train_data['text'].apply(clean)
+test_data['cleaned_text'] = test_data['text'].apply(clean)
+train_data['cleaned_title'] = train_data['title'].apply(clean)
+test_data['cleaned_title'] = test_data['title'].apply(clean)
 test_data['unknownEntities'] = ''
 
 
@@ -130,15 +132,19 @@ def create_tags(text, entities):
 # In[21]:
 
 
-comma_stop = re.compile(r'[。，,]+')
+comma_stop = re.compile(r'[。，,?？]+')
 def create_data(data, output_filename):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
-        for idx, text, entities in zip(data['id'], data['cleaned'], data['unknownEntities']):
+        for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
             # print('---------------line:', line)
             entities = entities.split(';')
-            
-            for sub_text in comma_stop.split(text):
+            sub_texts = comma_stop.split(text)
+            sub_texts.append(title)
+
+            for sub_text in sub_texts:
+                if len(sub_text) < 6:
+                    continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')

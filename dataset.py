@@ -24,10 +24,10 @@ class GraphDataset(Dataset):
 
 def collect_single(batch):
     # raise ValueError("{}".format(batch))
-    idx, batch_inputs, batch_masks, batch_tags = zip(*batch)
+    idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs = zip(*batch)
 
-    batch_inputs = t.from_numpy(np.array(batch_inputs)).long()
+    batch_input_ids = t.from_numpy(np.array(batch_input_ids)).long()
     batch_masks = t.from_numpy(np.array(batch_masks)).float()
-    batch_tags = t.from_numpy(np.array(batch_tags)).long()
+    batch_tag_ids = t.from_numpy(np.array(batch_tag_ids)).long()
 
-    return  idx, batch_inputs, batch_masks, batch_tags
+    return  idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs
