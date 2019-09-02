@@ -1,11 +1,11 @@
 #!/bin/bash
-name=
+name=bert_v3
 post_name=${name}_post
-mkdir -p outputs/${name}
+mkdir -p outputs/${post_name}
 git log | head -6 > outputs/${post_name}/${post_name}.info
 cp scripts/post_train.sh outputs/${post_name}
 cp outputs/${name}/model_config.json outputs/${post_name}/
-CUDA_VISIBLE_DEVICES=2 python train.py \
+CUDA_VISIBLE_DEVICES=1 python post_train.py \
     --cuda \
     --data=inputs \
     --save_dir=outputs/${post_name} \
