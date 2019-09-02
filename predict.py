@@ -39,7 +39,7 @@ def infer(data, model, inv_vocabs, cuda):
     for idx, entities, inputs in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_inputs):
         results[idx].add('')
         for start, end in entities:
-            results[idx].add(inputs[start:end]))
+            results[idx].add(''.join(inputs[start:end]))
     return results
 
 

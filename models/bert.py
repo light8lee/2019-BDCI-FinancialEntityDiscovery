@@ -12,7 +12,7 @@ from torchcrf import CRF
 from pytorch_pretrained_bert import BertModel, BertConfig, BertForPreTraining
 
 class BERT_Pretrained(nn.Module):
-    def __init__(self, pretrained_model_path, max_seq_len, drop_rate, readout_pool, bert_dim,
+    def __init__(self, pretrained_model_path, max_seq_len, drop_rate, bert_dim,
                  gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot",
                  rescale:bool=False, adj_act="relu", **kwargs):
         super(BERT_Pretrained, self).__init__()
@@ -32,15 +32,6 @@ class BERT_Pretrained(nn.Module):
         self.rescale_ws = nn.ParameterList()
         self.rescale_bs = nn.ParameterList()
         self.crf = CRF(5, batch_first=True)
-
-        if readout_pool == 'max':
-            self.readout_pool = MaxPooling()
-        elif readout_pool == 'avg':
-            self.readout_pool = AvgPooling()
-        elif readout_pool == 'sum':
-            self.readout_pool = SumPooling()
-        else:
-            raise ValueError()
 
         self.bert4pretrain = BertForPreTraining.from_pretrained(pretrained_model_path, from_tf=True).bert
         out_dim = bert_dim
