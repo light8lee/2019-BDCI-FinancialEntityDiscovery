@@ -88,6 +88,17 @@ def train(args):
         datasets[phase] = dataset
 
     total_steps = int(args.epoch * len(datasets['train']) / args.batch_size)
+
+    if args.multi_gpu:
+        t.cuda.set_device(args.local_rank)
+        model = model.cuda()
+        t.distributed.init_process_group(backend='nccl', init_method='env://')
+        model = nn.parallel.DistributedDataParallel(model,
+                                                device_ids=[args.local_rank],
+                                                output_device=args.local_rank)
+    elif args.cuda:
+        model = model.cuda()
+
     if model_config.name.find("BERT") != -1:
         if model_config.freeze:
             for param in model.bert4pretrain.parameters():
@@ -107,16 +118,6 @@ def train(args):
         conti = args.conti + 1
     else:
         raise Exception("No such path {}".format(ckpt_file))
-
-    if args.multi_gpu:
-        t.cuda.set_device(args.local_rank)
-        model = model.cuda()
-        t.distributed.init_process_group(backend='nccl', init_method='env://')
-        model = nn.parallel.DistributedDataParallel(model,
-                                                device_ids=[args.local_rank],
-                                                output_device=args.local_rank)
-    elif args.cuda:
-        model = model.cuda()
 
     # pdb.set_trace()
     if args.log:

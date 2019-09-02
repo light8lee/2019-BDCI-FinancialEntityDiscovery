@@ -36,10 +36,12 @@ def save_ckpt(ckpt_path, epoch, model_state, optimizer_state=None, scheduler_sta
     torch.save(ckpt_dict, ckpt_path)
 
 
-def load_ckpt(ckpt_path, model, optimizer=None, scheduler=None):
+def load_ckpt(ckpt_path, model, optimizer=None, scheduler=None, cuda=False):
     import torch
     checkpoint = torch.load(ckpt_path)
     model.load_state_dict(checkpoint['model_state'])
+    if cuda:
+        model = model.cuda()
     if optimizer and checkpoint['optimizer_state']:
         optimizer.load_state_dict(checkpoint['optimizer_state'])
     if scheduler and checkpoint['scheduler_state']:

@@ -77,12 +77,9 @@ def train(args):
 
     ckpt_file = os.path.join(args.load_dir, 'model.best.pt.tar')
     if os.path.isfile(ckpt_file):
-        load_ckpt(ckpt_file, model, optimizer, scheduler)
+        load_ckpt(ckpt_file, model, optimizer, scheduler, args.cuda)
     else:
         raise Exception("No such path {}".format(ckpt_file))
-
-    if args.cuda:
-        model = model.cuda()
 
     # pdb.set_trace()
     for epoch in range(1, 1+args.epoch):
@@ -91,7 +88,7 @@ def train(args):
         pbar = tqdm(dataloaders[phase])
         pbar.set_description("[{} Epoch {}]".format(phase, epoch))
         running_loss = 0.
-        runnning_size = 0.
+        running_size = 0.
         for data in pbar:
             optimizer.zero_grad()
 
