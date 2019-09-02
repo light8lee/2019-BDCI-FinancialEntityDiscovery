@@ -108,10 +108,9 @@ def train(args):
         for data in pbar:
             optimizer.zero_grad()
 
-            with t.set_grad_enabled(phase == 'train'):
-                size, loss = infer(data, model, args.cuda)
-                loss.backward()
-                optimizer.step()
+            size, loss = infer(data, model, args.cuda)
+            loss.backward()
+            optimizer.step()
 
             running_loss += loss.item()
             running_size += size
