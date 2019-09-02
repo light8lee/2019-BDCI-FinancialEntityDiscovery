@@ -54,7 +54,7 @@ def train(args):
 
     model = model_class(**model_config.values)
 
-    phase == 'dev'
+    phase = 'dev'
     dataloaders = {}
     datasets = {}
     sampler = None
