@@ -58,10 +58,7 @@ def train(args):
     dataloaders = {}
     datasets = {}
     sampler = None
-    if model_config.name.find("BERT") != -1:
-        collate_fn = collect_single
-    else:
-        collate_fn = collect_multigraph
+    collate_fn = collect_single
         fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
         pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
         fea_file = open(fea_filename, 'rb')
@@ -82,12 +79,9 @@ def train(args):
         optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
     scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)
 
-    if not os.path.isdir(args.load_dir):
-        os.mkdir(args.load_dir)
     ckpt_file = os.path.join(args.load_dir, 'model.best.pt.tar')
     if os.path.isfile(ckpt_file):
         load_ckpt(ckpt_file, model, optimizer, scheduler)
-        conti = args.conti + 1
     else:
         raise Exception("No such path {}".format(ckpt_file))
 
