@@ -57,26 +57,22 @@ def train(args):
     phase = 'dev'
     dataloaders = {}
     datasets = {}
-    sampler = None
     collate_fn = collect_single
-        fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
-        pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
-        fea_file = open(fea_filename, 'rb')
-        with open(pos_filename, 'r') as f:
-            positions = [int(v.strip()) for v in f]
-        dataset = GraphDataset(fea_file, positions)
-        dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                            shuffle=True, collate_fn=collate_fn, num_workers=1)
-        dataloaders[phase] = dataloader
-        datasets[phase] = dataset
+    fea_filename = os.path.join(args.data, '{}.fea'.format(phase))
+    pos_filename = os.path.join(args.data, '{}.pos'.format(phase))
+    fea_file = open(fea_filename, 'rb')
+    with open(pos_filename, 'r') as f:
+        positions = [int(v.strip()) for v in f]
+    dataset = GraphDataset(fea_file, positions)
+    dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
+                                        shuffle=True, collate_fn=collate_fn, num_workers=1)
+    dataloaders[phase] = dataloader
+    datasets[phase] = dataset
 
-    if model_config.name.find("BERT") != -1:
-        if model_config.freeze:
-            for param in model.bert4pretrain.parameters():
-                param.requires_grad = False
-        optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
-    else:
-        optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
+    if model_config.freeze:
+        for param in model.bert4pretrain.parameters():
+            param.requires_grad = False
+    optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
     scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)
 
     ckpt_file = os.path.join(args.load_dir, 'model.best.pt.tar')
@@ -89,10 +85,7 @@ def train(args):
         model = model.cuda()
 
     # pdb.set_trace()
-
     for epoch in range(1, 1+args.epoch):
-        if sampler is not None:
-            sampler.set_epoch(epoch)
         model.train()
 
         pbar = tqdm(dataloaders[phase])
