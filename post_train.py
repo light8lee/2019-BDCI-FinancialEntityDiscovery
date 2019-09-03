@@ -72,6 +72,7 @@ def train(args):
     if model_config.freeze:
         for param in model.bert4pretrain.parameters():
             param.requires_grad = False
+    optimizer_config.lr = optimizer_config.lr / 2
     optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
     scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)
 
