@@ -49,9 +49,13 @@ user = re.compile(r'@.*:')
 url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 plain = re.compile(r'\s+')
 num = re.compile(r'\d+')
+emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff]", flags=re.UNICODE)
+
+
 def clean(text):
     text = text.replace('&nbsp;', ' ')
     text = url.sub('', text)
+    text = emoji.sub('', text)
     text = plain.sub(' ', text)
     text = img.sub('', text)
     text = img2.sub('', text)
@@ -157,11 +161,14 @@ def create_data(data, output_filename, is_test):
                     continue
                 if not is_test and len(sub_text) < 6:
                     continue
+                tags, has_entity = create_tags(sub_text, entities)
+                if not has_entity:
+                    continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
                 print(sub_text)
-                for char, tag in zip(sub_text, create_tags(sub_text, entities)):
+                for char, tag in zip(sub_text, tags):
                     f.write('{} {}\n'.format(char, tag))
                 f.write('$'*10)
                 f.write('\n')
