@@ -156,11 +156,14 @@ def create_data(data, output_filename, is_test):
                     continue
                 if not is_test and len(sub_text) < 6:
                     continue
+                tags, has_entity = create_tags(sub_text, entities)
+                if not has_entity:
+                    continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
                 # print(sub_text)
-                for char, tag in zip(sub_text, create_tags(sub_text, entities)):
+                for char, tag in zip(sub_text, tags):
                     f.write('{} {}\n'.format(char, tag))
                 f.write('$'*10)
                 f.write('\n')
