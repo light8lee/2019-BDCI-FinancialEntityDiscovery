@@ -39,7 +39,9 @@ def infer(data, model, inv_vocabs, cuda):
     for idx, entities, inputs in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_inputs):
         results[idx].add('')
         for start, end in entities:
-            results[idx].add(''.join(inputs[start:end]))
+            result = ''.join(inputs[start:end])
+            result = result.replace('※', ' ')
+            results[idx].add(result)
     return results
 
 

@@ -40,14 +40,19 @@ test_data.fillna('', inplace=True)
 
 
 img = re.compile(r'\{IMG:\d{1,}\}')
-img2 = re.compile(r'<!--IMG_\d+-->')
+img2 = re.compile(r'<!--(IMG[_\d\s]+)-->')
 time = re.compile(r'(\d{4}-\d{2}-\d{2})|(\d{2}:\d{2}:\d{2})')
 tag = re.compile(r'<(\d|[a-z".A-Z/]|\s)+>')
 ques = re.compile(r'[?#/]+')
 vx = re.compile(r'(v\d+)|(微信:\d+)')
 user = re.compile(r'@.*:')
+url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+plain = re.compile(r'\s+')
+num = re.compile(r'\d+')
 def clean(text):
     text = text.replace('&nbsp;', ' ')
+    text = url.sub('', text)
+    text = plain.sub(' ', text)
     text = img.sub('', text)
     text = img2.sub('', text)
     text = time.sub('，', text)
@@ -55,6 +60,7 @@ def clean(text):
     text = ques.sub('', text)
     text = vx.sub('', text)
     text = user.sub('', text)
+    text = num.sub('0', text)
     return text
 
 
@@ -118,14 +124,16 @@ def findall(text, entity):
 
 def create_tags(text, entities):
     tags = ['O'] * len(text)
+    has_entity = False
     for entity in entities:
         # print('entity:', entity)
         for begin, end in findall(text, entity):
             tags[begin] = 'B'
+            has_entity = True
             for i in range(begin+1, end):
                 tags[i] = 'I'
     # print(tags)
-    return tags
+    return tags, has_entity
         
 
 
@@ -143,6 +151,8 @@ def create_data(data, output_filename, is_test):
             sub_texts.append(title)
 
             for sub_text in sub_texts:
+                sub_text = sub_text.strip()
+                sub_text = sub_text.replace(' ', '※')
                 if not sub_text:
                     continue
                 if not is_test and len(sub_text) < 6:
@@ -150,7 +160,7 @@ def create_data(data, output_filename, is_test):
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
-                # print(sub_text)
+                print(sub_text)
                 for char, tag in zip(sub_text, create_tags(sub_text, entities)):
                     f.write('{} {}\n'.format(char, tag))
                 f.write('$'*10)
