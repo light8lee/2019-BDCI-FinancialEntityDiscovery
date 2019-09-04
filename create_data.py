@@ -3,7 +3,7 @@
 
 # In[8]:
 
-
+import random
 import pandas as pd
 import os
 import numpy as np
@@ -11,6 +11,7 @@ import re
 
 
 # In[9]:
+random.seed(2019)
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -162,8 +163,9 @@ def create_data(data, output_filename, is_test):
                 if not is_test and len(sub_text) < 6:
                     continue
                 tags, has_entity = create_tags(sub_text, entities)
-                if not has_entity:
-                    continue
+                if not is_test and not has_entity:
+                    if random.random() < 0.5:
+                        continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
