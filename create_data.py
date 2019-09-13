@@ -163,9 +163,9 @@ def create_data(data, output_filename, is_test):
                 if not is_test and len(sub_text) < 6:
                     continue
                 tags, has_entity = create_tags(sub_text, entities)
-                if not is_test and not has_entity:
-                    # if random.random() < 0.5:
-                    continue
+                # if not is_test and not has_entity:
+                #     if random.random() < 0.5:
+                #         continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
