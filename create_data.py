@@ -82,9 +82,9 @@ test_data['unknownEntities'] = ''
 # In[15]:
 
 
-train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
-dev_data = train_data.tail(500)
-train_data = train_data.head(train_data.shape[0]-500)
+# train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
+# dev_data = train_data.tail(500)
+# train_data = train_data.head(train_data.shape[0]-500)
 
 
 # In[16]:
@@ -96,7 +96,7 @@ train_data
 # In[17]:
 
 
-dev_data
+# dev_data
 
 
 # In[18]:
@@ -186,7 +186,7 @@ create_data(train_data, 'inputs/train.txt', False)
 # In[23]:
 
 
-create_data(dev_data, 'inputs/dev.txt', False)
+# create_data(dev_data, 'inputs/dev.txt', False)
 
 
 # In[24]:

@@ -127,7 +127,9 @@ def train(args):
     pre_fn, step_fn, post_fn = tm.acc_metric_builder(args, scheduler_config, model,
                                                         optimizer, scheduler, writer, Log)
 
-    phases = ['train', 'dev']
+    phases = ['train']
+    if args.do_eval:
+        phases.append('dev')
     if args.do_test:
         phases.append('test')
     for epoch in range(conti, conti+args.epoch):
@@ -171,8 +173,9 @@ if __name__ == '__main__':
     parser.add_argument('--multi_gpu', dest='multi_gpu', action='store_true', help="use multi gpu")
     parser.add_argument('--fold', type=str, default='')
     parser.add_argument('--do_test', dest='do_test', action='store_true')
+    parser.add_argument('--do_eval', dest='do_eval', action='store_true')
     parser.add_argument('--seed', type=int, default=2019)
-    parser.set_defaults(multi_gpu=False, log=False, do_test=False)
+    parser.set_defaults(multi_gpu=False, log=False, do_test=False, do_eval=False)
     parser.add_argument("--local_rank", type=int)
     args = parser.parse_args()
     t.manual_seed(args.seed)

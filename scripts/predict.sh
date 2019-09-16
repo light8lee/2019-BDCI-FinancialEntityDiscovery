@@ -1,9 +1,9 @@
-name=bert_v1
-CUDA_VISIBLE_DEVICES=0 python predict.py \
-    QQP \
+name=bert_wwm_v8
+CUDA_VISIBLE_DEVICES=1 python predict.py \
     --cuda \
-    --data=glue_inputs/QQP/ \
+    --model=epoch4 \
+    --data=inputs \
     --save_dir=outputs/${name} \
     --config=outputs/${name}/model_config.json \
-    --batch_size=64 \
-    2> outputs/${name}/predict.log &
+    --batch_size=256 \
+    2> outputs/${name}/predict.log > outputs/${name}/predict.info &

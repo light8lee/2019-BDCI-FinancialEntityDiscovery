@@ -68,7 +68,7 @@ def predict(args):
                                             shuffle=False, collate_fn=collect_single, num_workers=1)
 
     model = model_class(**model_config.values)
-    ckpt_file = os.path.join(args.save_dir, 'model.best.pt.tar')
+    ckpt_file = os.path.join(args.save_dir, 'model.{}.pt.tar'.format(args.model))
     if os.path.isfile(ckpt_file):
         load_ckpt(ckpt_file, model)
     else:
@@ -98,6 +98,7 @@ def predict(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--vocab', type=str, default='bert_model/vocab.txt')
+    parser.add_argument('--model', type=str, default='best')
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
     parser.add_argument('--data', type=str, default="./inputs/train", help="input/target data name")

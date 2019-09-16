@@ -108,7 +108,7 @@ def prepare_ner(args, vocabs, phase):
 def main(args):
     vocabs = tokenization.load_vocab(args.vocab_file)
 
-    for phase in ['test', 'train', 'dev']:
+    for phase in ['test', 'train']:
         print('phase:', phase)
         prepare_ner(args, vocabs, phase)
 

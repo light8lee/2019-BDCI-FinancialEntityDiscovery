@@ -124,4 +124,6 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
         else:
             Log('{} Epoch {}: P: {}, R: {}, F1: {} Loss: {}'.format(
                 phase, epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+            save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
+                                    epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
     return pre_fn, step_fn, post_fn
