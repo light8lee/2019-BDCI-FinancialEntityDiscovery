@@ -62,10 +62,7 @@ def train(args):
     dataloaders = {}
     datasets = {}
     sampler = None
-    if model_config.name.find("BERT") != -1:
-        collate_fn = collect_single
-    else:
-        collate_fn = collect_multigraph
+    collate_fn = collect_single
     for phase in ['train', 'dev', 'test']:
         if phase != 'test' and args.fold:
             fea_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.fea'.format(phase))

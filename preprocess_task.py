@@ -16,7 +16,8 @@ flags.add_argument("input_dir")
 flags.add_argument("output_dir")
 flags.add_argument("vocab_file")
 flags.add_argument('--do_lower_case', action='store_true', dest='do_lower_case')
-flags.set_defaults(do_lower_case=False, bert_style=False)
+flags.add_argument('--need_dev', action='store_true', dest='need_dev')
+flags.set_defaults(do_lower_case=False, need_dev=False)
 flags.add_argument('--max_seq_length', default=50, type=int)
 flags.add_argument('--random_seed', type=int, default=12345)
 
@@ -107,8 +108,11 @@ def prepare_ner(args, vocabs, phase):
 
 def main(args):
     vocabs = tokenization.load_vocab(args.vocab_file)
+    phases = ['test', 'train']
+    if args.need_dev:
+        phases.append('dev')
 
-    for phase in ['test', 'train']:
+    for phase in phases:
         print('phase:', phase)
         prepare_ner(args, vocabs, phase)
 

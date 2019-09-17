@@ -12,6 +12,7 @@ import re
 
 # In[9]:
 random.seed(2019)
+MAX_SEQ_LEN = 128
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -82,9 +83,9 @@ test_data['unknownEntities'] = ''
 # In[15]:
 
 
-# train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
-# dev_data = train_data.tail(500)
-# train_data = train_data.head(train_data.shape[0]-500)
+train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
+dev_data = train_data.tail(100)
+train_data = train_data.head(train_data.shape[0]-100)
 
 
 # In[16]:
@@ -145,7 +146,29 @@ def create_tags(text, entities):
 # In[21]:
 
 
-comma_stop = re.compile(r'[。，,?？]+')
+def merge_sub_texts(sub_texts):
+    new_sub_texts = []
+    last = []
+    curr_len = 0
+    for sub_text in sub_texts:
+        if curr_len + len(sub_text) < MAX_SEQ_LEN:
+            last.append(sub_text)
+            curr_len += len(sub_text)
+        else:
+            if not last:
+                new_sub_texts.append(sub_text)
+                last = []
+                curr_len = 0
+            else:
+                new_sub_texts.append('。'.join(last))
+                last = [sub_text]
+                curr_len = len(sub_text)
+    if last:
+        new_sub_texts.append('。'.join(last))
+    return new_sub_texts
+
+
+comma_stop = re.compile(r'[。]+')
 def create_data(data, output_filename, is_test):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
@@ -153,7 +176,11 @@ def create_data(data, output_filename, is_test):
             # print('---------------line:', line)
             entities = entities.split(';')
             sub_texts = comma_stop.split(text)
-            sub_texts.append(title)
+            sub_texts = merge_sub_texts(sub_texts)
+            title = title.strip()
+            if title:
+                sub_texts.append(title)
+            print(sub_texts)
 
             for sub_text in sub_texts:
                 sub_text = sub_text.strip()
@@ -186,7 +213,7 @@ create_data(train_data, 'inputs/train.txt', False)
 # In[23]:
 
 
-# create_data(dev_data, 'inputs/dev.txt', False)
+create_data(dev_data, 'inputs/dev.txt', False)
 
 
 # In[24]:
