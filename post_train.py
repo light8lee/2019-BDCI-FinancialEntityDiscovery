@@ -72,7 +72,7 @@ def train(args):
     if model_config.freeze:
         for param in model.bert4pretrain.parameters():
             param.requires_grad = False
-    optimizer_config.lr = optimizer_config.lr / 2
+    optimizer_config.lr = optimizer_config.lr * args.lr_scale
     optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
     scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)
 
@@ -114,6 +114,7 @@ if __name__ == '__main__':
     parser.add_argument('--load_dir', type=str, default='./outputs/', help="model directory path")
     parser.add_argument('--config', type=str, default='model_config.json', help="config file")
     parser.add_argument('--batch_size', type=int, default=16, help="batch size")
+    parser.add_argument('--lr_scale', type=float, default=0.5, help="scale of learning rate")
     parser.add_argument('--epoch', type=int, default=20, help="number of epochs")
     parser.add_argument('--seed', type=int, default=2019)
     parser.set_defaults(multi_gpu=False, log=False, do_test=False)
