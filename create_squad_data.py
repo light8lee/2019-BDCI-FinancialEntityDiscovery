@@ -161,7 +161,7 @@ def create_data(data, output_filename, is_test):
 
             for sub_text in sub_texts:
                 sub_text = sub_text.strip()
-                sub_text = sub_text.replace(' ', '※')
+                # sub_text = sub_text.replace(' ', '※')
                 if not sub_text:
                     continue
                 answers = []
@@ -177,7 +177,7 @@ def create_data(data, output_filename, is_test):
                 para_entry["context"] = sub_text
                 qas = [{
                     "answers": answers,
-                    "question": "有哪些金融实体？",
+                    "question": "有哪些金融实体或公司？",
                     "id": '{}-{}'.format(idx, i)
                 }]
                 para_entry["qas"] = qas

@@ -1121,6 +1121,6 @@ def convert_json_to_csv(json_filename, csv_filename, max_answer_length):
         if 'empty' in results[idx]:
             results[idx].remove('empty')
         idxs.append(idx)
-        entities.append(';'.join([text for text in results[idx] if len(text) < max_answer_length]))
+        entities.append(';'.join([text for text in results[idx] if 1 < len(text) < max_answer_length and ',' not in text]))
     preds = pd.DataFrame({'id': idxs, 'unknownEntities': entities})
     preds.to_csv(os.path.join(csv_filename), index=False)
