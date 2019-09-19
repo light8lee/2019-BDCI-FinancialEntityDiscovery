@@ -91,7 +91,7 @@ def predict(args):
         idxs.append(key)
         curr_preds[key].remove('')
         entities.append(';'.join(curr_preds[key]))
-    preds = pd.DataFrame({'id': idxs, 'unkunknownEntities': entities})
+    preds = pd.DataFrame({'id': idxs, 'unknownEntities': entities})
     preds.to_csv(os.path.join(args.save_dir, 'submit.csv'), index=False)
 
 
