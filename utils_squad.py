@@ -19,6 +19,8 @@
 from __future__ import absolute_import, division, print_function
 
 import json
+import pandas as pd
+from collections import defaultdict
 import os
 import logging
 import math
@@ -1103,3 +1105,21 @@ def _compute_softmax(scores):
     for score in exp_scores:
         probs.append(score / total_sum)
     return probs
+
+
+def convert_json_to_csv(json_filename, csv_filename, max_answer_length):
+    with open(filename) as f:
+        data = json.load(f)
+    results = defaultdict(set)
+    for key in data:
+        idx, _ = key.split('-')
+        value = data[key][0]
+        results[idx].add(value['text'])
+    idxs = []
+    entities = []
+    for idx in results:
+        results[idx].remove('empty')
+        idxs.append(idx)
+        entities.append(';'.join([text if len(text) < max_answer_length for text in results[idx]]))
+    preds = pd.DataFrame({'id': idxs, 'unkunknownEntities': entities})
+    preds.to_csv(os.path.join(csv_filename), index=False)
