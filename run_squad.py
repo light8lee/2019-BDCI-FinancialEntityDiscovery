@@ -463,9 +463,7 @@ def main():
     args.model_type = args.model_type.lower()
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
     config = config_class.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
-    # print()
-    # print(tokenizer_class)
-    tokenizer = tokenizer_class(os.path.join(args.model_name_or_path, 'vocab.txt'), do_lower_case=args.do_lower_case)
+    tokenizer = tokenizer_class.form_pretrained(args.tokenizer_name if args.tokenizer_name else args.model_name_or_path, do_lower_case=args.do_lower_case)
     model = model_class.from_pretrained(args.model_name_or_path, from_tf=bool('.ckpt' in args.model_name_or_path), config=config)
 
     if args.local_rank == 0:

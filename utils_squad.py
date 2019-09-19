@@ -26,14 +26,33 @@ import collections
 from io import open
 
 from pytorch_transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize, load_vocab
-from pytorch_transformers import BertTokenizer
+from pytorch_transformers import BertTokenizer, PreTrainedTokenizer
 
 # Required by XLNet evaluation method to compute optimal threshold (see write_predictions_extended() method)
 from utils_squad_evaluate import find_all_best_thresh_v2, make_qid_to_has_ans, get_raw_scores
 
 logger = logging.getLogger(__name__)
 
-class CharTokenizer(BertTokenizer):
+class CharTokenizer(PreTrainedTokenizer):
+    r"""
+    Constructs a BertTokenizer.
+    :class:`~pytorch_transformers.BertTokenizer` runs end-to-end tokenization: punctuation splitting + wordpiece
+
+    Args:
+        vocab_file: Path to a one-wordpiece-per-line vocabulary file
+        do_lower_case: Whether to lower case the input. Only has an effect when do_wordpiece_only=False
+        do_basic_tokenize: Whether to do basic tokenization before wordpiece.
+        max_len: An artificial maximum length to truncate tokenized sequences to; Effective maximum length is always the
+            minimum of this value (if specified) and the underlying BERT model's sequence length.
+        never_split: List of tokens which will never be split during tokenization. Only has an effect when
+            do_wordpiece_only=False
+    """
+
+    vocab_files_names = VOCAB_FILES_NAMES
+    pretrained_vocab_files_map = PRETRAINED_VOCAB_FILES_MAP
+    pretrained_init_configuration = PRETRAINED_INIT_CONFIGURATION
+    max_model_input_sizes = PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES
+
     def __init__(self, vocab_file, do_lower_case=True,
                  unk_token="[UNK]", sep_token="[SEP]", pad_token="[PAD]", cls_token="[CLS]",
                  mask_token="[MASK]", **kwargs):
@@ -45,13 +64,13 @@ class CharTokenizer(BertTokenizer):
                 Whether to lower case the input
                 Only has an effect when do_basic_tokenize=True
         """
-        super(CharTokenizer, self).__init__(vocab_file, do_lower_case=do_lower_case,
-                                            unk_token=unk_token, sep_token=sep_token,
+        super(CharTokenizer, self).__init__(unk_token=unk_token, sep_token=sep_token,
                                             pad_token=pad_token, cls_token=cls_token,
                                             mask_token=mask_token, **kwargs)
         self.max_len_single_sentence = self.max_len - 2  # take into account special tokens
         self.max_len_sentences_pair = self.max_len - 3  # take into account special tokens
         self.do_lower_case = do_lower_case
+
         if not os.path.isfile(vocab_file):
             raise ValueError(
                 "Can't find a vocabulary file at path '{}'. To load the vocabulary from a Google pretrained "
@@ -60,11 +79,62 @@ class CharTokenizer(BertTokenizer):
         self.ids_to_tokens = collections.OrderedDict(
             [(ids, tok) for tok, ids in self.vocab.items()])
 
+    @property
+    def vocab_size(self):
+        return len(self.vocab)
+
     def _tokenize(self, text):
         if self.do_lower_case:
             text = text.lower()
         split_tokens = list(text)
         return split_tokens
+
+    def _convert_token_to_id(self, token):
+        """ Converts a token (str/unicode) in an id using the vocab. """
+        return self.vocab.get(token, self.vocab.get(self.unk_token))
+
+    def _convert_id_to_token(self, index):
+        """Converts an index (integer) in a token (string/unicode) using the vocab."""
+        return self.ids_to_tokens.get(index, self.unk_token)
+
+    def convert_tokens_to_string(self, tokens):
+        """ Converts a sequence of tokens (string) in a single string. """
+        out_string = ' '.join(tokens).replace(' ##', '').strip()
+        return out_string
+
+    def add_special_tokens_single_sentence(self, token_ids):
+        """
+        Adds special tokens to the a sequence for sequence classification tasks.
+        A BERT sequence has the following format: [CLS] X [SEP]
+        """
+        return [self.cls_token_id] + token_ids + [self.sep_token_id]
+
+    def add_special_tokens_sentences_pair(self, token_ids_0, token_ids_1):
+        """
+        Adds special tokens to a sequence pair for sequence classification tasks.
+        A BERT sequence pair has the following format: [CLS] A [SEP] B [SEP]
+        """
+        sep = [self.sep_token_id]
+        cls = [self.cls_token_id]
+        return cls + token_ids_0 + sep + token_ids_1 + sep
+
+    def save_vocabulary(self, vocab_path):
+        """Save the tokenizer vocabulary to a directory or file."""
+        index = 0
+        if os.path.isdir(vocab_path):
+            vocab_file = os.path.join(vocab_path, VOCAB_FILES_NAMES['vocab_file'])
+        else:
+            vocab_file = vocab_path
+        with open(vocab_file, "w", encoding="utf-8") as writer:
+            for token, token_index in sorted(self.vocab.items(), key=lambda kv: kv[1]):
+                if index != token_index:
+                    logger.warning("Saving vocabulary to {}: vocabulary indices are not consecutive."
+                                   " Please check that the vocabulary is not corrupted!".format(vocab_file))
+                    index = token_index
+                writer.write(token + u'\n')
+                index += 1
+        return (vocab_file,)
+
 
 
 class SquadExample(object):
