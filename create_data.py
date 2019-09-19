@@ -12,7 +12,7 @@ import re
 
 # In[9]:
 random.seed(2019)
-MAX_SEQ_LEN = 128
+MAX_SEQ_LEN = 64
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -55,13 +55,13 @@ emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff]", flags=re.UN
 
 
 def clean(text):
-    text = text.replace('&nbsp;', ' ')
+    text = text.replace('&nbsp;', '')
     text = url.sub('', text)
     text = emoji.sub('', text)
     text = plain.sub(' ', text)
     text = img.sub('', text)
     text = img2.sub('', text)
-    text = time.sub('，', text)
+    text = time.sub('', text)
     text = tag.sub('', text)
     text = ques.sub('', text)
     text = vx.sub('', text)
