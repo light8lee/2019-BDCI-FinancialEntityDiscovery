@@ -1108,7 +1108,7 @@ def _compute_softmax(scores):
 
 
 def convert_json_to_csv(json_filename, csv_filename, max_answer_length):
-    with open(filename) as f:
+    with open(json_filename) as f:
         data = json.load(f)
     results = defaultdict(set)
     for key in data:
@@ -1120,6 +1120,6 @@ def convert_json_to_csv(json_filename, csv_filename, max_answer_length):
     for idx in results:
         results[idx].remove('empty')
         idxs.append(idx)
-        entities.append(';'.join([text if len(text) < max_answer_length for text in results[idx]]))
+        entities.append(';'.join([text for text in results[idx] if len(text) < max_answer_length]))
     preds = pd.DataFrame({'id': idxs, 'unkunknownEntities': entities})
     preds.to_csv(os.path.join(csv_filename), index=False)
