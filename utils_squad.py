@@ -25,7 +25,11 @@ import math
 import collections
 from io import open
 
-from pytorch_transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize, load_vocab
+from pytorch_transformers.tokenization_bert import (BasicTokenizer, whitespace_tokenize, 
+                                                    load_vocab, VOCAB_FILES_NAMES,
+                                                    PRETRAINED_VOCAB_FILES_MAP,
+                                                    PRETRAINED_INIT_CONFIGURATION,
+                                                    PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES)
 from pytorch_transformers import BertTokenizer, PreTrainedTokenizer
 
 # Required by XLNet evaluation method to compute optimal threshold (see write_predictions_extended() method)

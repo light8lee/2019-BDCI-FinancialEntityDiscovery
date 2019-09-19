@@ -114,9 +114,7 @@ def create_tags(text, entities):
     for entity in entities:
         start_pos = text.find(entity)
         if start_pos != -1:
-            # end_pos = start_pos + len(entity) - 1
-            return (start_pos, entity)
-    return None
+            yield (start_pos, entity)
         
 
 
@@ -166,19 +164,21 @@ def create_data(data, output_filename, is_test):
                 sub_text = sub_text.replace(' ', '※')
                 if not sub_text:
                     continue
-                pos = create_tags(sub_text, entities)
-                if not pos:
+                answers = []
+                for pos in create_tags(sub_text, entities):
+                    answer = {
+                        "answer_start": pos[0],
+                        "text": pos[1]
+                    }
+                    answers.append(answer)
+                if not answers:
                     continue
-                answers = [{
-                    "answer_start": pos[0],
-                    "text": pos[1]
-                }]
                 para_entry = dict()
                 para_entry["context"] = sub_text
                 qas = [{
                     "answers": answers,
                     "question": "有哪些金融实体？",
-                    "id": i
+                    "id": '{}-{}'.format(idx, i)
                 }]
                 para_entry["qas"] = qas
                 data = {

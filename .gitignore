@@ -9,3 +9,7 @@ outputs/*
 spm.*
 stanford**
 **.txt
+bert_model
+bert_model_wwm
+*.zip
+*.tar.gz
