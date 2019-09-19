@@ -176,7 +176,7 @@ def create_data(data, output_filename, is_test):
                 para_entry = dict()
                 para_entry["context"] = sub_text
                 qas = [{
-                    "answer": answers,
+                    "answers": answers,
                     "question": "有哪些金融实体？",
                     "id": i
                 }]

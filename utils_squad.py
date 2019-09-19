@@ -45,7 +45,8 @@ class CharTokenizer(BertTokenizer):
                 Whether to lower case the input
                 Only has an effect when do_basic_tokenize=True
         """
-        super(CharTokenizer, self).__init__(unk_token=unk_token, sep_token=sep_token,
+        super(CharTokenizer, self).__init__(vocab_file, do_lower_case=do_lower_case,
+                                            unk_token=unk_token, sep_token=sep_token,
                                             pad_token=pad_token, cls_token=cls_token,
                                             mask_token=mask_token, **kwargs)
         self.max_len_single_sentence = self.max_len - 2  # take into account special tokens
