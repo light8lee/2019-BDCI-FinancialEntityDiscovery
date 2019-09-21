@@ -12,7 +12,7 @@ import re
 
 # In[9]:
 random.seed(2019)
-MAX_SEQ_LEN = 64
+MAX_SEQ_LEN = 48
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -50,6 +50,7 @@ vx = re.compile(r'(v\d+)|(微信:\d+)')
 user = re.compile(r'@.*:')
 url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 plain = re.compile(r'\s+')
+dots = re.compile(r'([.!?？！．,，＼／、])+')
 num = re.compile(r'\d+')
 emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff]", flags=re.UNICODE)
 
@@ -64,6 +65,7 @@ def clean(text):
     text = time.sub('', text)
     text = tag.sub('', text)
     text = ques.sub('', text)
+    text = dots.sub(r'\1', text)
     text = vx.sub('', text)
     text = user.sub('', text)
     text = num.sub('0', text)
@@ -190,9 +192,9 @@ def create_data(data, output_filename, is_test):
                 if not is_test and len(sub_text) < 6:
                     continue
                 tags, has_entity = create_tags(sub_text, entities)
-                # if not is_test and not has_entity:
-                #     if random.random() < 0.5:
-                #         continue
+                if not is_test and not has_entity:
+                    if random.random() < 0.5:
+                        continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')

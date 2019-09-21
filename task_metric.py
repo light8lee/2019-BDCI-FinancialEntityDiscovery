@@ -11,22 +11,22 @@ F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 BIO_BEGIN_TAG_ID = BIO_TAG2ID['B']
 BIO_INTER_TAG_ID = BIO_TAG2ID['I']
-OTHER_TAG_ID = 0
+OTHER_TAG_IDS = [0, 4]
 
 def get_BIO_entities(batch_tag_ids, max_lens):
     status = 0
     max_lens = [int(v) for v in max_lens]
     for tag_ids, max_len in zip(batch_tag_ids, max_lens):
         entities = set()
-        for idx in range(1, max_len-1):  # not consider [CLS] and [SEP]
+        for idx in range(1, max_len):  # not consider [CLS] and [SEP]
             tag_id = tag_ids[idx]
             if (status == 0) and (tag_id == BIO_BEGIN_TAG_ID):  # correct begin
                 status = 1
                 label = tag_id
                 begin_pos = idx
-            elif (status == 1) and (tag_id == BIO_INTER_TAG_ID):  # in entity Bx(Ix) -> Ix
-                continue
-            elif (status == 1) and (tag_id == OTHER_TAG_ID):  # Bx(Ix) -> O
+            # elif (status == 1) and (tag_id == BIO_INTER_TAG_ID):  # in entity Bx(Ix) -> Ix
+            #     continue
+            elif (status == 1) and (tag_id in OTHER_TAG_IDS):  # Bx(Ix) -> O
                 status = 0
                 entities.add((begin_pos, idx))
         yield entities

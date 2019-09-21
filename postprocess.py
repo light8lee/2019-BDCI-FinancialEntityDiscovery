@@ -2,6 +2,30 @@ import pandas as pd
 import argparse
 import os
 
+import re
+
+invalid = re.compile(r'[〖〗…？，！!\d▲《》.▼☑☑【、“”＂＼＇：】％＃＠＊＆＾￥$\[\]—]')
+
+def filter(entities):
+    entities = entities.split(';')
+    new_entites = []
+    for entity in entities:
+        if len(entity) < 2:
+            continue
+        if '（' in entity and '）' not in entity:
+            continue
+        if '（' not in entity and '）' in entity:
+            continue
+        if '(' in entity and '(' not in entity:
+            continue
+        if '(' not in entity and '(' in entity:
+            continue
+        if invalid.search(entity):
+            continue
+        new_entites.append(entity)
+    return ';'.join(new_entites)
+
+
 def convert_to_submit(name):
     input_filename = os.path.join('outputs', name, 'submit.csv')
     preds = pd.read_csv(input_filename, sep=',', index_col='id')
@@ -11,6 +35,8 @@ def convert_to_submit(name):
     print('not in sample', set(preds.index)-set(sample.index))
     print('not in preds', set(sample.index)-set(preds.index))
     outputs = preds.reindex(sample.index)
+    outputs.fillna('', inplace=True)
+    outputs['unknownEntities'] = outputs['unknownEntities'].apply(filter)
     output_filename = os.path.join('submits', '{}.csv'.format(name))
     outputs.to_csv(output_filename)
 
@@ -35,6 +61,7 @@ def merge_and_convert_to_submit(crf_name, squad_name):
             crf_row['unknownEntities'] = squad_outputs.at[index, 'unknownEntities']
         print(crf_row)
 
+    crf_outputs['unknownEntities'] = crf_outputs['unknownEntities'].apply(filter)
     output_filename = os.path.join('submits', '{}-{}.csv'.format(crf_name, squad_name))
     crf_outputs.to_csv(output_filename)
 

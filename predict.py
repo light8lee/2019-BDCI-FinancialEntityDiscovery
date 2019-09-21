@@ -90,7 +90,7 @@ def predict(args):
         print(key)
         idxs.append(key)
         curr_preds[key].remove('')
-        entities.append(';'.join(curr_preds[key]))
+        entities.append(';'.join([v for v in curr_preds[key] if len(v) > 1]))
     preds = pd.DataFrame({'id': idxs, 'unknownEntities': entities})
     preds.to_csv(os.path.join(args.save_dir, 'submit.csv'), index=False)
 
