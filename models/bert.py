@@ -9,7 +9,7 @@ from .layers import activation as Act
 from .layers.pooling import MaxPooling, AvgPooling, SumPooling
 from .layers.normalization import normalize_adjs
 from torchcrf import CRF
-from pytorch_pretrained_bert import BertModel, BertConfig, BertForPreTraining
+from pytorch_transformers import BertModel
 
 class BERT_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, bert_dim,
@@ -33,7 +33,7 @@ class BERT_Pretrained(nn.Module):
         self.rescale_bs = nn.ParameterList()
         self.crf = CRF(5, batch_first=True)
 
-        self.bert4pretrain = BertForPreTraining.from_pretrained(pretrained_model_path, from_tf=True).bert
+        self.bert4pretrain = BertModel.from_pretrained(pretrained_model_path)
         out_dim = bert_dim
         in_dim = bert_dim
         if gnn != "none": 
@@ -62,7 +62,7 @@ class BERT_Pretrained(nn.Module):
         self.hidden2tags = nn.Linear(out_dim, 5)
 
     def tag_outputs(self, input_ids, input_masks):
-        outputs, _ = self.bert4pretrain(input_ids, attention_mask=input_masks, output_all_encoded_layers=False)
+        outputs, _ = self.bert4pretrain(input_ids, attention_mask=input_masks)
 
         outputs = outputs * input_masks.unsqueeze(-1)
 

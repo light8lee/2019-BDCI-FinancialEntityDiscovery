@@ -13,7 +13,7 @@ import re
 
 # In[9]:
 random.seed(2019)
-MAX_SEQ_LEN = 128
+MAX_SEQ_LEN = 64
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -164,22 +164,20 @@ def create_data(data, output_filename, is_test):
                 # sub_text = sub_text.replace(' ', '※')
                 if not sub_text:
                     continue
-                answers = []
+                qas = []
                 for pos in create_tags(sub_text, entities):
-                    answer = {
+                    answers = [{
                         "answer_start": pos[0],
                         "text": pos[1]
+                    }]
+                    qa = {
+                        "answers": answers,
+                        "question": "有哪些金融实体或公司？",
+                        "id": '{}-{}'.format(idx, i)
                     }
-                    answers.append(answer)
-                if not answers:
-                    continue
+                    qas.append(qa)
                 para_entry = dict()
                 para_entry["context"] = sub_text
-                qas = [{
-                    "answers": answers,
-                    "question": "有哪些金融实体或公司？",
-                    "id": '{}-{}'.format(idx, i)
-                }]
                 para_entry["qas"] = qas
                 data = {
                     "title": "金融实体",
