@@ -4,7 +4,7 @@ import os
 
 import re
 
-invalid = re.compile(r'[〖〗…？，！!\d▲《》.▼☑☑【、“”＂＼＇：】％＃＠＊＆＾￥$\[\]—]')
+invalid = re.compile(r'[,\u200b〖〗…？，！!\d▲《》.▼☑☑【、“”＂＼＇：】％＃＠＊＆＾￥$\[\]—]')
 
 def filter(entities):
     entities = entities.split(';')

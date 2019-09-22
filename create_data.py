@@ -12,7 +12,7 @@ import re
 
 # In[9]:
 random.seed(2019)
-MAX_SEQ_LEN = 64
+# MAX_SEQ_LEN = 48
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -50,7 +50,7 @@ vx = re.compile(r'(v\d+)|(微信:\d+)')
 user = re.compile(r'@.*:')
 url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 plain = re.compile(r'\s+')
-dots = re.compile(r'([.!?？！．,，＼／、])+')
+dots = re.compile(r'([.。，!?？！．,，＼／、])+')
 num = re.compile(r'\d+')
 emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff]", flags=re.UNICODE)
 
@@ -148,29 +148,29 @@ def create_tags(text, entities):
 # In[21]:
 
 
-def merge_sub_texts(sub_texts):
-    new_sub_texts = []
-    last = []
-    curr_len = 0
-    for sub_text in sub_texts:
-        if curr_len + len(sub_text) < MAX_SEQ_LEN:
-            last.append(sub_text)
-            curr_len += len(sub_text)
-        else:
-            if not last:
-                new_sub_texts.append(sub_text)
-                last = []
-                curr_len = 0
-            else:
-                new_sub_texts.append('。'.join(last))
-                last = [sub_text]
-                curr_len = len(sub_text)
-    if last:
-        new_sub_texts.append('。'.join(last))
-    return new_sub_texts
+# def merge_sub_texts(sub_texts):
+#     new_sub_texts = []
+#     last = []
+#     curr_len = 0
+#     for sub_text in sub_texts:
+#         if curr_len + len(sub_text) < MAX_SEQ_LEN:
+#             last.append(sub_text)
+#             curr_len += len(sub_text)
+#         else:
+#             if not last:
+#                 new_sub_texts.append(sub_text)
+#                 last = []
+#                 curr_len = 0
+#             else:
+#                 new_sub_texts.append('。'.join(last))
+#                 last = [sub_text]
+#                 curr_len = len(sub_text)
+#     if last:
+#         new_sub_texts.append('。'.join(last))
+#     return new_sub_texts
 
 
-comma_stop = re.compile(r'[。]+')
+comma_stop = re.compile(r'[。？]')
 def create_data(data, output_filename, is_test):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
@@ -178,7 +178,7 @@ def create_data(data, output_filename, is_test):
             # print('---------------line:', line)
             entities = entities.split(';')
             sub_texts = comma_stop.split(text)
-            sub_texts = merge_sub_texts(sub_texts)
+            # sub_texts = merge_sub_texts(sub_texts)
             title = title.strip()
             if title:
                 sub_texts.append(title)
@@ -193,8 +193,8 @@ def create_data(data, output_filename, is_test):
                     continue
                 tags, has_entity = create_tags(sub_text, entities)
                 if not is_test and not has_entity:
-                    if random.random() < 0.5:
-                        continue
+                    # if random.random() < 0.5:
+                    continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
