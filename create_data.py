@@ -12,7 +12,7 @@ import re
 
 # In[9]:
 random.seed(2019)
-MAX_SEQ_LEN = 48
+MAX_SEQ_LEN = 64
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
