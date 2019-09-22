@@ -170,7 +170,7 @@ def create_tags(text, entities):
 #     return new_sub_texts
 
 
-comma_stop = re.compile(r'[。？]')
+comma_stop = re.compile(r'[\s,，。？！▲]+')
 def create_data(data, output_filename, is_test):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
@@ -186,7 +186,7 @@ def create_data(data, output_filename, is_test):
 
             for sub_text in sub_texts:
                 sub_text = sub_text.strip()
-                sub_text = sub_text.replace(' ', '※')
+                # sub_text = sub_text.replace(' ', '※')
                 if not sub_text:
                     continue
                 if not is_test and len(sub_text) < 6:

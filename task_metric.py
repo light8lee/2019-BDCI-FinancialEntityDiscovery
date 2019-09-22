@@ -12,6 +12,7 @@ F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 BIO_BEGIN_TAG_ID = BIO_TAG2ID['B']
 BIO_INTER_TAG_ID = BIO_TAG2ID['I']
 OTHER_TAG_IDS = [0, 4]
+Invalid_entities = set()
 
 def get_BIO_entities(batch_tag_ids, max_lens):
     status = 0
@@ -58,12 +59,14 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
         nonlocal running_fp
         nonlocal running_tp
         nonlocal running_size
+        global Invalid_entities
 
         running_loss += loss.item()
         running_size += result['batch_size']
         pred_gen = get_BIO_entities(result['pred_tag_ids'], result['max_lens'])
         target_gen = get_BIO_entities(result['target_tag_ids'], result['max_lens'])
         for target_entities, pred_entities in zip(target_gen, pred_gen):
+            Invalid_entities.update(pred_entities-target_entities)
             running_fn += len(target_entities-pred_entities)
             running_fp += len(pred_entities-target_entities)
             running_tp += len(pred_entities&target_entities)

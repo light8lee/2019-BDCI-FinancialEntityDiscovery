@@ -154,6 +154,8 @@ def train(args):
             post_fn(phase, epoch)
     if args.log:
         writer.close()
+    with open(os.path.join(args.save_dir, 'invalid_entities'), 'wb') as f:
+        pickle.dump(tm.Invalid_entities, f)
 
 
 if __name__ == '__main__':
