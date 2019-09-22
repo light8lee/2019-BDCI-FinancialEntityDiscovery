@@ -23,7 +23,7 @@ import task_metric as tm
 
 
 def infer(data, model, cuda):
-    idx, batch_ids, batch_masks, batch_tags, _ = data
+    idx, batch_ids, batch_masks, batch_tags, batch_inputs = data
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
@@ -37,6 +37,7 @@ def infer(data, model, cuda):
 
     emissions, loss = model(batch_ids, batch_masks, batch_tags)
     result = {
+        'inputs': batch_inputs,
         'target_tag_ids': batch_tags,
         'pred_tag_ids': model.decode(emissions, batch_masks),
         'max_lens': batch_masks.sum(-1).tolist(),

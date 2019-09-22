@@ -170,7 +170,7 @@ def create_tags(text, entities):
 #     return new_sub_texts
 
 
-comma_stop = re.compile(r'[\s,，。？！▲]+')
+comma_stop = re.compile(r'[\s,，。？！!▲]+')
 def create_data(data, output_filename, is_test):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
@@ -182,7 +182,7 @@ def create_data(data, output_filename, is_test):
             title = title.strip()
             if title:
                 sub_texts.append(title)
-            print(sub_texts)
+            # print(sub_texts)
 
             for sub_text in sub_texts:
                 sub_text = sub_text.strip()

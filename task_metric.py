@@ -15,10 +15,10 @@ OTHER_TAG_IDS = [0, 4]
 Invalid_entities = set()
 
 def get_BIO_entities(batch_tag_ids, max_lens):
-    status = 0
     max_lens = [int(v) for v in max_lens]
     for tag_ids, max_len in zip(batch_tag_ids, max_lens):
         entities = set()
+        status = 0
         for idx in range(1, max_len):  # not consider [CLS] and [SEP]
             tag_id = tag_ids[idx]
             if (status == 0) and (tag_id == BIO_BEGIN_TAG_ID):  # correct begin
@@ -65,8 +65,8 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
         running_size += result['batch_size']
         pred_gen = get_BIO_entities(result['pred_tag_ids'], result['max_lens'])
         target_gen = get_BIO_entities(result['target_tag_ids'], result['max_lens'])
-        for target_entities, pred_entities in zip(target_gen, pred_gen):
-            Invalid_entities.update(pred_entities-target_entities)
+        for target_entities, pred_entities, inputs in zip(target_gen, pred_gen, result['inputs']):
+            Invalid_entities.update(''.join(inputs[e[0]:e[1]]) for e in (pred_entities-target_entities))
             running_fn += len(target_entities-pred_entities)
             running_fp += len(pred_entities-target_entities)
             running_tp += len(pred_entities&target_entities)

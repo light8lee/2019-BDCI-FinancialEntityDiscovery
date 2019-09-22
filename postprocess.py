@@ -22,8 +22,16 @@ def filter(entities, invalid_entities):
             continue
         if invalid.search(entity):
             continue
-        if invalid_entities and entity in invalid_entities:
-            continue
+        if invalid_entities:
+            if entity in invalid_entities:
+                continue
+            # skip = False
+            # for invalid_entity in invalid_entities:
+            #     if entity in invalid_entity or invalid_entity in entity:  # FIXME
+            #         skip = True
+            #         break
+            # if skip:
+            #     continue
         new_entites.append(entity)
     return ';'.join(new_entites)
 
@@ -76,6 +84,7 @@ if __name__ == '__main__':
     if args.invalid_entities:
         with open(args.invalid_entities, 'rb') as f:
             invalid_entities = pickle.load(f)
+            invalid_entities = set(v for v in invalid_entities if len(v) > 1)
     else:
         invalid_entities = None
     if not args.crf_model and not args.squad_model:
