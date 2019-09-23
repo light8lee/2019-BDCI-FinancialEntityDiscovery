@@ -5,6 +5,13 @@ import pickle
 import re
 
 invalid = re.compile(r'[,▌\u200b〖〗…？，！!\d▲《》.▼☑☑【、“”＂＼＇：】％＃＠＊＆＾￥$\[\]—]')
+train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
+train_data.fillna('', inplace=True)
+train_entities = set()
+for entities in train_data['unknownEntities']:
+    entities = entities.split(';')
+    train_entities.update(entities)
+train_entities.remove('')
 
 def filter(entities, invalid_entities):
     entities = entities.split(';')
@@ -32,6 +39,8 @@ def filter(entities, invalid_entities):
             #         break
             # if skip:
             #     continue
+        if entity in train_entities:
+            continue
         new_entites.append(entity)
     return ';'.join(new_entites)
 
