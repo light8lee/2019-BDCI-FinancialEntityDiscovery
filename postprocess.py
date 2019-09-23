@@ -4,7 +4,7 @@ import os
 import pickle
 import re
 
-invalid = re.compile(r'[,\u200b〖〗…？，！!\d▲《》.▼☑☑【、“”＂＼＇：】％＃＠＊＆＾￥$\[\]—]')
+invalid = re.compile(r'[,▌\u200b〖〗…？，！!\d▲《》.▼☑☑【、“”＂＼＇：】％＃＠＊＆＾￥$\[\]—]')
 
 def filter(entities, invalid_entities):
     entities = entities.split(';')

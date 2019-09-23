@@ -7,9 +7,13 @@ import random
 import pandas as pd
 import os
 import numpy as np
+import argparse
 import re
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument('output_dir')
+args = parser.parse_args()
 # In[9]:
 random.seed(2019)
 # MAX_SEQ_LEN = 48
@@ -192,9 +196,9 @@ def create_data(data, output_filename, is_test):
                 if not is_test and len(sub_text) < 6:
                     continue
                 tags, has_entity = create_tags(sub_text, entities)
-                if not is_test and not has_entity:
-                    # if random.random() < 0.5:
-                    continue
+                # if not is_test and not has_entity:
+                #     if random.random() < 0.5:
+                #         continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
@@ -209,16 +213,16 @@ def create_data(data, output_filename, is_test):
 # In[22]:
 
 
-create_data(train_data, 'inputs/train.txt', False)
+create_data(train_data, '{}/train.txt'.format(args.output_dir), False)
 
 
 # In[23]:
 
 
-create_data(dev_data, 'inputs/dev.txt', False)
+create_data(dev_data, '{}/dev.txt'.format(args.output_dir), False)
 
 
 # In[24]:
 
 
-create_data(test_data, 'inputs/test.txt', True)
+create_data(test_data, '{}/test.txt'.format(args.output_dir), True)

@@ -9,9 +9,13 @@ import pandas as pd
 import os
 import numpy as np
 import re
+import argparse
 
 
 # In[9]:
+parser = argparse.ArgumentParser()
+parser.add_argument('output_dir')
+args = parser.parse_args()
 random.seed(2019)
 MAX_SEQ_LEN = 128
 
@@ -196,16 +200,16 @@ def create_data(data, output_filename, is_test):
 # In[22]:
 
 
-create_data(train_data, 'inputs/train.json', False)
+create_data(train_data, '{}/train.json'.format(args.output_dir), False)
 
 
 # In[23]:
 
 
-create_data(dev_data, 'inputs/dev.json', False)
+create_data(dev_data, '{}/dev.json'.format(args.output_dir), False)
 
 
 # In[24]:
 
 
-create_data(test_data, 'inputs/test.json', True)
+create_data(test_data, '{}/test.json'.format(args.output_dir), True)
