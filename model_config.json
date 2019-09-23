@@ -6,7 +6,7 @@
     "model": {
         "name": "BERT_Pretrained",
         "drop_rate": 0.2,
-        "max_seq_len": 64,
+        "max_seq_len": 48,
         "pretrained_model_path": "bert_wwm_ext",
         "bert_dim": 768,
         "freeze": false,
