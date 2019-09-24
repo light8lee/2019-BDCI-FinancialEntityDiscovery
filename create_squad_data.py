@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('output_dir')
 args = parser.parse_args()
 random.seed(2019)
-MAX_SEQ_LEN = 128
+MAX_SEQ_LEN = 500
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -50,11 +50,12 @@ img = re.compile(r'\{IMG:\d{1,}\}')
 img2 = re.compile(r'<!--(IMG[_\d\s]+)-->')
 time = re.compile(r'(\d{4}-\d{2}-\d{2})|(\d{2}:\d{2}:\d{2})')
 tag = re.compile(r'<(\d|[a-z".A-Z/]|\s)+>')
-ques = re.compile(r'[?#/]+')
+ques = re.compile(r'[?#/▲◆]+')
 vx = re.compile(r'(v\d+)|(微信:\d+)')
 user = re.compile(r'@.*:')
 url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 plain = re.compile(r'\s+')
+dots = re.compile(r'([.。，!?？！．,，＼／、])+')
 num = re.compile(r'\d+')
 emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff]", flags=re.UNICODE)
 
@@ -69,11 +70,11 @@ def clean(text):
     text = time.sub('', text)
     text = tag.sub('', text)
     text = ques.sub('', text)
+    text = dots.sub(r'\1', text)
     text = vx.sub('', text)
     text = user.sub('', text)
     text = num.sub('0', text)
     return text
-
 
 # In[14]:
 
@@ -125,26 +126,26 @@ def create_tags(text, entities):
 # In[21]:
 
 
-def merge_sub_texts(sub_texts):
-    new_sub_texts = []
-    last = []
-    curr_len = 0
-    for sub_text in sub_texts:
-        if curr_len + len(sub_text) < MAX_SEQ_LEN:
-            last.append(sub_text)
-            curr_len += len(sub_text)
-        else:
-            if not last:
-                new_sub_texts.append(sub_text)
-                last = []
-                curr_len = 0
-            else:
-                new_sub_texts.append('。'.join(last))
-                last = [sub_text]
-                curr_len = len(sub_text)
-    if last:
-        new_sub_texts.append('。'.join(last))
-    return new_sub_texts
+# def merge_sub_texts(sub_texts):
+#     new_sub_texts = []
+#     last = []
+#     curr_len = 0
+#     for sub_text in sub_texts:
+#         if curr_len + len(sub_text) < MAX_SEQ_LEN:
+#             last.append(sub_text)
+#             curr_len += len(sub_text)
+#         else:
+#             if not last:
+#                 new_sub_texts.append(sub_text)
+#                 last = []
+#                 curr_len = 0
+#             else:
+#                 new_sub_texts.append('。'.join(last))
+#                 last = [sub_text]
+#                 curr_len = len(sub_text)
+#     if last:
+#         new_sub_texts.append('。'.join(last))
+#     return new_sub_texts
 
 
 comma_stop = re.compile(r'[。]+')
@@ -156,8 +157,16 @@ def create_data(data, output_filename, is_test):
         for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
             # print('---------------line:', line)
             entities = entities.split(';')
-            sub_texts = comma_stop.split(text)
-            sub_texts = merge_sub_texts(sub_texts)
+            # sub_texts = comma_stop.split(text)
+            # sub_texts = merge_sub_texts(sub_texts)
+            sub_texts = []
+
+            text += title
+            while len(text) > MAX_SEQ_LEN:
+                sub_texts.append(text[:MAX_SEQ_LEN])
+                text = text[MAX_SEQ_LEN:]
+            else:
+                sub_texts.append(text)
             title = title.strip()
             if title:
                 sub_texts.append(title)

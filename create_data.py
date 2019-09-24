@@ -16,7 +16,7 @@ parser.add_argument('output_dir')
 args = parser.parse_args()
 # In[9]:
 random.seed(2019)
-# MAX_SEQ_LEN = 48
+MAX_SEQ_LEN = 500
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -49,7 +49,7 @@ img = re.compile(r'\{IMG:\d{1,}\}')
 img2 = re.compile(r'<!--(IMG[_\d\s]+)-->')
 time = re.compile(r'(\d{4}-\d{2}-\d{2})|(\d{2}:\d{2}:\d{2})')
 tag = re.compile(r'<(\d|[a-z".A-Z/]|\s)+>')
-ques = re.compile(r'[?#/]+')
+ques = re.compile(r'[?#/▲◆]+')
 vx = re.compile(r'(v\d+)|(微信:\d+)')
 user = re.compile(r'@.*:')
 url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
@@ -181,11 +181,17 @@ def create_data(data, output_filename, is_test):
         for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
             # print('---------------line:', line)
             entities = entities.split(';')
-            sub_texts = comma_stop.split(text)
+            # sub_texts = comma_stop.split(text)
             # sub_texts = merge_sub_texts(sub_texts)
+            sub_texts = []
+
             title = title.strip()
-            if title:
-                sub_texts.append(title)
+            text += title
+            while len(text) > MAX_SEQ_LEN:
+                sub_texts.append(text[:MAX_SEQ_LEN])
+                text = text[MAX_SEQ_LEN:]
+            else:
+                sub_texts.append(text)
             # print(sub_texts)
 
             for sub_text in sub_texts:
