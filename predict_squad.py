@@ -139,23 +139,23 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
         'test',
         list(filter(None, args.save_dir.split('/'))).pop(),
         str(args.max_seq_length)))
-    if os.path.exists(cached_features_file):
-        logger.info("Loading features from cached file %s", cached_features_file)
-        features = torch.load(cached_features_file)
-    else:
-        logger.info("Creating features from dataset file at %s", input_file)
-        examples = read_squad_examples(input_file=input_file,
-                                                is_training=not evaluate,
-                                                version_2_with_negative=args.version_2_with_negative)
-        features = convert_examples_to_features(examples=examples,
-                                                tokenizer=tokenizer,
-                                                max_seq_length=args.max_seq_length,
-                                                doc_stride=args.doc_stride,
-                                                max_query_length=args.max_query_length,
-                                                is_training=not evaluate)
-        if args.local_rank in [-1, 0]:
-            logger.info("Saving features into cached file %s", cached_features_file)
-            torch.save(features, cached_features_file)
+    # if os.path.exists(cached_features_file):
+    #     logger.info("Loading features from cached file %s", cached_features_file)
+    #     features = torch.load(cached_features_file)
+    # else:
+    logger.info("Creating features from dataset file at %s", input_file)
+    examples = read_squad_examples(input_file=input_file,
+                                            is_training=not evaluate,
+                                            version_2_with_negative=args.version_2_with_negative)
+    features = convert_examples_to_features(examples=examples,
+                                            tokenizer=tokenizer,
+                                            max_seq_length=args.max_seq_length,
+                                            doc_stride=args.doc_stride,
+                                            max_query_length=args.max_query_length,
+                                            is_training=not evaluate)
+    # if args.local_rank in [-1, 0]:
+    #     logger.info("Saving features into cached file %s", cached_features_file)
+    #     torch.save(features, cached_features_file)
 
     # Convert to Tensors and build dataset
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
