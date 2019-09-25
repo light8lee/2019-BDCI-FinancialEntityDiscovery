@@ -61,6 +61,8 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
         nonlocal running_size
         global Invalid_entities
 
+        if args.n_gpu > 1:
+            loss = loss.mean()
         running_loss += loss.item()
         running_size += result['batch_size']
         pred_gen = get_BIO_entities(result['pred_tag_ids'], result['max_lens'])
@@ -72,10 +74,7 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
             running_tp += len(pred_entities&target_entities)
         if phase == 'train':
             curr_lr = optimizer.param_groups[0]['lr']
-            if args.multi_gpu:
-                pbar.set_postfix(rank=args.local_rank, mean_loss=running_loss/running_size, lr=curr_lr)
-            else:
-                pbar.set_postfix(mean_loss=running_loss/running_size,lr=curr_lr)
+            pbar.set_postfix(mean_loss=running_loss/running_size,lr=curr_lr)
         else:
             pbar.set_postfix(mean_loss=running_loss/running_size)
 
@@ -102,31 +101,18 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
                 scheduler.step()
             if epoch_f1 > best_f1:
                 best_f1 = epoch_f1
-                if args.multi_gpu:
-                    if args.local_rank == 0:
-                        Log('dev Epoch {}: Saving Rank({}) New Record... P: {}, R: {}, F1: {} Loss: {}'.format(
-                            epoch, args.local_rank, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
-                        # save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.epoch{}.pt.tar'.format(args.fold, args.local_rank, epoch)),
-                        #                     epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
-                        save_ckpt(os.path.join(args.save_dir, 'model{}.rank{}.best.pt.tar'.format(args.fold, args.local_rank)),
-                                            epoch, model.module.state_dict(), optimizer.state_dict(), scheduler.state_dict())
-                else:
-                    Log('dev Epoch {}: Saving New Record... P: {}, R: {}, F1: {} Loss: {}'.format(
-                        epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
-                    # save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
-                    #                        epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
-                    save_ckpt(os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(args.fold)),
-                                            epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+                Log('dev Epoch {}: Saving New Record... P: {}, R: {}, F1: {} Loss: {}'.format(
+                    epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+                model_to_save = model.module if hasattr(model, 'module') else model  # Take care of distributed/parallel training
+                save_ckpt(os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(args.fold)),
+                                        epoch, model_to_save.state_dict(), optimizer.state_dict(), scheduler.state_dict())
             else:
-                if args.multi_gpu:
-                    Log('dev Epoch {}:  Rank({}) Not Improved. P: {}, R: {}, F1: {} Loss: {}'.format(
-                        epoch, args.local_rank,  epoch_precision, epoch_recall, epoch_f1, epoch_loss))
-                else:
-                    Log('dev Epoch {}: Not Improved.  P: {}, R: {}, F1: {} Loss: {}'.format(
-                        epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+                Log('dev Epoch {}: Not Improved.  P: {}, R: {}, F1: {} Loss: {}'.format(
+                    epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
         else:
             Log('{} Epoch {}: P: {}, R: {}, F1: {} Loss: {}'.format(
                 phase, epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+            model_to_save = model.module if hasattr(model, 'module') else model  # Take care of distributed/parallel training
             save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
-                                    epoch, model.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+                                    epoch, model_to_save.state_dict(), optimizer.state_dict(), scheduler.state_dict())
     return pre_fn, step_fn, post_fn

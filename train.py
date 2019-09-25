@@ -35,11 +35,13 @@ def infer(data, model, cuda):
             batch_masks = [v.cuda() for v in batch_masks]
             batch_tags = [v.cuda() for v in batch_tags]
 
-    emissions, loss = model(batch_ids, batch_masks, batch_tags)
+    loss, predicts = model(batch_ids, batch_masks, batch_tags)
+    print('loss:', loss)
+    print('predicts:', predicts)
     result = {
         'inputs': batch_inputs,
         'target_tag_ids': batch_tags,
-        'pred_tag_ids': model.decode(emissions, batch_masks),
+        'pred_tag_ids': predicts,
         'max_lens': batch_masks.sum(-1).tolist(),
         'batch_size': batch_masks.shape[0]
     }
@@ -52,12 +54,6 @@ def train(args):
     model_config, optimizer_config, scheduler_config = Config.from_json(args.config)
     model_name = model_config.name
     model_class = getattr(models, model_name)
-
-    if model_config.init_weight_path is None:
-        model_config.init_weight = None
-    else:
-        model_config.init_weight = t.from_numpy(pickle.load(open(model_config.init_weight_path, 'rb'))).float()
-
     model = model_class(**model_config.values)
 
     dataloaders = {}
@@ -76,7 +72,7 @@ def train(args):
             positions = [int(v.strip()) for v in f]
         dataset = GraphDataset(fea_file, positions)
         if args.multi_gpu and phase == 'train':
-            sampler = t.utils.data.distributed.DistributedSampler(dataset)
+            sampler = t.utils.data.RandomSampler(dataset)
             dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
                                                 collate_fn=collate_fn, sampler=sampler, num_workers=1)
         else:
@@ -85,22 +81,14 @@ def train(args):
         dataloaders[phase] = dataloader
         datasets[phase] = dataset
 
-    total_steps = int(args.epoch * len(datasets['train']) / args.batch_size)
-
     if args.multi_gpu:
-        t.cuda.set_device(args.local_rank)
-        model = model.cuda()
-        t.distributed.init_process_group(backend='nccl', init_method='env://')
-        model = nn.parallel.DistributedDataParallel(model,
-                                                device_ids=[args.local_rank],
-                                                output_device=args.local_rank)
+        args.n_gpu = t.cuda.device_count()
+        model = t.nn.DataParallel(model)
     elif args.cuda:
+        args.n_gpu = 1
         model = model.cuda()
 
     if model_config.name.find("BERT") != -1:
-        if model_config.freeze:
-            for param in model.bert4pretrain.parameters():
-                param.requires_grad = False
         optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
     else:
         optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
@@ -108,14 +96,6 @@ def train(args):
 
     if not os.path.isdir(args.save_dir):
         os.mkdir(args.save_dir)
-    ckpt_file = os.path.join(args.save_dir, 'model.epoch{}.pt.tar'.format(args.conti))
-    if args.conti is None:
-        conti = 1
-    elif os.path.isfile(ckpt_file) and args.conti is not None:
-        load_ckpt(ckpt_file, model, optimizer, scheduler)
-        conti = args.conti + 1
-    else:
-        raise Exception("No such path {}".format(ckpt_file))
 
     # pdb.set_trace()
     if args.log:
@@ -130,17 +110,15 @@ def train(args):
         phases.append('dev')
     if args.do_test:
         phases.append('test')
-    for epoch in range(conti, conti+args.epoch):
+    for epoch in range(1, 1+args.epoch):
         for phase in phases:
             pre_fn()
             if phase == 'train':
-                if sampler is not None:
-                    sampler.set_epoch(epoch)
                 model.train()
             else:
                 model.eval()
 
-            pbar = tqdm(dataloaders[phase], position=args.local_rank)
+            pbar = tqdm(dataloaders[phase])
             pbar.set_description("[{} Epoch {}]".format(phase, epoch))
             for data in pbar:
                 optimizer.zero_grad()
@@ -176,7 +154,6 @@ if __name__ == '__main__':
     parser.add_argument('--do_eval', dest='do_eval', action='store_true')
     parser.add_argument('--seed', type=int, default=2019)
     parser.set_defaults(multi_gpu=False, log=False, do_test=False, do_eval=False)
-    parser.add_argument("--local_rank", type=int)
     args = parser.parse_args()
     t.manual_seed(args.seed)
     t.cuda.manual_seed(args.seed)

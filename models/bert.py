@@ -94,7 +94,8 @@ class BERT_Pretrained(nn.Module):
     def forward(self, input_ids, input_masks, target_tags):
         emissions = self.tag_outputs(input_ids, input_masks)
         scores = self.crf(emissions, target_tags, input_masks.byte())
-        return emissions, scores
+        predicts = self.decode(emissions, input_masks)
+        return scores, predicts
 
     def decode(self, emissions, input_masks):
         return self.crf.decode(emissions, input_masks.byte())
