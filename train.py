@@ -35,9 +35,10 @@ def infer(data, model, cuda):
             batch_masks = [v.cuda() for v in batch_masks]
             batch_tags = [v.cuda() for v in batch_tags]
 
-    loss, predicts = model(batch_ids, batch_masks, batch_tags)
-    print('loss:', loss)
-    print('predicts:', predicts)
+    scores = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags)
+    model_to_predict = model.module if hasattr(model, "module") else model
+    with t.no_grad():
+        predicts = model_to_predict.predict(batch_ids, batch_masks)
     result = {
         'inputs': batch_inputs,
         'target_tag_ids': batch_tags,
@@ -45,7 +46,7 @@ def infer(data, model, cuda):
         'max_lens': batch_masks.sum(-1).tolist(),
         'batch_size': batch_masks.shape[0]
     }
-    return result, -loss
+    return result, -scores
 
 
 def train(args):
@@ -83,6 +84,7 @@ def train(args):
 
     if args.multi_gpu:
         args.n_gpu = t.cuda.device_count()
+        model = model.cuda()
         model = t.nn.DataParallel(model)
     elif args.cuda:
         args.n_gpu = 1
@@ -125,6 +127,8 @@ def train(args):
 
                 with t.set_grad_enabled(phase == 'train'):
                     result, loss = infer(data, model, args.cuda)
+                    if args.multi_gpu and args.n_gpu > 1:
+                        loss = loss.mean()
                     if phase == 'train':
                         loss.backward()
                         # t.nn.utils.clip_grad_norm_(model.parameters(), 7)

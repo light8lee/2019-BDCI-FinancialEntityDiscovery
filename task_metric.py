@@ -61,8 +61,6 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
         nonlocal running_size
         global Invalid_entities
 
-        if args.n_gpu > 1:
-            loss = loss.mean()
         running_loss += loss.item()
         running_size += result['batch_size']
         pred_gen = get_BIO_entities(result['pred_tag_ids'], result['max_lens'])
