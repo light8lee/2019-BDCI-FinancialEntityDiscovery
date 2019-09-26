@@ -61,7 +61,12 @@ def train(args):
     datasets = {}
     sampler = None
     collate_fn = collect_single
-    for phase in ['train', 'dev', 'test']:
+    phases = ['train']
+    if args.do_eval:
+        phases.append('dev')
+    if args.do_test:
+        phases.append('test')
+    for phase in phases:
         if phase != 'test' and args.fold:
             fea_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.fea'.format(phase))
             pos_filename = os.path.join(args.data, 'fold{}'.format(args.fold), '{}.pos'.format(phase))
@@ -107,11 +112,6 @@ def train(args):
     pre_fn, step_fn, post_fn = tm.acc_metric_builder(args, scheduler_config, model,
                                                         optimizer, scheduler, writer, Log)
 
-    phases = ['train']
-    if args.do_eval:
-        phases.append('dev')
-    if args.do_test:
-        phases.append('test')
     for epoch in range(1, 1+args.epoch):
         for phase in phases:
             pre_fn()
