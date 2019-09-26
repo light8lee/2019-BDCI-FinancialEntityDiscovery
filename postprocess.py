@@ -89,11 +89,24 @@ if __name__ == '__main__':
     parser.add_argument('--crf_model', type=str, default='')
     parser.add_argument('--squad_model', type=str, default='')
     parser.add_argument('--invalid_entities', type=str, default='')
+    parser.add_argument('--fold', type=int, default=-1)
     args = parser.parse_args()
     if args.invalid_entities:
-        with open(args.invalid_entities, 'rb') as f:
-            invalid_entities = pickle.load(f)
-            invalid_entities = set(v for v in invalid_entities if len(v) > 1)
+        if args.invalid_entities.find('invalid_entities') != -1:  # 指定了文件
+            with open(args.invalid_entities, 'rb') as f:
+                invalid_entities = pickle.load(f)
+                invalid_entities = set(v for v in invalid_entities if len(v) > 1)
+        else:  # 指定了目录
+            if args.fold > 0:  # k折的结果
+                invalid_entities = set()
+                for i in range(args.fold):
+                    with open(os.path.join(args.invalid_entities, f'fold{i}', 'invalid_entities'), 'rb') as f:
+                        invalid_entities.update(pickle.load(f))
+                invalid_entities = set(v for v in invalid_entities if len(v) > 1)
+            else:  # 单个结果
+                with open(os.path.join(args.invalid_entities, 'invalid_entities'), 'rb') as f:
+                    invalid_entities = pickle.load(f)
+                    invalid_entities = set(v for v in invalid_entities if len(v) > 1)
     else:
         invalid_entities = None
     if not args.crf_model and not args.squad_model:
