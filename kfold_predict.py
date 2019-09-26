@@ -101,7 +101,6 @@ def predict(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--vocab', type=str, default='bert_model/vocab.txt')
     parser.add_argument('--models', type=str, default='')
     parser.add_argument('--cuda', dest="cuda", action="store_true")
     parser.set_defaults(cuda=False)
