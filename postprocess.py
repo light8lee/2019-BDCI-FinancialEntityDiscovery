@@ -42,6 +42,19 @@ def filter(entities, invalid_entities):
         if entity in train_entities:
             continue
         new_entites.append(entity)
+    new_entites.sort()
+    entities = new_entites
+    new_entites = []
+    for i in range(len(entities)):
+        current = entities[i]
+        valid = True
+        for j in range(i+1, len(entities)):
+            other = entities[j]
+            if other.find(current):
+                valid = False
+                break
+        if valid:
+            new_entites.append(current)
     return ';'.join(new_entites)
 
 
