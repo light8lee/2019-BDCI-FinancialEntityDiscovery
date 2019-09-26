@@ -50,7 +50,7 @@ def filter(entities, invalid_entities):
         valid = True
         for j in range(i+1, len(entities)):
             other = entities[j]
-            if other.find(current):
+            if other.find(current) != -1:
                 valid = False
                 break
         if valid:
