@@ -22,7 +22,7 @@ from task_metric import get_BIO_entities
 from tokenization import convert_ids_to_tokens, load_vocab
 
 
-def infer(data, model, inv_vocabs, cuda):
+def infer(data, model, cuda):
     idxs, batch_ids, batch_masks, batch_tags, batch_inputs = data
     print(idxs)
 
@@ -46,8 +46,8 @@ def infer(data, model, inv_vocabs, cuda):
 
 
 def predict(args):
-    vocabs = load_vocab(args.vocab)
-    inv_vocabs = {v: k for k, v in vocabs.items()}
+    # vocabs = load_vocab(args.vocab)
+    # inv_vocabs = {v: k for k, v in vocabs.items()}
     model_config, optimizer_config, _ = Config.from_json(args.config)
     model_name = model_config.name
     model_class = getattr(models, model_name)
@@ -81,7 +81,7 @@ def predict(args):
     pbar = tqdm(dataloader)
     for data in pbar:
         with t.no_grad():
-            results = infer(data, model, inv_vocabs, args.cuda)
+            results = infer(data, model, args.cuda)
             for key in results:
                 curr_preds[key].update(results[key])
     idxs = []

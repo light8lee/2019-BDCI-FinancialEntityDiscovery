@@ -23,7 +23,6 @@ def get_BIO_entities(batch_tag_ids, max_lens):
             tag_id = tag_ids[idx]
             if (status == 0) and (tag_id == BIO_BEGIN_TAG_ID):  # correct begin
                 status = 1
-                label = tag_id
                 begin_pos = idx
             # elif (status == 1) and (tag_id == BIO_INTER_TAG_ID):  # in entity Bx(Ix) -> Ix
             #     continue
