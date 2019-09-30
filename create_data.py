@@ -40,7 +40,37 @@ def clean(text):
     text = vx.sub('', text)
     text = user.sub('', text)
     text = num.sub('0', text)
+
+    text = text.replace("\xa0", "")
+    text = text.replace("\b", "")
+    text = text.replace('"', "")
+    text = re.sub(r"\t|\n|\x0b|\x1c|\x1d|\x1e", "", text)
+    text = text.strip()
+    text = re.sub(r'\?\?+', '', text)
+    text = re.sub(r'\{IMG:.?.?.?\}', '', text)
+    text = re.sub(r'\t|\n', '', text)
     return text
+
+
+def remove_chars(train_df, test_df):
+    test_df['cleaned_text'] = test_df['cleaned_title'] + test_df['cleaned_text']
+    train_df['cleaned_text'] = train_df['cleaned_title'] + train_df['cleaned_text']
+    additional_chars = set()
+    for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']):
+        additional_chars.update(re.findall(r'[^\u4e00-\u9fa5a-zA-Z0-9\*]', t))
+
+    # 一些需要保留的符号
+    extra_chars = set("!#$%&\()*+,-./:;<=>?@[\\]^_`{|}~！#￥%&？《》{}“”，：‘’。（）·、；【】")
+    additional_chars = additional_chars - extra_chars
+
+    def remove_additional_chars(text):
+        for x in additional_chars:
+            text = text.replace(x, "")
+        return text
+
+    train_df["cleaned_text"] = train_df["cleaned_text"].apply(remove_additional_chars)
+    test_df["cleaned_text"] = test_df["cleaned_text"].apply(remove_additional_chars)
+
 
 
 def findall(text, entity):
@@ -96,7 +126,9 @@ def create_data(data, output_filename, is_test):
                 if not is_test and len(sub_text) < 6:
                     continue
 
-                tags, _ = create_tags(sub_text, entities)
+                tags, has_entity = create_tags(sub_text, entities)
+                if not is_test and not has_entity:
+                    continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
@@ -124,6 +156,8 @@ if __name__ == '__main__':
     test_data['cleaned_text'] = test_data['text'].apply(clean)
     test_data['cleaned_title'] = test_data['title'].apply(clean)
     test_data['unknownEntities'] = ''
+
+    remove_chars(train_data, test_data)
 
     train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
     dev_data = train_data.tail(100)

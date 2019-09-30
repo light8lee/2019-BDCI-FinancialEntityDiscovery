@@ -6,7 +6,7 @@ import re
 from textrank4zh import TextRank4Keyword
 import create_data
 
-INVALID = re.compile(r'[,▌\u200b〖〗…？，！!\d▲《》®.▼☑☑【、“”＂＼＇：】％＃＠＊＆＾￥$\[\]—]')
+INVALID = re.compile(r'[,▌\u200b!#$%&\()*+,./:;<=>?@\[\\\]^_`{|}~！#￥%&？《》{}“”，：‘’。（）·、；【】-]')
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 train_data.fillna('', inplace=True)
 train_entities = set()
