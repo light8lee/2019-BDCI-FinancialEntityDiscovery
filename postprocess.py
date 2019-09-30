@@ -3,8 +3,10 @@ import argparse
 import os
 import pickle
 import re
+from textrank4zh import TextRank4Keyword
+import create_data
 
-invalid = re.compile(r'[,▌\u200b〖〗…？，！!\d▲《》.▼☑☑【、“”＂＼＇：】％＃＠＊＆＾￥$\[\]—]')
+INVALID = re.compile(r'[,▌\u200b〖〗…？，！!\d▲《》®.▼☑☑【、“”＂＼＇：】％＃＠＊＆＾￥$\[\]—]')
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 train_data.fillna('', inplace=True)
 train_entities = set()
@@ -12,6 +14,13 @@ for entities in train_data['unknownEntities']:
     entities = entities.split(';')
     train_entities.update(entities)
 train_entities.remove('')
+TR4K = TextRank4Keyword()
+ENGLISH = re.compile(r'^[a-zA-Z0-9.+-]+$')
+
+def clean_samples(samples):
+    samples['cleaned_text'] = samples['text'].apply(create_data.clean)
+    samples['cleaned_title'] = samples['title'].apply(create_data.clean)
+
 
 def filter(entities, invalid_entities):
     entities = entities.split(';')
@@ -23,11 +32,11 @@ def filter(entities, invalid_entities):
             continue
         if '（' not in entity and '）' in entity:
             continue
-        if '(' in entity and '(' not in entity:
+        if '(' in entity and ')' not in entity:
             continue
-        if '(' not in entity and '(' in entity:
+        if '(' not in entity and ')' in entity:
             continue
-        if invalid.search(entity):
+        if INVALID.search(entity):
             continue
         if invalid_entities:
             if entity in invalid_entities:
@@ -42,20 +51,44 @@ def filter(entities, invalid_entities):
         if entity in train_entities:
             continue
         new_entites.append(entity)
-    new_entites.sort()
     entities = new_entites
     new_entites = []
     for i in range(len(entities)):
         current = entities[i]
         valid = True
-        for j in range(i+1, len(entities)):
-            other = entities[j]
-            if other.find(current) != -1:
-                valid = False
-                break
+        if ENGLISH.match(current):
+            for j in range(len(entities)):
+                if i == j:
+                    continue
+                other = entities[j]
+                if ENGLISH.match(other) and (other.find(current)!=-1) and (len(other)-len(current)<=2):
+                    valid = False
+                    break
         if valid:
             new_entites.append(current)
     return ';'.join(new_entites)
+
+
+def extract_keywords(phase):
+    TR4K.analyze(phase, window=4)
+    keywords = [item.word for item in TR4K.get_keywords(20, word_min_len=2)]
+    entities = set()
+    used = set()
+    for i in range(len(keywords)):
+        for j in range(i+1, len(keywords)):
+            candidate = keywords[i] + keywords[j]
+            if candidate in phase:
+                entities.add(candidate)
+                used.add(keywords[i])
+                used.add(keywords[j])
+            candidate = keywords[j] + keywords[i]
+            if candidate in phase:
+                entities.add(candidate)
+                used.add(keywords[i])
+                used.add(keywords[j])
+    entities.update(keywords[:3])
+    entities = entities - used
+    return ';'.join(entities)
 
 
 def convert_to_submit(name, invalid_entities):
@@ -68,7 +101,12 @@ def convert_to_submit(name, invalid_entities):
     print('not in preds', set(sample.index)-set(preds.index))
     outputs = preds.reindex(sample.index)
     outputs.fillna('', inplace=True)
+    sample.fillna('', inplace=True)
     outputs['unknownEntities'] = outputs['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
+    # clean_samples(sample)
+    # for idx, row in outputs.iterrows():
+    #     if not row['unknownEntities']:
+    #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
     output_filename = os.path.join('submits', '{}.csv'.format(name))
     outputs.to_csv(output_filename)
 
@@ -85,6 +123,7 @@ def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities):
     assert sample.shape[0] == len(sample.index & crf_preds.index) == len(sample.index & squad_preds.index)
     crf_preds.fillna('', inplace=True)
     squad_preds.fillna('', inplace=True)
+    sample.fillna('', inplace=True)
     crf_outputs = crf_preds.reindex(sample.index)
     squad_outputs = squad_preds.reindex(sample.index)
     for (index, crf_row) in crf_outputs.iterrows():
@@ -94,6 +133,10 @@ def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities):
         print(crf_row)
 
     crf_outputs['unknownEntities'] = crf_outputs['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
+    # clean_samples(sample)
+    # for idx, row in crf_outputs.iterrows():
+    #     if not row['unknownEntities']:
+    #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
     output_filename = os.path.join('submits', '{}-{}.csv'.format(crf_name, squad_name))
     crf_outputs.to_csv(output_filename)
 

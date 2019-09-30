@@ -1,5 +1,6 @@
 import collections
 import tokenization
+# from pytorch_transformers import BertTokenizer
 import itertools
 from tqdm import tqdm
 import random
@@ -72,7 +73,7 @@ def prepare_ner(args, vocabs, phase):
                 tags.insert(0, '[CLS]')
                 inputs.append('[SEP]')
                 tags.append('[SEP]')
-                input_ids, input_masks, tag_ids = get_padded_tokens(inputs, tags, vocabs, args.max_seq_length+3)
+                input_ids, input_masks, tag_ids = get_padded_tokens(inputs, tags, vocabs, args.max_seq_length+2)
                 feature = collections.OrderedDict()
                 feature["id"] = idx
                 feature["input_ids"] = input_ids
@@ -109,6 +110,7 @@ def prepare_ner(args, vocabs, phase):
 
 def main(args):
     vocabs = tokenization.load_vocab(args.vocab_file)
+    tokenizer = 
     phases = ['train']
     if args.need_dev:
         phases.append('dev')

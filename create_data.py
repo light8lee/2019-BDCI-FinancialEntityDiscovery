@@ -9,7 +9,7 @@ import re
 
 
 random.seed(2019)
-MAX_SEQ_LEN = 500
+MAX_SEQ_LEN = 510
 
 img = re.compile(r'\{IMG:\d{1,}\}')
 img2 = re.compile(r'<!--(IMG[_\d\s]+)-->')
@@ -22,7 +22,7 @@ url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA
 plain = re.compile(r'\s+')
 dots = re.compile(r'([.。，!?？！．,，＼／、])+')
 num = re.compile(r'\d+')
-emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff]", flags=re.UNICODE)
+emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff\U200B®▼☑]", flags=re.UNICODE)
 
 
 def clean(text):
@@ -40,7 +40,6 @@ def clean(text):
     text = user.sub('', text)
     text = num.sub('0', text)
     return text
-
 
 
 def findall(text, entity):
