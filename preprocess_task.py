@@ -1,6 +1,5 @@
 import collections
 import tokenization
-# from pytorch_transformers import BertTokenizer
 import itertools
 from tqdm import tqdm
 import random
@@ -110,7 +109,7 @@ def prepare_ner(args, vocabs, phase):
 
 def main(args):
     vocabs = tokenization.load_vocab(args.vocab_file)
-    tokenizer = 
+    # tokenizer = tokenization.BasicTokenizer(do_lower_case=False)
     phases = ['train']
     if args.need_dev:
         phases.append('dev')

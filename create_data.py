@@ -19,7 +19,7 @@ ques = re.compile(r'[?#/▲◆]+')
 vx = re.compile(r'(v\d+)|(微信:\d+)')
 user = re.compile(r'@.*:')
 url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
-plain = re.compile(r'\s+')
+plain = re.compile(r'[\s\t\n\b]+')
 dots = re.compile(r'([.。，!?？！．,，＼／、])+')
 num = re.compile(r'\d+')
 emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff\U200B®▼☑]", flags=re.UNICODE)
@@ -27,6 +27,7 @@ emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff\U200B®▼☑]
 
 def clean(text):
     text = text.replace('&nbsp;', '')
+    text = text.replace(',', '，')
     text = url.sub('', text)
     text = emoji.sub('', text)
     text = plain.sub(' ', text)
@@ -43,7 +44,6 @@ def clean(text):
 
 
 def findall(text, entity):
-    text_length = len(text)
     entity_length = len(entity)
     result = []
     begin = 0
@@ -58,19 +58,19 @@ def findall(text, entity):
             return result
 
 
-def create_tags(text, entities):
-    tags = ['O'] * len(text)
+def create_tags(tokens, entities):
+    tags = ['O'] * len(tokens)
     has_entity = False
     for entity in entities:
         # print('entity:', entity)
-        for begin, end in findall(text, entity):
+        for begin, end in findall(tokens, entity):
             tags[begin] = 'B'
             has_entity = True
             for i in range(begin+1, end):
                 tags[i] = 'I'
     # print(tags)
     return tags, has_entity
-        
+
 
 def create_data(data, output_filename, is_test):
     line = 0
@@ -95,7 +95,8 @@ def create_data(data, output_filename, is_test):
                     continue
                 if not is_test and len(sub_text) < 6:
                     continue
-                tags, has_entity = create_tags(sub_text, entities)
+
+                tags, _ = create_tags(sub_text, entities)
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
