@@ -101,12 +101,12 @@ def train(args):
         scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)
     else:
         t_total = len(dataloaders['train']) * args.epoch
-        no_decay = ['bias', 'LayerNorm.weight']
-        optimizer_grouped_parameters = [
-            {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
-            {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-            ]
-        optimizer = getattr(optimization, optimizer_config.name)(optimizer_grouped_parameters, **optimizer_config.values)
+        # no_decay = ['bias', 'LayerNorm.weight']
+        # optimizer_grouped_parameters = [
+        #     {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': 0.0},
+        #     {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        #     ]
+        optimizer = getattr(optimization, optimizer_config.name)(model.parameters(), **optimizer_config.values)
         scheduler = getattr(optimization, scheduler_config.name)(optimizer, t_total=t_total, **scheduler_config.values)
 
     if not os.path.isdir(args.save_dir):
