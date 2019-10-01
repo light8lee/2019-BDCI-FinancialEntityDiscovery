@@ -6,7 +6,7 @@ import re
 from textrank4zh import TextRank4Keyword
 import create_data
 
-INVALID = re.compile(r'[,▌\u200b!#$%&\()*+,./:;<=>?@\[\\\]^_`{|}~！#￥%&？《》{}“”，：‘’。（）·、；【】-]')
+INVALID = re.compile(r'[,▌\u200b!#$%&\()*+,./:;<=>?@\[\\\]^_`{|}~！#￥%&？《》{}“”，：‘’。·、；【】-]')
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 train_data.fillna('', inplace=True)
 train_entities = set()
@@ -51,21 +51,21 @@ def filter(entities, invalid_entities):
         if entity in train_entities:
             continue
         new_entites.append(entity)
-    entities = new_entites
-    new_entites = []
-    for i in range(len(entities)):
-        current = entities[i]
-        valid = True
-        if ENGLISH.match(current):
-            for j in range(len(entities)):
-                if i == j:
-                    continue
-                other = entities[j]
-                if ENGLISH.match(other) and (other.find(current)!=-1) and (len(other)-len(current)<=2):
-                    valid = False
-                    break
-        if valid:
-            new_entites.append(current)
+    # entities = new_entites
+    # new_entites = []
+    # for i in range(len(entities)):
+    #     current = entities[i]
+    #     valid = True
+    #     if ENGLISH.match(current):
+    #         for j in range(len(entities)):
+    #             if i == j:
+    #                 continue
+    #             other = entities[j]
+    #             if ENGLISH.match(other) and (other.find(current)!=-1) and (len(other)-len(current)<=2):
+    #                 valid = False
+    #                 break
+    #     if valid:
+    #         new_entites.append(current)
     return ';'.join(new_entites)
 
 
