@@ -36,9 +36,9 @@ def infer(data, model, cuda):
             batch_masks = [v.cuda() for v in batch_masks]
             batch_tags = [v.cuda() for v in batch_tags]
 
-    emissions, loss = model(batch_ids, batch_masks, batch_tags)
+    scores = model(batch_ids, batch_masks, batch_tags)
     size = batch_masks.shape[0]
-    return size, -loss
+    return size, -scores
 
 
 def train(args):
