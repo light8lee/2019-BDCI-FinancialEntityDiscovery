@@ -8,23 +8,31 @@ import create_data
 FOLD = 5
 
 def split_kfold(input_dir, output_dir):
-    samples = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
-    samples.fillna('', inplace=True)
-    samples['cleaned_text'] = samples['text'].apply(create_data.clean)
-    samples['cleaned_title'] = samples['title'].apply(create_data.clean)
+    train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
+    test_data = pd.read_csv('./data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
 
-    fold_size = samples.shape[0] // 10
+    train_data.fillna('', inplace=True)
+    test_data.fillna('', inplace=True)
+
+    train_data['cleaned_text'] = train_data['text'].apply(create_data.clean)
+    train_data['cleaned_title'] = train_data['title'].apply(create_data.clean)
+    test_data['cleaned_text'] = test_data['text'].apply(create_data.clean)
+    test_data['cleaned_title'] = test_data['title'].apply(create_data.clean)
+
+    create_data.remove_chars(train_data, test_data)
+
+    fold_size = train_data.shape[0] // FOLD
     dev_kfolds = []
     train_kfolds = []
 
     for k in range(FOLD):
         start = k * fold_size
         if k == FOLD-1:
-            end = samples.shape[0]
+            end = train_data.shape[0]
         else:
             end = (k + 1) * fold_size
-        dev_kfolds.append(samples[start:end])
-        train_kfolds.append(pd.concat([samples[:start], samples[end:]], ignore_index=True))
+        dev_kfolds.append(train_data[start:end])
+        train_kfolds.append(pd.concat([train_data[:start], train_data[end:]], ignore_index=True))
 
     for k in range(FOLD):
         kfold_dir = os.path.join(output_dir, 'fold{}'.format(k))
