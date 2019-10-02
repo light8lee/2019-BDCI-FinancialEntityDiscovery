@@ -30,7 +30,7 @@ def split_kfold(input_dir, output_dir):
         kfold_dir = os.path.join(output_dir, 'fold{}'.format(k))
         if not os.path.isdir(kfold_dir):
             os.mkdir(kfold_dir)
-        create_data.create_data(dev_kfolds[k], f'{kfold_dir}/dev.txt', False)
+        create_data.create_data(dev_kfolds[k], f'{kfold_dir}/dev.txt', True)
         create_data.create_data(train_kfolds[k], f'{kfold_dir}/train.txt', False)
 
 if __name__ == '__main__':

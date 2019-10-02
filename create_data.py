@@ -9,7 +9,7 @@ import re
 
 
 random.seed(2019)
-MAX_SEQ_LEN = 510
+MAX_SEQ_LEN = 400
 
 img = re.compile(r'\{IMG:\d{1,}\}')
 img2 = re.compile(r'<!--(IMG[_\d\s]+)-->')
@@ -102,7 +102,7 @@ def create_tags(tokens, entities):
     return tags, has_entity
 
 
-def create_data(data, output_filename, is_test):
+def create_data(data, output_filename, is_evaluate):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
         for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
@@ -114,7 +114,7 @@ def create_data(data, output_filename, is_test):
             text += title
             while len(text) > MAX_SEQ_LEN:
                 sub_texts.append(text[:MAX_SEQ_LEN])
-                text = text[MAX_SEQ_LEN:]
+                text = text[MAX_SEQ_LEN*3//4:]
             else:
                 sub_texts.append(text)
             # print(sub_texts)
@@ -123,11 +123,11 @@ def create_data(data, output_filename, is_test):
                 sub_text = sub_text.strip()
                 if not sub_text:
                     continue
-                if not is_test and len(sub_text) < 6:
+                if not is_evaluate and len(sub_text) < 6:
                     continue
 
                 tags, has_entity = create_tags(sub_text, entities)
-                if not is_test and not has_entity:
+                if not is_evaluate and not has_entity:
                     continue
                 f.write('^'*10)
                 f.write(idx)
@@ -165,6 +165,6 @@ if __name__ == '__main__':
 
     create_data(train_data, '{}/train.txt'.format(args.output_dir), False)
 
-    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), False)
+    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), True)
 
     create_data(test_data, '{}/test.txt'.format(args.output_dir), True)
