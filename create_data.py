@@ -16,7 +16,7 @@ img2 = re.compile(r'<!--(IMG[_\d\s]+)-->')
 time = re.compile(r'(\d{4}-\d{2}-\d{2})|(\d{2}:\d{2}:\d{2})')
 tag = re.compile(r'<(\d|[a-z".A-Z/]|\s)+>')
 ques = re.compile(r'[?#/▲◆]+')
-vx = re.compile(r'(v\d+)|(微信:\d+)')
+vx = re.compile(r'微信[:：]?[a-zA-Z0-9]+')
 user = re.compile(r'@.*:')
 url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 plain = re.compile(r'[\s\t\n\b]+')
@@ -28,17 +28,16 @@ emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff\u200B®▼☑]
 def clean(text):
     text = text.replace('&nbsp;', '')
     text = text.replace(',', '，')
-    text = url.sub('', text)
-    text = emoji.sub('', text)
-    text = plain.sub(' ', text)
-    text = img.sub('', text)
-    text = img2.sub('', text)
-    text = time.sub('', text)
-    text = tag.sub('', text)
-    text = ques.sub('', text)
-    text = dots.sub(r'\1', text)
-    text = vx.sub('', text)
-    text = user.sub('', text)
+    text = vx.sub('，', text)
+    text = url.sub('，', text)
+    text = emoji.sub('，', text)
+    text = plain.sub('，', text)
+    text = img.sub('，', text)
+    text = img2.sub('，', text)
+    text = time.sub('，', text)
+    text = tag.sub('，', text)
+    text = ques.sub('，', text)
+    text = user.sub('，', text)
     text = num.sub('0', text)
 
     text = text.replace("\xa0", "")
@@ -47,8 +46,9 @@ def clean(text):
     text = re.sub(r"\t|\n|\x0b|\x1c|\x1d|\x1e", "", text)
     text = text.strip()
     text = re.sub(r'\?\?+', '', text)
-    text = re.sub(r'\{IMG:.?.?.?\}', '', text)
+    text = re.sub(r'\{IMG:.?.?.?\}', '，', text)
     text = re.sub(r'\t|\n', '', text)
+    text = dots.sub(r'\1', text)
     return text
 
 
@@ -114,7 +114,7 @@ def create_data(data, output_filename, is_evaluate):
             text += title
             while len(text) > MAX_SEQ_LEN:
                 sub_texts.append(text[:MAX_SEQ_LEN])
-                text = text[MAX_SEQ_LEN*3//4:]
+                text = text[MAX_SEQ_LEN*7//8:]
             else:
                 sub_texts.append(text)
             # print(sub_texts)

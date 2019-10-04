@@ -20,7 +20,10 @@ from collections import Counter, defaultdict
 from scipy.stats import pearsonr
 from task_metric import get_BIO_entities
 from tokenization import convert_ids_to_tokens, load_vocab
+import re
 
+
+ENGLISH = re.compile(r'^[a-zA-Z]+$')
 
 def infer(data, model, cuda):
     idxs, batch_ids, batch_masks, batch_tags, batch_inputs = data
@@ -40,6 +43,25 @@ def infer(data, model, cuda):
         results[idx].add('')
         for start, end in entities:
             result = ''.join(inputs[start:end])
+            is_spaned = False
+            # span to english character boundary
+            while start > 0 and ENGLISH.match(inputs[start]):
+                if ENGLISH.match(inputs[start-1]):
+                    start -= 1
+                    is_spaned = True
+                else:
+                    break
+            while end < len(inputs) and ENGLISH.match(inputs[end-1]):
+                if ENGLISH.match(inputs[end]):
+                    end += 1
+                    is_spaned = True
+                else:
+                    break
+            if is_spaned:
+                print('before spaned:', result)
+                result = ''.join(inputs[start:end])
+                print('after spaned:', result)
+
             result = result.replace('※', ' ')
             results[idx].add(result)
     return results
