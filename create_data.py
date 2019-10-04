@@ -20,7 +20,7 @@ vx = re.compile(r'微信[:：]?[a-zA-Z0-9]+')
 user = re.compile(r'@.*:')
 url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 plain = re.compile(r'[\s\t\n\b]+')
-dots = re.compile(r'([.。，!?？！．,，＼／、])+')
+dots = re.compile(r'([.。，!?？！．,＼／、])+')
 num = re.compile(r'\d+')
 emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff\u200B®▼☑]", flags=re.UNICODE)
 
@@ -47,7 +47,7 @@ def clean(text):
     text = text.strip()
     text = re.sub(r'\?\?+', '', text)
     text = re.sub(r'\{IMG:.?.?.?\}', '，', text)
-    text = re.sub(r'\t|\n', '', text)
+    text = re.sub(r'\t|\n', '，', text)
     text = dots.sub(r'\1', text)
     return text
 
@@ -114,7 +114,7 @@ def create_data(data, output_filename, is_evaluate):
             text += title
             while len(text) > MAX_SEQ_LEN:
                 sub_texts.append(text[:MAX_SEQ_LEN])
-                text = text[MAX_SEQ_LEN*7//8:]
+                text = text[MAX_SEQ_LEN*3//4:]
             else:
                 sub_texts.append(text)
             # print(sub_texts)

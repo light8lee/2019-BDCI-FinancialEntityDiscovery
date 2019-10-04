@@ -12,6 +12,7 @@ def split_kfold(input_dir, output_dir):
     test_data = pd.read_csv('./data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
 
     train_data.fillna('', inplace=True)
+    train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
     test_data.fillna('', inplace=True)
 
     train_data['cleaned_text'] = train_data['text'].apply(create_data.clean)
