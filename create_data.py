@@ -53,8 +53,8 @@ def clean(text):
 
 
 def remove_chars(train_df, test_df):
-    test_df['cleaned_text'] = test_df['cleaned_title'] + test_df['cleaned_text']
-    train_df['cleaned_text'] = train_df['cleaned_title'] + train_df['cleaned_text']
+    test_df['cleaned_text'] = test_df['cleaned_title'] + '，' + test_df['cleaned_text']
+    train_df['cleaned_text'] = train_df['cleaned_title']  + '，' + train_df['cleaned_text']
     additional_chars = set()
     for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']):
         additional_chars.update(re.findall(r'[^\u4e00-\u9fa5a-zA-Z0-9\*]', t))
@@ -114,7 +114,10 @@ def create_data(data, output_filename, is_evaluate):
             text += title
             while len(text) > MAX_SEQ_LEN:
                 sub_texts.append(text[:MAX_SEQ_LEN])
-                text = text[MAX_SEQ_LEN*3//4:]
+                comma_pos = text.find('，', MAX_SEQ_LEN*3//4)
+                if comma_pos == -1:
+                    comma_pos = MAX_SEQ_LEN*3//4
+                text = text[comma_pos:]
             else:
                 sub_texts.append(text)
             # print(sub_texts)

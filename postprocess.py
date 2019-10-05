@@ -6,6 +6,15 @@ import re
 from textrank4zh import TextRank4Keyword
 import create_data
 
+BAD_CASES = {
+    'http',
+    '中国',
+    '日本',
+    '韩国',
+    '美国',
+    'app'
+}
+
 INVALID = re.compile(r'[,▌丨\u200b!#$%&*+./:;<=>?@\[\\\]^_`{|}~！#￥？《》{}“”，：‘’。·、；【】]')
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 train_data.fillna('', inplace=True)
@@ -48,7 +57,7 @@ def filter(entities, invalid_entities):
             #         break
             # if skip:
             #     continue
-        if entity in train_entities:
+        if entity in train_entities or entity in BAD_CASES:
             continue
         new_entites.append(entity)
     # entities = new_entites

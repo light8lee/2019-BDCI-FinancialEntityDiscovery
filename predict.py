@@ -43,6 +43,8 @@ def infer(data, model, cuda):
         results[idx].add('')
         for start, end in entities:
             result = ''.join(inputs[start:end])
+            if len(result) < 2:
+                continue
             is_spaned = False
             # span to english character boundary
             while start > 0 and ENGLISH.match(inputs[start]):
@@ -58,6 +60,7 @@ def infer(data, model, cuda):
                 else:
                     break
             if is_spaned:
+                print('inputs:', inputs)
                 print('before spaned:', result)
                 result = ''.join(inputs[start:end])
                 print('after spaned:', result)
