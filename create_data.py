@@ -9,7 +9,7 @@ import re
 
 
 random.seed(2019)
-MAX_SEQ_LEN = 400
+MAX_SEQ_LEN = 510
 
 img = re.compile(r'\{IMG:\d{1,}\}')
 img2 = re.compile(r'<!--(IMG[_\d\s]+)-->')
@@ -26,7 +26,7 @@ emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff\u200B®▼☑]
 
 
 def clean(text):
-    text = text.replace('&nbsp;', '')
+    text = text.replace('&nbsp;', '，')
     text = text.replace(',', '，')
     text = vx.sub('，', text)
     text = url.sub('，', text)
@@ -105,18 +105,16 @@ def create_tags(tokens, entities):
 def create_data(data, output_filename, is_evaluate):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
-        for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
+        for idx, text, entities in zip(data['id'], data['cleaned_text'], data['unknownEntities']):
             # print('---------------line:', line)
             entities = entities.split(';')
             sub_texts = []
 
-            title = title.strip()
-            text += title
             while len(text) > MAX_SEQ_LEN:
                 sub_texts.append(text[:MAX_SEQ_LEN])
-                comma_pos = text.find('，', MAX_SEQ_LEN*3//4)
+                comma_pos = text.find('，', MAX_SEQ_LEN*4//5)
                 if comma_pos == -1:
-                    comma_pos = MAX_SEQ_LEN*3//4
+                    comma_pos = MAX_SEQ_LEN*4//5
                 text = text[comma_pos:]
             else:
                 sub_texts.append(text)

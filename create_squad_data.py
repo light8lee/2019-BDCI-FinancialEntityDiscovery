@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('output_dir')
 args = parser.parse_args()
 random.seed(2019)
-MAX_SEQ_LEN = 500
+MAX_SEQ_LEN = 510
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -78,7 +78,7 @@ def create_squad_data(data, output_filename, is_test):
                     }]
                     qa = {
                         "answers": answers,
-                        "question": "有哪些金融实体或公司？",
+                        "question": "有哪些金融实体、公司、平台、中心、投资、币、银行、基金、外汇、集团、链、股份、商城、店、资本、家园、金服、交易所、理财、贷款？",
                         "id": '{}-{}'.format(idx, i)
                     }
                     qas.append(qa)
