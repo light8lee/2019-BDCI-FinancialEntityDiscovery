@@ -24,7 +24,7 @@ from pytorch_transformers import optimization
 
 
 def infer(data, model, cuda):
-    idx, batch_ids, batch_masks, batch_tags, batch_inputs = data
+    idx, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags = data
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
@@ -36,7 +36,7 @@ def infer(data, model, cuda):
             batch_masks = [v.cuda() for v in batch_masks]
             batch_tags = [v.cuda() for v in batch_tags]
 
-    scores = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags)
+    scores = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags, batch_flags=batch_flags)
     model_to_predict = model.module if hasattr(model, "module") else model
     with t.no_grad():
         predicts = model_to_predict.predict(batch_ids, batch_masks)

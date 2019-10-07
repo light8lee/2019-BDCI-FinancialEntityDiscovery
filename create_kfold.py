@@ -12,7 +12,6 @@ def split_kfold(input_dir, output_dir):
     test_data = pd.read_csv('./data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
 
     train_data.fillna('', inplace=True)
-    train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
     test_data.fillna('', inplace=True)
 
     train_data['cleaned_text'] = train_data['text'].apply(create_data.clean)
@@ -22,18 +21,13 @@ def split_kfold(input_dir, output_dir):
 
     create_data.remove_chars(train_data, test_data)
 
-    fold_size = train_data.shape[0] // FOLD
     dev_kfolds = []
     train_kfolds = []
 
     for k in range(FOLD):
-        start = k * fold_size
-        if k == FOLD-1:
-            end = train_data.shape[0]
-        else:
-            end = (k + 1) * fold_size
-        dev_kfolds.append(train_data[start:end])
-        train_kfolds.append(pd.concat([train_data[:start], train_data[end:]], ignore_index=True))
+        train_data = train_data.sample(frac=1, random_state=2019-k).reset_index(drop=True)
+        dev_kfolds.append(train_data.tail(100))
+        train_kfolds.append(train_data.head(train_data.shape[0]-100))
 
     for k in range(FOLD):
         kfold_dir = os.path.join(output_dir, 'fold{}'.format(k))

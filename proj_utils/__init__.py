@@ -15,3 +15,11 @@ class Unit2idx:
 
 BIO_ID2TAG = ['O', 'B', 'I', '[CLS]', '[SEP]']
 BIO_TAG2ID = {name: idx for idx, name in enumerate(BIO_ID2TAG)}
+
+POS_FLAGS = ['[PAD]', '[CLS]', '[SEP]', 
+             'ag', 'a', 'ad', 'an', 'b', 'c', 'dg',
+             'd', 'e', 'eng', 'f', 'g', 'h', 'i', 'j', 'k',
+             'l', 'm', 'ng', 'n', 'nr', 'ns', 'nt', 'nz', 
+             'o', 'p', 'q', 'r', 's', 'tg', 't', 'u', 'un', 
+             'vg', 'v', 'vd', 'vn', 'w', 'x', 'y', 'z']
+POS_FLAGS_TO_IDS = {flag: i for i, flag in enumerate(POS_FLAGS)}

@@ -15,6 +15,7 @@ import torch as t
 import torch.nn.functional as F
 import torch.nn as nn
 import torch.optim as optim
+import re
 from sklearn.metrics import confusion_matrix
 from collections import Counter, defaultdict
 from scipy.stats import pearsonr
@@ -22,6 +23,7 @@ from task_metric import get_BIO_entities
 from tokenization import convert_ids_to_tokens, load_vocab
 
 FOLD = 5
+ENGLISH = re.compile(r'^[a-zA-Z]+$')
 
 
 def infer(data, kfold_models, cuda):
@@ -43,6 +45,27 @@ def infer(data, kfold_models, cuda):
             results[idx].add('')
             for start, end in entities:
                 result = ''.join(inputs[start:end])
+                if len(result) < 2:
+                    continue
+                is_spaned = False
+                # span to english character boundary
+                while start > 0 and ENGLISH.match(inputs[start]):
+                    if ENGLISH.match(inputs[start-1]):
+                        start -= 1
+                        is_spaned = True
+                    else:
+                        break
+                while end < len(inputs) and ENGLISH.match(inputs[end-1]):
+                    if ENGLISH.match(inputs[end]):
+                        end += 1
+                        is_spaned = True
+                    else:
+                        break
+                if is_spaned:
+                    print('inputs:', inputs)
+                    print('before spaned:', result)
+                    result = ''.join(inputs[start:end])
+                    print('after spaned:', result)
                 results[idx].add(result)
     return results
 

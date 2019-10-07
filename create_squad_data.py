@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('output_dir')
 args = parser.parse_args()
 random.seed(2019)
-MAX_SEQ_LEN = 510
+MAX_SEQ_LEN = 400
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -63,7 +63,8 @@ def create_squad_data(data, output_filename, is_test):
                 text = text[comma_pos:]
             else:
                 sub_texts.append(text)
-            print(sub_texts)
+            # print(sub_texts)
+            # sub_texts.append(text)
 
             for sub_text in sub_texts:
                 sub_text = sub_text.strip()

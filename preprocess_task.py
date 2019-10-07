@@ -9,7 +9,9 @@ import pickle
 import os
 import csv
 import argparse
-from proj_utils import BIO_TAG2ID
+import jieba.posseg as pseg
+from proj_utils import BIO_TAG2ID, POS_FLAGS, POS_FLAGS_TO_IDS
+
 
 flags = argparse.ArgumentParser()
 flags.add_argument("input_dir")
@@ -22,13 +24,26 @@ flags.set_defaults(do_lower_case=False, need_dev=False, no_test=False)
 flags.add_argument('--max_seq_length', default=50, type=int)
 flags.add_argument('--random_seed', type=int, default=12345)
 
+pseg.string_types
+def tokens_to_flags(tokens):
+    text = ''.join(tokens[1:-1])
+    flags = ['[CLS]']
+    for word, flag in pseg.cut(text):
+        if flag not in POS_FLAGS:
+            flag = 'un'
+        for ch in word:
+            flags.append(flag)
+    flags.append('[SEP]')
+    return flags
 
-def get_padded_tokens(tokens, tags, vocabs, max_seq_length, pad='after'):
+
+def get_padded_tokens(tokens, tags, flags, vocabs, max_seq_length, pad='after'):
     tokens = [token.lower() if token not in ['[CLS]', '[SEP]'] else token for token in tokens]
     tokens = [token if token in vocabs else '[UNK]' for token in tokens]
     input_ids = tokenization.convert_tokens_to_ids(vocabs, tokens)
     input_mask = [1] * len(input_ids)
     tag_ids = [BIO_TAG2ID[tag] for tag in tags]
+    flag_ids = [POS_FLAGS_TO_IDS[flag] for flag in flags]
     assert len(input_ids) <= max_seq_length, "len:{}".format(len(input_ids))
 
     to_pad = [0] * (max_seq_length - len(input_ids))
@@ -36,15 +51,17 @@ def get_padded_tokens(tokens, tags, vocabs, max_seq_length, pad='after'):
         input_ids = to_pad + input_ids
         input_mask = to_pad + input_mask
         tag_ids = to_pad + tag_ids
+        flag_ids = to_pad + flag_ids
     elif pad == 'after':
         input_ids = input_ids + to_pad
         input_mask = input_mask + to_pad
         tag_ids = tag_ids + to_pad
+        flag_ids = flag_ids + to_pad
 
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(tag_ids) == max_seq_length
-    return input_ids, input_mask, tag_ids
+    return input_ids, input_mask, tag_ids, flag_ids
 
 
 def prepare_ner(args, vocabs, phase):
@@ -72,13 +89,15 @@ def prepare_ner(args, vocabs, phase):
                 tags.insert(0, '[CLS]')
                 inputs.append('[SEP]')
                 tags.append('[SEP]')
-                input_ids, input_masks, tag_ids = get_padded_tokens(inputs, tags, vocabs, args.max_seq_length+2)
+                flags = tokens_to_flags(inputs)
+                input_ids, input_masks, tag_ids, flag_ids = get_padded_tokens(inputs, tags, flags, vocabs, args.max_seq_length+2)
                 feature = collections.OrderedDict()
                 feature["id"] = idx
                 feature["input_ids"] = input_ids
                 feature["input_masks"] = input_masks
                 feature["tags"] = tag_ids
                 feature["inputs"] = inputs
+                feature["flag_ids"] = flag_ids
                 feature = tuple(feature.values())
                 # print(feature)
                 feature = pickle.dumps(feature)
