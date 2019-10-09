@@ -68,7 +68,7 @@ class BERT_Pretrained(nn.Module):
         emissions = self.hidden2tags(outputs)
         return emissions
 
-    def forward(self, input_ids, input_masks, target_tags, flags=Non, bounds=Nonee):
+    def forward(self, input_ids, input_masks, target_tags, flags=None, bounds=None):
         emissions = self.tag_outputs(input_ids, input_masks, flags=flags, bounds=bounds)
         scores = self.crf(emissions, target_tags, input_masks.byte())
         return scores
