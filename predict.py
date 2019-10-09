@@ -26,18 +26,22 @@ import re
 ENGLISH = re.compile(r'^[a-zA-Z]+$')
 
 def infer(data, model, cuda):
-    idxs, batch_ids, batch_masks, batch_tags, batch_inputs = data
+    idxs, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds = data
     print(idxs)
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
             batch_ids_t = batch_ids.cuda()
             batch_masks_t = batch_masks.cuda()
+            batch_flags = batch_flags.cuda()
+            batch_bounds = batch_bounds.cuda()
         else:
             batch_ids_t = [v.cuda() for v in batch_ids]
             batch_masks_t = [v.cuda() for v in batch_masks]
+            batch_flags = [v.cuda() for v in batch_flags]
+            batch_bounds = [v.cuda() for v in batch_bounds]
     batch_lens = batch_masks_t.sum(-1).tolist()
-    pred_tags = model.predict(batch_ids_t, batch_masks_t)
+    pred_tags = model.predict(batch_ids_t, batch_masks_t, flags=batch_flags, bounds=batch_bounds)
     results = defaultdict(set)
     for idx, entities, inputs in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_inputs):
         results[idx].add('')

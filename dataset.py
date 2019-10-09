@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 import scipy.sparse as sp
 from proj_utils.graph import sparse_scipy2torch, get_laplacian
 from proj_utils import POS_FLAGS
+import sys
 
 
 class GraphDataset(Dataset):
@@ -25,15 +26,27 @@ class GraphDataset(Dataset):
 
 def collect_single(batch):
     # raise ValueError("{}".format(batch))
-    idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs, batch_flag_ids = zip(*batch)
+    idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs, batch_flag_ids, batch_bound_ids = zip(*batch)
 
     batch_input_ids = t.from_numpy(np.array(batch_input_ids)).long()
     batch_masks = t.from_numpy(np.array(batch_masks)).float()
     batch_tag_ids = t.from_numpy(np.array(batch_tag_ids)).long()
-    batch_flag_ids = t.from_numpy(np.array(batch_flag_ids)).long()
-    batch_oh_flags = t.zeros(batch_input_ids.shape[0], len(POS_FLAGS)).scatter_(1, batch_flag_ids, 1)
+    # batch_flag_ids = t.from_numpy(np.array(batch_flag_ids)).long()  # [b, t]
+    batch_oh_flags = []
+    for flag_ids in batch_flag_ids:
+        flag_ids = t.from_numpy(np.array(flag_ids)).long().unsqueeze(-1)  # [t, 1]
+        # raise ValueError(f'{flag_ids.shape}')
+        batch_oh_flags.append(t.zeros(flag_ids.shape[0], len(POS_FLAGS)).scatter_(1, flag_ids, 1))
+    batch_oh_flags = t.stack(batch_oh_flags, 0)
 
-    return  idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs, batch_oh_flags
+    batch_oh_bounds = []
+    for bound_ids in batch_bound_ids:
+        bound_ids = t.from_numpy(np.array(bound_ids)).long().unsqueeze(-1)  # [t, 1]
+        # raise ValueError(f'{flag_ids.shape}')
+        batch_oh_bounds.append(t.zeros(bound_ids.shape[0], 6).scatter_(1, bound_ids, 1))
+    batch_oh_bounds = t.stack(batch_oh_bounds, 0)
+
+    return  idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs, batch_oh_flags, batch_oh_bounds
 
 class SquadDataset(Dataset):
     def __init(self, all_input_ids, all_input_mask, all_segment_ids,

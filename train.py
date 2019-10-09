@@ -23,23 +23,32 @@ import task_metric as tm
 from pytorch_transformers import optimization
 
 
+SHOW = True
 def infer(data, model, cuda):
-    idx, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags = data
+    idx, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds = data
+    global SHOW
+    if SHOW:
+        print(data)
+        SHOW = False
 
     if cuda:
         if isinstance(batch_ids, t.Tensor):
             batch_ids = batch_ids.cuda()
             batch_masks = batch_masks.cuda()
             batch_tags = batch_tags.cuda()
+            batch_flags = batch_flags.cuda()
+            batch_bounds = batch_bounds.cuda()
         else:
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
             batch_tags = [v.cuda() for v in batch_tags]
+            batch_flags = [v.cuda() for v in batch_flags]
+            batch_bounds = [v.cuda() for v in batch_bounds]
 
-    scores = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags, batch_flags=batch_flags)
+    scores = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags, flags=batch_flags, bounds=batch_bounds)
     model_to_predict = model.module if hasattr(model, "module") else model
     with t.no_grad():
-        predicts = model_to_predict.predict(batch_ids, batch_masks)
+        predicts = model_to_predict.predict(batch_ids, batch_masks, flags=batch_flags, bounds=batch_bounds)
     result = {
         'inputs': batch_inputs,
         'target_tag_ids': batch_tags,
@@ -56,6 +65,7 @@ def train(args):
     model_config, optimizer_config, scheduler_config = Config.from_json(args.config)
     model_name = model_config.name
     model_class = getattr(models, model_name)
+    Log(model_config.values)
     model = model_class(**model_config.values)
 
     dataloaders = {}

@@ -20,50 +20,62 @@ POS_FLAGS = ['[PAD]', '[CLS]', '[SEP]',
 
 class BERT_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, bert_dim,
-                 gnn_hidden_dims, activation, residual, need_norm, gnn, sim="dot",
-                 rescale:bool=False, need_flags:bool=False, adj_act="relu", **kwargs):
+                 rescale:bool=False, need_flags:bool=False, adj_act="relu", need_bounds:bool=False,
+                 need_birnn:bool=False, rnn="LSTM", rnn_dim=0, **kwargs):
         super(BERT_Pretrained, self).__init__()
-        assert sim in ["dot", "cos", "self"]
-        assert gnn in ["diffpool", "gcn", "gat", "none"]
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
-        self.gnn_hidden_dims = gnn_hidden_dims
-        self.activation = getattr(Act, activation)
-        self.need_norm = need_norm
-        self.gnn = gnn
-        self.sim = sim
-        self.adj_act = getattr(Act, adj_act)
-        self.gnn_layers = nn.ModuleList()
-        self.rescale = rescale
+        self.gnn_layers = nn.ModuleList()  # compatable needs
         self.bert_dim = bert_dim
-        self.rescale_ws = nn.ParameterList()
-        self.rescale_bs = nn.ParameterList()
+        self.rescale_ws = nn.ParameterList()  # compatable needs
+        self.rescale_bs = nn.ParameterList()  # compatable needs
         self.need_flags = need_flags
+        self.need_bounds = need_bounds
+        self.need_birnn = need_birnn
         self.crf = CRF(5, batch_first=True)
 
         self.bert4pretrain = BertModel.from_pretrained(pretrained_model_path)
-        out_dim = bert_dim if not need_flags else (bert_dim+len(POS_FLAGS))
+        if self.need_birnn:
+            if rnn == "LSTM":
+                self.birnn = nn.LSTM(bert_dim, rnn_dim, 1, bidirectional=True, batch_first=True)
+            else:
+                self.birnn = nn.GRU(bert_dim, rnn_dim, 1, bidirectional=True, batch_first=True)
+            out_dim = rnn_dim * 2
+        else:
+            out_dim = bert_dim
+
+        if need_flags:
+            out_dim += len(POS_FLAGS)
+        if need_bounds:
+            out_dim += 6
         
         self.hidden2tags = nn.Linear(out_dim, 5)
 
-    def tag_outputs(self, input_ids, input_masks, flags=None):
+    def tag_outputs(self, input_ids, input_masks, flags=None, bounds=None):
         outputs, _ = self.bert4pretrain(input_ids, attention_mask=input_masks)
 
         outputs = outputs * input_masks.unsqueeze(-1)
 
+        if self.need_birnn:
+            outputs, *_ = self.birnn(outputs)
+
         if self.need_flags:
-            outputs = torch.concat([outputs, flags], -1)
+            # print('outputs:', outputs.shape)
+            # print('flags:', flags.shape)
+            outputs = torch.cat([outputs, flags], -1)
+        if self.need_bounds:
+            outputs = torch.cat([outputs, bounds], -1)
         emissions = self.hidden2tags(outputs)
         return emissions
 
-    def forward(self, input_ids, input_masks, target_tags, flags=None):
-        emissions = self.tag_outputs(input_ids, input_masks, flags=flags)
+    def forward(self, input_ids, input_masks, target_tags, flags=Non, bounds=Nonee):
+        emissions = self.tag_outputs(input_ids, input_masks, flags=flags, bounds=bounds)
         scores = self.crf(emissions, target_tags, input_masks.byte())
         return scores
 
     def decode(self, emissions, input_masks):
         return self.crf.decode(emissions, input_masks.byte())
 
-    def predict(self, input_ids, input_masks, flags=None):
-        emissions = self.tag_outputs(input_ids, input_masks, flags=flags)
+    def predict(self, input_ids, input_masks, flags=None, bounds=None):
+        emissions = self.tag_outputs(input_ids, input_masks, flags=flags, bounds=bounds)
         return self.decode(emissions, input_masks)

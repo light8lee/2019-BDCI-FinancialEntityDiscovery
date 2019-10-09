@@ -23,3 +23,6 @@ POS_FLAGS = ['[PAD]', '[CLS]', '[SEP]',
              'o', 'p', 'q', 'r', 's', 'tg', 't', 'u', 'un', 
              'vg', 'v', 'vd', 'vn', 'w', 'x', 'y', 'z']
 POS_FLAGS_TO_IDS = {flag: i for i, flag in enumerate(POS_FLAGS)}
+
+WORD_BOUNDS = ['[PAD]', '[CLS]', '[SEP]', 'B', 'I', 'S']
+WORD_BOUNDS_TO_IDS = {bound: i for i, bound in enumerate(WORD_BOUNDS)}
