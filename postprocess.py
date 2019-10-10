@@ -147,8 +147,14 @@ def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities):
     squad_outputs = squad_preds.reindex(sample.index)
     for (index, crf_row) in crf_outputs.iterrows():
         print(crf_row)
-        if not crf_row['unknownEntities']:
-            crf_row['unknownEntities'] = squad_outputs.at[index, 'unknownEntities']
+        # if not crf_row['unknownEntities']:
+        #     crf_row['unknownEntities'] = squad_outputs.at[index, 'unknownEntities']
+        entities = set()
+        entities.add('')
+        entities.update(crf_row['unknownEntities'].split(';'))
+        entities.update(squad_outputs.at[index, 'unknownEntities'].split(';'))
+        entities.remove('')
+        crf_row['unknownEntities'] = ';'.join(entities)
         print(crf_row)
 
     crf_outputs['unknownEntities'] = crf_outputs['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
