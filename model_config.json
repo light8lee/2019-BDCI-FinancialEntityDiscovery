@@ -1,24 +1,23 @@
 {
     "optimizer": {
-        "name": "Adam",
-        "lr": 4e-5
+        "name": "AdamW",
+        "lr": 1e-5
+    },
+    "scheduler": {
+        "name": "WarmupLinearSchedule",
+        "warmup_steps": 0
     },
     "model": {
         "name": "BERT_Pretrained",
         "drop_rate": 0.2,
-        "max_seq_len": 48,
+        "max_seq_len": 512,
         "pretrained_model_path": "bert_wwm_ext",
         "bert_dim": 768,
         "freeze": false,
-
-        "readout_pool": "max",
-        "residual": true,
-        "rescale": true,
-        "gnn": "none",
-        "sim": "cos",
-        "need_norm": false,
-        "activation": "tanh",
-        "adj_act": "sigmoid",
-        "gnn_hidden_dims": []
+        "need_flags": true,
+        "need_bounds": true,
+        "need_birnn": true,
+        "rnn": "LSTM",
+        "rnn_dim": 256
     }
 }

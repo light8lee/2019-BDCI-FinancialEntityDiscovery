@@ -3,7 +3,7 @@ name=bert_wwm_squadc
 output_dir=outputs/${name}_post
 model_dir=outputs/${name}
 mkdir -p ${output_dir}
-CUDA_VISIBLE_DEVICES=1,3 python post_run_squad.py \
+CUDA_VISIBLE_DEVICES=2,1,0 python post_run_squad.py \
     --train_file=inputs/rc_positive500/dev.json \
     --model_type=bert \
     --model_name_or_path=${model_dir} \
@@ -11,7 +11,7 @@ CUDA_VISIBLE_DEVICES=1,3 python post_run_squad.py \
     --max_seq_length=512 \
     --do_train \
     --per_gpu_train_batch_size=20 \
-    --num_train_epochs=2 \
+    --num_train_epochs=1 \
     --learning_rate=2e-5 \
     --max_answer_length=15 \
     --n_best_size=1 \

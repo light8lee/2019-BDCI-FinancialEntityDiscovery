@@ -1,7 +1,8 @@
 #!/bin/bash
-mkdir -p inputs/ner_full510
-python create_data.py inputs/ner_full510
+data_dir=inputs/ner_full510v3
+mkdir -p ${data_dir}
+python create_data.py ${data_dir}
 
-python preprocess_task.py inputs/ner_full510/ inputs/ner_full510/ \
+python preprocess_task.py ${data_dir} ${data_dir} \
     bert_wwm_ext/vocab.txt \
     --max_seq_length=510 --need_dev

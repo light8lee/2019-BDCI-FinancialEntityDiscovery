@@ -1,6 +1,7 @@
 #!/bin/bash
-name=bert_wwm_vh
+name=bert_wwm_v21k1
 output_dir=outputs/${name}
+batch_size=16
 mkdir -p ${output_dir}
 git log | head -6 > ${output_dir}/${name}.info
 cp scripts/train_5fold.sh ${output_dir}
@@ -9,15 +10,14 @@ for i in {0..1}  # change it
 do
     fold_dir=${output_dir}/fold${i}
     mkdir -p ${fold_dir}
-    CUDA_VISIBLE_DEVICES=$[2*$i],$[2*$i+1] python train.py \
+    CUDA_VISIBLE_DEVICES=$[$i+1] python train.py \
         --cuda \
-        --data=inputs/ner_5fold/fold${i} \
+        --data=inputs/ner_5foldv4/fold${i} \
         --save_dir=${fold_dir} \
-        --batch_size=24 \
-        --epoch=4 \
+        --batch_size=${batch_size} \
+        --epoch=6 \
         --do_eval \
         --config=model_config.json \
-        --multi_gpu \
         2> ${fold_dir}/model.log >> ${fold_dir}/model.info &
 done
 for job in `jobs -p`; do
@@ -28,15 +28,14 @@ for i in {2..3}  # change it
 do
     fold_dir=${output_dir}/fold${i}
     mkdir -p ${fold_dir}
-    CUDA_VISIBLE_DEVICES=$[2*$i-4],$[2*$i-3] python train.py \
+    CUDA_VISIBLE_DEVICES=$[$i-1] python train.py \
         --cuda \
-        --data=inputs/ner_5fold/fold${i} \
+        --data=inputs/ner_5foldv4/fold${i} \
         --save_dir=${fold_dir} \
-        --batch_size=24 \
-        --epoch=4 \
+        --batch_size=${batch_size} \
+        --epoch=6 \
         --do_eval \
         --config=model_config.json \
-        --multi_gpu \
         2> ${fold_dir}/model.log >> ${fold_dir}/model.info &
 done
 for job in `jobs -p`; do
@@ -47,14 +46,13 @@ for i in {4..4}  # change it
 do
     fold_dir=${output_dir}/fold${i}
     mkdir -p ${fold_dir}
-    CUDA_VISIBLE_DEVICES=0,1 python train.py \
+    CUDA_VISIBLE_DEVICES=1 python train.py \
         --cuda \
-        --data=inputs/ner_5fold/fold${i} \
+        --data=inputs/ner_5foldv4/fold${i} \
         --save_dir=${fold_dir} \
-        --batch_size=24 \
-        --epoch=4 \
+        --batch_size=${batch_size} \
+        --epoch=6 \
         --do_eval \
         --config=model_config.json \
-        --multi_gpu \
         2> ${fold_dir}/model.log >> ${fold_dir}/model.info &
 done
