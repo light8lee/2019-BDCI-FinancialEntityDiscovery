@@ -15,14 +15,13 @@ img = re.compile(r'\{IMG:\d{1,}\}')
 img2 = re.compile(r'<!--(IMG[_\d\s]+)-->')
 time = re.compile(r'(\d{4}-\d{2}-\d{2})|(\d{2}:\d{2}:\d{2})')
 tag = re.compile(r'<(\d|[a-z".A-Z/]|\s)+>')
-ques = re.compile(r'[?#/▲◆]+')
 vx = re.compile(r'微信[:：]?[a-zA-Z0-9]+')
 user = re.compile(r'@.*:')
 url = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
 plain = re.compile(r'[\s\t\n\b]+')
-dots = re.compile(r'([.。，!?？！．,＼／、])+')
+dots = re.compile(r'([.。，!?？！．,＼／、#])+')
 num = re.compile(r'\d+')
-emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff\u200B®▼☑]", flags=re.UNICODE)
+emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff\u200B®▼☑▲◆]", flags=re.UNICODE)
 
 
 def clean(text):
@@ -36,9 +35,8 @@ def clean(text):
     text = img2.sub('，', text)
     text = time.sub('，', text)
     text = tag.sub('，', text)
-    text = ques.sub('，', text)
     text = user.sub('，', text)
-    text = num.sub('0', text)
+    # text = num.sub('0', text)
 
     text = text.replace("\xa0", "")
     text = text.replace("\b", "")
