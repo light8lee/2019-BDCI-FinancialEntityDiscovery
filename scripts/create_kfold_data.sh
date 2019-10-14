@@ -1,5 +1,5 @@
 #!/bin/bash
-kfold_dir=inputs/ner_5foldv4
+kfold_dir=inputs/ner_5foldv5
 mkdir -p ${kfold_dir}
 python create_kfold.py ${kfold_dir}
 for i in {0..4}

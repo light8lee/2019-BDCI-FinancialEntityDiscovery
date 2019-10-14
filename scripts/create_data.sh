@@ -1,5 +1,5 @@
 #!/bin/bash
-data_dir=inputs/ner_full510v3
+data_dir=inputs/ner_full510v4
 mkdir -p ${data_dir}
 python create_data.py ${data_dir}
 
