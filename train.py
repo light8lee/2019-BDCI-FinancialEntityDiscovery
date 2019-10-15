@@ -25,7 +25,7 @@ from pytorch_transformers import optimization
 
 SHOW = True
 def infer(data, model, cuda):
-    idx, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds = data
+    idx, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds, batch_extra = data
     global SHOW
     if SHOW:
         print(data)
@@ -38,17 +38,21 @@ def infer(data, model, cuda):
             batch_tags = batch_tags.cuda()
             batch_flags = batch_flags.cuda()
             batch_bounds = batch_bounds.cuda()
+            batch_extra = batch_extra.cuda()
         else:
             batch_ids = [v.cuda() for v in batch_ids]
             batch_masks = [v.cuda() for v in batch_masks]
             batch_tags = [v.cuda() for v in batch_tags]
             batch_flags = [v.cuda() for v in batch_flags]
             batch_bounds = [v.cuda() for v in batch_bounds]
+            batch_extra = [v.cuda() for v in batch_extra]
 
-    scores = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags, flags=batch_flags, bounds=batch_bounds)
+    scores = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags,
+                   flags=batch_flags, bounds=batch_bounds, extra=batch_extra)
     model_to_predict = model.module if hasattr(model, "module") else model
     with t.no_grad():
-        predicts = model_to_predict.predict(batch_ids, batch_masks, flags=batch_flags, bounds=batch_bounds)
+        predicts = model_to_predict.predict(batch_ids, batch_masks,
+                                            flags=batch_flags, bounds=batch_bounds, extra=batch_extra)
     result = {
         'inputs': batch_inputs,
         'target_tag_ids': batch_tags,

@@ -6,7 +6,7 @@ import os
 import numpy as np
 import argparse
 import re
-
+from collections import defaultdict, Counter
 
 random.seed(2019)
 MAX_SEQ_LEN = 510
@@ -22,6 +22,7 @@ plain = re.compile(r'[\s\t\n\b]+')
 dots = re.compile(r'([.。，!?？！．,＼／、#])+')
 num = re.compile(r'\d+')
 emoji = re.compile(r"[^\U00000000-\U0000d7ff\U0000e000-\U0000ffff\u200B®▼☑▲◆]", flags=re.UNICODE)
+extra_chars = set("!#$%&\()*+,-./:;<=>?@[\\]^_`{|}~！#￥%&？《》{}“”，：‘’。（）·、；【】")
 
 
 def clean(text):
@@ -58,7 +59,6 @@ def remove_chars(train_df, test_df):
         additional_chars.update(re.findall(r'[^\u4e00-\u9fa5a-zA-Z0-9\*]', t))
 
     # 一些需要保留的符号
-    extra_chars = set("!#$%&\()*+,-./:;<=>?@[\\]^_`{|}~！#￥%&？《》{}“”，：‘’。（）·、；【】")
     additional_chars = additional_chars - extra_chars
 
     def remove_additional_chars(text):
@@ -100,13 +100,14 @@ def create_tags(tokens, entities):
     return tags, has_entity
 
 
-def create_data(data, output_filename, is_evaluate):
+def create_data(data, output_filename, important_chars, is_evaluate):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
-        for idx, text, entities in zip(data['id'], data['cleaned_text'], data['unknownEntities']):
+        for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
             # print('---------------line:', line)
             entities = entities.split(';')
             sub_texts = []
+            title = set(ch for ch in title)
 
             while len(text) > MAX_SEQ_LEN:
                 sub_texts.append(text[:MAX_SEQ_LEN])
@@ -133,10 +134,28 @@ def create_data(data, output_filename, is_evaluate):
                 f.write('\n')
                 print(sub_text)
                 for char, tag in zip(sub_text, tags):
-                    f.write('{} {}\n'.format(char, tag))
+                    in_title = 1 if char in title else 0
+                    important = 1 if char in important_chars else 0
+                    is_lower = 1 if str.islower(char) else 0
+                    is_upper = 1 if str.isupper(char) else 0
+                    is_num = 1 if str.isnumeric(char) else 0
+                    is_sign = 1 if char in extra_chars else 0
+                    f.write(f'{char} {tag} {in_title} {important} {is_lower} {is_upper} {is_num} {is_sign}\n')
                 f.write('$'*10)
                 f.write('\n')
             line += 1
+
+
+def collect_important_chars(entities_column):
+    char_counts = Counter()
+    for entities in entities_column:
+        entities = entities.replace(';', '')
+        if not entities:
+            continue
+        char_counts += Counter(entities)
+    # print(char_counts)
+
+    return set(v[0] for v in char_counts.items() if v[1] > 10 and not str.isascii(v[0]))
 
 
 if __name__ == '__main__':
@@ -156,14 +175,16 @@ if __name__ == '__main__':
     test_data['cleaned_title'] = test_data['title'].apply(clean)
     test_data['unknownEntities'] = ''
 
-    remove_chars(train_data, test_data)
+    important_chars = collect_important_chars(train_data['unknownEntities'])
+    print(important_chars)
+    # remove_chars(train_data, test_data)
 
-    train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
-    dev_data = train_data.tail(100)
-    train_data = train_data.head(train_data.shape[0]-100)
+    # train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
+    # dev_data = train_data.tail(100)
+    # train_data = train_data.head(train_data.shape[0]-100)
 
-    create_data(train_data, '{}/train.txt'.format(args.output_dir), False)
+    # create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False)
 
-    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), True)
+    # create_data(dev_data, '{}/dev.txt'.format(args.output_dir), important_chars, True)
 
-    create_data(test_data, '{}/test.txt'.format(args.output_dir), True)
+    # create_data(test_data, '{}/test.txt'.format(args.output_dir), important_chars, True)

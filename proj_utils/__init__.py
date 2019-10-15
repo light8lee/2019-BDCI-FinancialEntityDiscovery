@@ -13,7 +13,7 @@ class Unit2idx:
         return get_unit_idx(self.unit_idxs, unit)
 
 
-BIO_ID2TAG = ['O', 'B', 'I', '[CLS]', '[SEP]']
+BIO_ID2TAG = ['O', 'B', 'I']
 BIO_TAG2ID = {name: idx for idx, name in enumerate(BIO_ID2TAG)}
 
 POS_FLAGS = ['[PAD]', '[CLS]', '[SEP]', 

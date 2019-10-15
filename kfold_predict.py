@@ -27,7 +27,7 @@ ENGLISH = re.compile(r'^[a-zA-Z]+$')
 
 
 def infer(data, kfold_models, cuda):
-    idxs, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds = data
+    idxs, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds, batch_extra = data
     print(idxs)
 
     if cuda:
@@ -36,15 +36,18 @@ def infer(data, kfold_models, cuda):
             batch_masks_t = batch_masks.cuda()
             batch_flags = batch_flags.cuda()
             batch_bounds = batch_bounds.cuda()
+            batch_extra = batch_extra.cuda()
         else:
             batch_ids_t = [v.cuda() for v in batch_ids]
             batch_masks_t = [v.cuda() for v in batch_masks]
             batch_flags = [v.cuda() for v in batch_flags]
             batch_bounds = [v.cuda() for v in batch_bounds]
+            batch_extra = [v.cuda() for v in batch_extra]
     batch_lens = batch_masks_t.sum(-1).tolist()
     results = defaultdict(set)
     for model in kfold_models:
-        pred_tags = model.predict(batch_ids_t, batch_masks_t, flags=batch_flags, bounds=batch_bounds)
+        pred_tags = model.predict(batch_ids_t, batch_masks_t,
+                                  flags=batch_flags, bounds=batch_bounds, extra=batch_extra)
         for idx, entities, inputs in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_inputs):
             results[idx].add('')
             for start, end in entities:

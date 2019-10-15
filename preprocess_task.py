@@ -85,6 +85,7 @@ def prepare_ner(args, vocabs, phase):
     num_entities = 0
     inputs = []
     tags = []
+    extra_features = []
     idx = 0
     idxs = set()
     with open(input_file, 'r', encoding='utf-8') as f:
@@ -96,9 +97,9 @@ def prepare_ner(args, vocabs, phase):
                 # print(inputs)
                 # print(tags)
                 inputs.insert(0, '[CLS]')
-                tags.insert(0, '[CLS]')
+                tags.insert(0, 'O')
                 inputs.append('[SEP]')
-                tags.append('[SEP]')
+                tags.append('O')
                 flags, bounds = tokens_to_flags(inputs)
                 input_ids, input_masks, tag_ids, flag_ids, bound_ids = get_padded_tokens(inputs, tags, flags, bounds, vocabs, args.max_seq_length+2)
                 feature = collections.OrderedDict()
@@ -109,6 +110,7 @@ def prepare_ner(args, vocabs, phase):
                 feature["inputs"] = inputs
                 feature["flag_ids"] = flag_ids
                 feature["bound_ids"] = bound_ids
+                feature["extra"] = extra_features
                 feature = tuple(feature.values())
                 # print(feature)
                 feature = pickle.dumps(feature)
@@ -118,6 +120,7 @@ def prepare_ner(args, vocabs, phase):
                 fea_pos += sz
                 inputs = []
                 tags = []
+                extra_features = []
             elif line.startswith('^'*10):
                 idx = line.replace('^', '')
                 idxs.add(idx)
@@ -125,9 +128,10 @@ def prepare_ner(args, vocabs, phase):
                 pair = line.split(' ')
                 if not pair[0] or not pair[1]:
                     continue
-                token, tag = pair
+                token, tag, *extra_fea = pair
                 inputs.append(token)
                 tags.append(tag)
+                extra_features.append(np.array(extra_fea))
                 if pair[1] == 'B':
                     num_entities += 1
 
