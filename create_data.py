@@ -176,15 +176,15 @@ if __name__ == '__main__':
     test_data['unknownEntities'] = ''
 
     important_chars = collect_important_chars(train_data['unknownEntities'])
-    print(important_chars)
-    # remove_chars(train_data, test_data)
+    # print(important_chars)
+    remove_chars(train_data, test_data)
 
-    # train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
-    # dev_data = train_data.tail(100)
-    # train_data = train_data.head(train_data.shape[0]-100)
+    train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
+    dev_data = train_data.tail(100)
+    train_data = train_data.head(train_data.shape[0]-100)
 
-    # create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False)
+    create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False)
 
-    # create_data(dev_data, '{}/dev.txt'.format(args.output_dir), important_chars, True)
+    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), important_chars, True)
 
-    # create_data(test_data, '{}/test.txt'.format(args.output_dir), important_chars, True)
+    create_data(test_data, '{}/test.txt'.format(args.output_dir), important_chars, True)
