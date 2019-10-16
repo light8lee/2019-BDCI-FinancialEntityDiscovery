@@ -19,6 +19,8 @@ def split_kfold(input_dir, output_dir):
     test_data['cleaned_text'] = test_data['text'].apply(create_data.clean)
     test_data['cleaned_title'] = test_data['title'].apply(create_data.clean)
 
+    important_chars = create_data.collect_important_chars(train_data['unknownEntities'])
+
     create_data.remove_chars(train_data, test_data)
 
     dev_kfolds = []
@@ -33,8 +35,8 @@ def split_kfold(input_dir, output_dir):
         kfold_dir = os.path.join(output_dir, 'fold{}'.format(k))
         if not os.path.isdir(kfold_dir):
             os.mkdir(kfold_dir)
-        create_data.create_data(dev_kfolds[k], f'{kfold_dir}/dev.txt', True)
-        create_data.create_data(train_kfolds[k], f'{kfold_dir}/train.txt', False)
+        create_data.create_data(dev_kfolds[k], f'{kfold_dir}/dev.txt', important_chars, True)
+        create_data.create_data(train_kfolds[k], f'{kfold_dir}/train.txt', important_chars, False)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
