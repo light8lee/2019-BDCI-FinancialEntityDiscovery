@@ -7,7 +7,6 @@ name=bert_wwm_v21k1
 #     --batch_size=32 \
 #     2> outputs/${name}/predict.log > outputs/${name}/predict.info &
     # --models= \
-
 for i in {0..4}
 do
     CUDA_VISIBLE_DEVICES=3 python predict.py \
