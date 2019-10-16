@@ -12,7 +12,8 @@ BAD_CASES = {
     '日本',
     '韩国',
     '美国',
-    'app'
+    'app',
+    '京东金融'
 }
 
 INVALID = re.compile(r'[,▌丨\u200b!#$%&*+./:;<=>?@\[\\\]^_`{|}~！#￥？《》{}“”，：‘’。·、；【】]')
@@ -31,7 +32,7 @@ def clean_samples(samples):
     samples['cleaned_title'] = samples['title'].apply(create_data.clean)
 
 
-def filter(entities, invalid_entities):
+def filter(entities, invalid_entities=None):
     entities = entities.split(';')
     new_entites = []
     for entity in entities:
@@ -110,7 +111,7 @@ def extract_keywords(phase):
     return ';'.join(entities)
 
 
-def convert_to_submit(name, invalid_entities):
+def convert_to_submit(name, invalid_entities=None):
     input_filename = os.path.join('outputs', name, 'submit.csv')
     preds = pd.read_csv(input_filename, sep=',', index_col='id')
     sample = pd.read_csv('data/Test_Data.csv', sep=',', index_col='id')
@@ -130,7 +131,7 @@ def convert_to_submit(name, invalid_entities):
     outputs.to_csv(output_filename)
 
 
-def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities):
+def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities=None):
     crf_filename = os.path.join('outputs', crf_name, 'submit.csv')
     crf_preds = pd.read_csv(crf_filename, sep=',', index_col='id')
     squad_filename = os.path.join('outputs', squad_name, 'submit.csv')
@@ -165,36 +166,88 @@ def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities):
     output_filename = os.path.join('submits', '{}-{}.csv'.format(crf_name, squad_name))
     crf_outputs.to_csv(output_filename)
 
+
+def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_entities=None):
+    crf_filenames = [os.path.join('outputs', crf_name, 'submit.csv') for crf_name in crf_names]
+    crf_preds = [pd.read_csv(crf_filename, sep=',', index_col='id') for crf_filename in crf_filenames]
+    squad_filename = os.path.join('outputs', squad_name, 'submit.csv')
+    squad_pred = pd.read_csv(squad_filename, sep=',', index_col='id')
+    sample = pd.read_csv('data/Test_Data.csv', sep=',', index_col='id')
+    # print('crf:', crf_preds.shape)
+    # print('squad:', squad_preds.shape)
+    for crf_pred in crf_preds:
+        assert sample.shape[0] == crf_pred.shape[0] == squad_pred.shape[0]
+        assert sample.shape[0] == len(sample.index & crf_pred.index) == len(sample.index & squad_pred.index)
+        crf_pred.fillna('', inplace=True)
+    squad_pred.fillna('', inplace=True)
+    sample.fillna('', inplace=True)
+    crf_outputs = [crf_pred.reindex(sample.index) for crf_pred in crf_preds]
+    squad_output = squad_pred.reindex(sample.index)
+    for (index, crf_row) in squad_output.iterrows():
+        # print(crf_row)
+        # if not crf_row['unknownEntities']:
+        #     crf_row['unknownEntities'] = squad_outputs.at[index, 'unknownEntities']
+        entities = set()
+        entities.add('')
+        entities.update(crf_row['unknownEntities'].split(';'))
+        # entities.update(squad_outputs.at[index, 'unknownEntities'].split(';'))
+        crf_entities = set()
+        for crf_output in crf_outputs:
+            tmp_entites = set(crf_output.at[index, 'unknownEntities'].split(';'))
+            if not tmp_entites:
+                continue
+            if not crf_entities:
+                crf_entities = tmp_entites
+            else:
+                crf_entities = crf_entities & tmp_entites
+        entities.update(crf_entities)
+        entities.remove('')
+        crf_row['unknownEntities'] = ';'.join(entities)
+        print(crf_row)
+
+    squad_output['unknownEntities'] = squad_output['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
+    # clean_samples(sample)
+    # for idx, row in crf_outputs.iterrows():
+    #     if not row['unknownEntities']:
+    #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
+    squad_output.to_csv(output_name)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--crf_model', type=str, default='')
     parser.add_argument('--squad_model', type=str, default='')
-    parser.add_argument('--invalid_entities', type=str, default='')
-    parser.add_argument('--fold', type=int, default=-1)
+    parser.add_argument('--kfold', type=bool, default=False, action='store_true')
+    # parser.add_argument('--invalid_entities', type=str, default='')
+    # parser.add_argument('--fold', type=int, default=-1)
     args = parser.parse_args()
-    if args.invalid_entities:
-        if args.invalid_entities.find('invalid_entities') != -1:  # 指定了文件
-            with open(args.invalid_entities, 'rb') as f:
-                invalid_entities = pickle.load(f)
-                invalid_entities = set(v for v in invalid_entities if len(v) > 1)
-        else:  # 指定了目录
-            if args.fold > 0:  # k折的结果
-                invalid_entities = set()
-                for i in range(args.fold):
-                    with open(os.path.join(args.invalid_entities, f'fold{i}', 'invalid_entities'), 'rb') as f:
-                        invalid_entities.update(pickle.load(f))
-                invalid_entities = set(v for v in invalid_entities if len(v) > 1)
-            else:  # 单个结果
-                with open(os.path.join(args.invalid_entities, 'invalid_entities'), 'rb') as f:
-                    invalid_entities = pickle.load(f)
-                    invalid_entities = set(v for v in invalid_entities if len(v) > 1)
-    else:
-        invalid_entities = None
+    # if args.invalid_entities:
+    #     if args.invalid_entities.find('invalid_entities') != -1:  # 指定了文件
+    #         with open(args.invalid_entities, 'rb') as f:
+    #             invalid_entities = pickle.load(f)
+    #             invalid_entities = set(v for v in invalid_entities if len(v) > 1)
+    #     else:  # 指定了目录
+    #         if args.fold > 0:  # k折的结果
+    #             invalid_entities = set()
+    #             for i in range(args.fold):
+    #                 with open(os.path.join(args.invalid_entities, f'fold{i}', 'invalid_entities'), 'rb') as f:
+    #                     invalid_entities.update(pickle.load(f))
+    #             invalid_entities = set(v for v in invalid_entities if len(v) > 1)
+    #         else:  # 单个结果
+    #             with open(os.path.join(args.invalid_entities, 'invalid_entities'), 'rb') as f:
+    #                 invalid_entities = pickle.load(f)
+    #                 invalid_entities = set(v for v in invalid_entities if len(v) > 1)
+    # else:
+    #     invalid_entities = None
     if not args.crf_model and not args.squad_model:
         raise ValueError("Should be at least one model")
     elif args.crf_model and not args.squad_model:
-        convert_to_submit(args.crf_model, invalid_entities)
+        convert_to_submit(args.crf_model,)
     elif args.squad_model and not args.crf_model:
-        convert_to_submit(args.squad_model, invalid_entities)
+        convert_to_submit(args.squad_model,)
     else:
-        merge_and_convert_to_submit(args.crf_model, args.squad_model, invalid_entities)
+        output_filename = os.path.join('submits', f'{args.crf_model}-{args.squad_model}.csv')
+        crf_names = args.crf_model
+        crf_names = crf_names.split(',')
+        if args.kfold:
+            crf_names = [os.path.join(crf_names[0], f'fold{i}') for i in range(5)]
+        merge_and_convert_to_submit_v2(crf_names, args.squad_model,)
