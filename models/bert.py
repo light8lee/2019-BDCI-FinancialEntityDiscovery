@@ -1,4 +1,5 @@
 import math
+import sys
 import torch
 import torch.nn as nn
 from .layers.diffpool import DiffPool
@@ -72,6 +73,8 @@ class BERT_Pretrained(nn.Module):
         if self.need_bounds:
             outputs = torch.cat([outputs, bounds], -1)
         if self.need_extra:
+            # print('shape:', extra.shape, file=sys.stderr)
+            # print('output shape:', outputs.shape, file=sys.stderr)
             outputs = torch.cat([outputs, extra], -1)
         emissions = self.hidden2tags(outputs)
         return emissions
