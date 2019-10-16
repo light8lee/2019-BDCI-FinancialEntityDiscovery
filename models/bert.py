@@ -18,11 +18,9 @@ POS_FLAGS = ['[PAD]', '[CLS]', '[SEP]',
              'o', 'p', 'q', 'r', 's', 'tg', 't', 'u', 'un',
              'vg', 'v', 'vd', 'vn', 'w', 'x', 'y', 'z']
 
-NUM_TAG = 3
-
 class BERT_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, bert_dim,
-                 rescale:bool=False, need_flags:bool=False, adj_act="relu",
+                 rescale:bool=False, need_flags:bool=False, adj_act="relu", num_tag=5,
                  need_bounds:bool=False, need_birnn:bool=False, rnn="LSTM", rnn_dim=0,
                  need_extra:bool=False, num_extra=0, **kwargs):
         super(BERT_Pretrained, self).__init__()
@@ -36,7 +34,8 @@ class BERT_Pretrained(nn.Module):
         self.need_bounds = need_bounds
         self.need_birnn = need_birnn
         self.need_extra = need_extra
-        self.crf = CRF(NUM_TAG, batch_first=True)
+        self.num_tag = num_tag
+        self.crf = CRF(num_tag, batch_first=True)
 
         self.bert4pretrain = BertModel.from_pretrained(pretrained_model_path)
         if self.need_birnn:
@@ -55,7 +54,7 @@ class BERT_Pretrained(nn.Module):
         if need_extra:
             out_dim += num_extra
 
-        self.hidden2tags = nn.Linear(out_dim, NUM_TAG)
+        self.hidden2tags = nn.Linear(out_dim, num_tag)
 
     def tag_outputs(self, input_ids, input_masks,
                     flags=None, bounds=None, extra=None):
@@ -94,7 +93,7 @@ class BERT_Pretrained(nn.Module):
 
 class BERTOnly_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, bert_dim,
-                 rescale:bool=False, need_flags:bool=False, adj_act="relu",
+                 rescale:bool=False, need_flags:bool=False, adj_act="relu", num_tag=5,
                  need_bounds:bool=False, need_birnn:bool=False, rnn="LSTM", rnn_dim=0,
                  need_extra:bool=False, num_extra=0, **kwargs):
         super(BERTOnly_Pretrained, self).__init__()
@@ -105,6 +104,7 @@ class BERTOnly_Pretrained(nn.Module):
         self.need_bounds = need_bounds
         self.need_birnn = need_birnn
         self.need_extra = need_extra
+        self.num_tag = num_tag
 
         self.bert4pretrain = BertModel.from_pretrained(pretrained_model_path)
         if self.need_birnn:
@@ -123,7 +123,7 @@ class BERTOnly_Pretrained(nn.Module):
         if need_extra:
             out_dim += num_extra
 
-        self.hidden2tags = nn.Linear(out_dim, NUM_TAG)
+        self.hidden2tags = nn.Linear(out_dim, num_tag)
 
     def tag_outputs(self, input_ids, input_masks,
                     flags=None, bounds=None, extra=None):
@@ -152,7 +152,7 @@ class BERTOnly_Pretrained(nn.Module):
         # scores = self.crf(emissions, target_tags, input_masks.byte())
         loss_fct = nn.CrossEntropyLoss(ignore_index=-1, reduction='sum')
         target_tags = target_tags + (input_masks - 1).long()
-        scores = -loss_fct(emissions.view(-1, NUM_TAG), target_tags.view(-1))
+        scores = -loss_fct(emissions.view(-1, self.num_tag), target_tags.view(-1))
         return scores
 
     def decode(self, emissions, input_masks):
