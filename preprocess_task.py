@@ -44,7 +44,7 @@ def tokens_to_flags(tokens):
     return flags, bounds
 
 
-def get_padded_tokens(tokens, tags, flags, bounds, vocabs, max_seq_length, pad='after'):
+def get_padded_tokens(tokens, tags, flags, bounds, extra_features, vocabs, max_seq_length, pad='after'):
     tokens = [token.lower() if token not in ['[CLS]', '[SEP]'] else token for token in tokens]
     tokens = [token if token in vocabs else '[UNK]' for token in tokens]
     input_ids = tokenization.convert_tokens_to_ids(vocabs, tokens)
@@ -55,23 +55,26 @@ def get_padded_tokens(tokens, tags, flags, bounds, vocabs, max_seq_length, pad='
     assert len(input_ids) <= max_seq_length, "len:{}".format(len(input_ids))
 
     to_pad = [0] * (max_seq_length - len(input_ids))
+    fea_to_pad = [[0] * len(extra_features[0])] * (max_seq_length - len(input_ids))
     if pad == 'before':
         input_ids = to_pad + input_ids
         input_mask = to_pad + input_mask
         tag_ids = to_pad + tag_ids
         flag_ids = to_pad + flag_ids
         bound_ids = to_pad + bound_ids
+        extra_features = fea_to_pad + extra_features
     elif pad == 'after':
         input_ids = input_ids + to_pad
         input_mask = input_mask + to_pad
         tag_ids = tag_ids + to_pad
         flag_ids = flag_ids + to_pad
         bound_ids = bound_ids + to_pad
+        extra_features = extra_features + fea_to_pad
 
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(tag_ids) == max_seq_length
-    return input_ids, input_mask, tag_ids, flag_ids, bound_ids
+    return input_ids, input_mask, tag_ids, flag_ids, bound_ids, extra_features
 
 
 def prepare_ner(args, vocabs, phase):
@@ -98,10 +101,12 @@ def prepare_ner(args, vocabs, phase):
                 # print(tags)
                 inputs.insert(0, '[CLS]')
                 tags.insert(0, 'O')
+                extra_features.insert(0, [0]*len(extra_features[0]))
                 inputs.append('[SEP]')
                 tags.append('O')
+                extra_features.append([0]*len(extra_features[0]))
                 flags, bounds = tokens_to_flags(inputs)
-                input_ids, input_masks, tag_ids, flag_ids, bound_ids = get_padded_tokens(inputs, tags, flags, bounds, vocabs, args.max_seq_length+2)
+                input_ids, input_masks, tag_ids, flag_ids, bound_ids, extra_features = get_padded_tokens(inputs, tags, flags, bounds, extra_features, vocabs, args.max_seq_length+2)
                 feature = collections.OrderedDict()
                 feature["id"] = idx
                 feature["input_ids"] = input_ids
@@ -131,7 +136,7 @@ def prepare_ner(args, vocabs, phase):
                 token, tag, *extra_fea = pair
                 inputs.append(token)
                 tags.append(tag)
-                extra_features.append(np.array(extra_fea))
+                extra_features.append([float(v) for v in extra_fea])
                 if pair[1] == 'B':
                     num_entities += 1
 

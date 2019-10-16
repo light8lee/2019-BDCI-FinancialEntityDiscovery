@@ -46,7 +46,11 @@ def collect_single(batch):
         batch_oh_bounds.append(t.zeros(bound_ids.shape[0], 6).scatter_(1, bound_ids, 1))
     batch_oh_bounds = t.stack(batch_oh_bounds, 0)
 
-    batch_extra = t.from_numpy(np.array(batch_extra)).float()
+    try:
+        batch_extra = t.from_numpy(np.array(batch_extra)).float()
+    except:
+        print(batch_extra, file=sys.stderr)
+        exit(0)
 
     return  idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs, batch_oh_flags, batch_oh_bounds, batch_extra
 
