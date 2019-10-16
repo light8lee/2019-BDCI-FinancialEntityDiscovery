@@ -200,6 +200,7 @@ def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_e
                 crf_entities = tmp_entites
             else:
                 crf_entities = crf_entities & tmp_entites
+            # entities.update(tmp_entites)
         entities.update(crf_entities)
         entities.remove('')
         crf_row['unknownEntities'] = ';'.join(entities)
@@ -216,7 +217,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--crf_model', type=str, default='')
     parser.add_argument('--squad_model', type=str, default='')
-    parser.add_argument('--kfold', type=bool, default=False, action='store_true')
+    parser.add_argument('--kfold', type=int, default=0)
     # parser.add_argument('--invalid_entities', type=str, default='')
     # parser.add_argument('--fold', type=int, default=-1)
     args = parser.parse_args()
@@ -249,5 +250,5 @@ if __name__ == '__main__':
         crf_names = args.crf_model
         crf_names = crf_names.split(',')
         if args.kfold:
-            crf_names = [os.path.join(crf_names[0], f'fold{i}') for i in range(5)]
-        merge_and_convert_to_submit_v2(crf_names, args.squad_model,)
+            crf_names = [os.path.join(crf_names[0], f'fold{i}') for i in range(args.kfold)]
+        merge_and_convert_to_submit_v2(output_filename, crf_names, args.squad_model,)
