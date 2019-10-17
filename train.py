@@ -25,30 +25,23 @@ from pytorch_transformers import optimization
 
 SHOW = True
 def infer(data, model, cuda):
-    idx, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds, batch_extra = data
+    idx, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds, batch_extra, lm_ids = data
     global SHOW
     if SHOW:
         print(data)
         SHOW = False
 
     if cuda:
-        if isinstance(batch_ids, t.Tensor):
-            batch_ids = batch_ids.cuda()
-            batch_masks = batch_masks.cuda()
-            batch_tags = batch_tags.cuda()
-            batch_flags = batch_flags.cuda()
-            batch_bounds = batch_bounds.cuda()
-            batch_extra = batch_extra.cuda()
-        else:
-            batch_ids = [v.cuda() for v in batch_ids]
-            batch_masks = [v.cuda() for v in batch_masks]
-            batch_tags = [v.cuda() for v in batch_tags]
-            batch_flags = [v.cuda() for v in batch_flags]
-            batch_bounds = [v.cuda() for v in batch_bounds]
-            batch_extra = [v.cuda() for v in batch_extra]
+        batch_ids = batch_ids.cuda()
+        batch_masks = batch_masks.cuda()
+        batch_tags = batch_tags.cuda()
+        batch_flags = batch_flags.cuda()
+        batch_bounds = batch_bounds.cuda()
+        batch_extra = batch_extra.cuda()
+        lm_ids = lm_ids.cuda()
 
-    scores = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags,
-                   flags=batch_flags, bounds=batch_bounds, extra=batch_extra)
+    loss = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags,
+                   flags=batch_flags, bounds=batch_bounds, extra=batch_extra, lm_ids=lm_ids)
     model_to_predict = model.module if hasattr(model, "module") else model
     with t.no_grad():
         predicts = model_to_predict.predict(batch_ids, batch_masks,
@@ -60,7 +53,7 @@ def infer(data, model, cuda):
         'max_lens': batch_masks.sum(-1).tolist(),
         'batch_size': batch_masks.shape[0]
     }
-    return result, -scores
+    return result, loss
 
 
 def train(args):

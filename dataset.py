@@ -26,7 +26,7 @@ class GraphDataset(Dataset):
 
 def collect_single(batch):
     # raise ValueError("{}".format(batch))
-    idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs, batch_flag_ids, batch_bound_ids, batch_extra = zip(*batch)
+    idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs, batch_flag_ids, batch_bound_ids, batch_extra, lm_ids = zip(*batch)
 
     batch_input_ids = t.from_numpy(np.array(batch_input_ids)).long()
     batch_masks = t.from_numpy(np.array(batch_masks)).float()
@@ -52,7 +52,8 @@ def collect_single(batch):
         print(batch_extra, file=sys.stderr)
         exit(0)
 
-    return  idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs, batch_oh_flags, batch_oh_bounds, batch_extra
+    lm_ids = t.from_numpy(np.array(lm_ids)).long()
+    return  idx, batch_input_ids, batch_masks, batch_tag_ids, batch_inputs, batch_oh_flags, batch_oh_bounds, batch_extra, lm_ids
 
 class SquadDataset(Dataset):
     def __init(self, all_input_ids, all_input_mask, all_segment_ids,

@@ -23,6 +23,10 @@ flags.add_argument('--no_test', action='store_true', dest='no_test')
 flags.set_defaults(do_lower_case=False, need_dev=False, no_test=False)
 flags.add_argument('--max_seq_length', default=50, type=int)
 flags.add_argument('--random_seed', type=int, default=12345)
+flags.add_argument('--rich_tag', default=False, action='store_true')
+flags.add_argument('--duplicate', default=1, type=int)
+flags.add_argument('--augment', default=False, action='store_true')
+
 
 def tokens_to_flags(tokens):
     text = ''.join(tokens[1:-1])
@@ -77,6 +81,22 @@ def get_padded_tokens(tokens, tags, flags, bounds, extra_features, vocabs, max_s
     return input_ids, input_mask, tag_ids, flag_ids, bound_ids, extra_features
 
 
+def do_augment(input_ids, vocabs):
+    sep_id = vocabs['[SEP]']
+    mask_id = vocabs['[MASK]']
+    lm_ids = [-1] * len(input_ids)
+    for i in range(1, len(input_ids)):
+        if input_ids[i] == sep_id:
+            break
+        if random.random() < 0.15:
+            lm_ids[i] = input_ids[i]
+            if random.random() < 0.5:
+                input_ids[i] = mask_id
+            else:
+                input_ids[i] = random.randint(672, len(vocabs)-1)
+    return input_ids, lm_ids
+
+
 def prepare_ner(args, vocabs, phase):
     output_file = os.path.join(args.output_dir, phase)
     fea_writer = open('{}.fea'.format(output_file), 'wb')
@@ -91,54 +111,70 @@ def prepare_ner(args, vocabs, phase):
     extra_features = []
     idx = 0
     idxs = set()
-    with open(input_file, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line[:-1]
-            if line.startswith('$'*10):
-                inputs = inputs[:args.max_seq_length]
-                tags = tags[:args.max_seq_length]
-                # print(inputs)
-                # print(tags)
-                inputs.insert(0, '[CLS]')
-                tags.insert(0, 'O')
-                extra_features.insert(0, [0]*len(extra_features[0]))
-                inputs.append('[SEP]')
-                tags.append('O')
-                extra_features.append([0]*len(extra_features[0]))
-                flags, bounds = tokens_to_flags(inputs)
-                input_ids, input_masks, tag_ids, flag_ids, bound_ids, extra_features = get_padded_tokens(inputs, tags, flags, bounds, extra_features, vocabs, args.max_seq_length+2)
-                feature = collections.OrderedDict()
-                feature["id"] = idx
-                feature["input_ids"] = input_ids
-                feature["input_masks"] = input_masks
-                feature["tags"] = tag_ids
-                feature["inputs"] = inputs
-                feature["flag_ids"] = flag_ids
-                feature["bound_ids"] = bound_ids
-                feature["extra"] = extra_features
-                feature = tuple(feature.values())
-                # print(feature)
-                feature = pickle.dumps(feature)
+    duplicate = 1 if phase != 'train' else args.duplicate
+    augment = False if phase != 'train' else args.augment
+    for _ in range(duplicate):
+        with open(input_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line[:-1]
+                if line.startswith('$'*10):
+                    inputs = inputs[:args.max_seq_length]
+                    tags = tags[:args.max_seq_length]
+                    # print(inputs)
+                    # print(tags)
+                    inputs.insert(0, '[CLS]')
+                    if args.rich_tag:
+                        tags.insert(0, '[CLS]')
+                    else:
+                        tags.insert(0, 'O')
+                    extra_features.insert(0, [0]*len(extra_features[0]))
+                    inputs.append('[SEP]')
 
-                sz = fea_writer.write(feature)
-                fea_pos_writer.write('{}\n'.format(fea_pos))
-                fea_pos += sz
-                inputs = []
-                tags = []
-                extra_features = []
-            elif line.startswith('^'*10):
-                idx = line.replace('^', '')
-                idxs.add(idx)
-            else:
-                pair = line.split(' ')
-                if not pair[0] or not pair[1]:
-                    continue
-                token, tag, *extra_fea = pair
-                inputs.append(token)
-                tags.append(tag)
-                extra_features.append([float(v) for v in extra_fea])
-                if pair[1] == 'B':
-                    num_entities += 1
+                    if args.rich_tag:
+                        tags.append('[SEP]')
+                    else:
+                        tags.append('O')
+                    extra_features.append([0]*len(extra_features[0]))
+                    flags, bounds = tokens_to_flags(inputs)
+                    input_ids, input_masks, tag_ids, flag_ids, bound_ids, extra_features, = \
+                        get_padded_tokens(inputs, tags, flags, bounds, extra_features, vocabs, args.max_seq_length+2)
+                    if augment:
+                        input_ids, lm_ids = do_augment(input_ids, vocabs)
+                    else:
+                        lm_ids = [-1] * len(input_ids)
+                    feature = collections.OrderedDict()
+                    feature["id"] = idx
+                    feature["input_ids"] = input_ids
+                    feature["input_masks"] = input_masks
+                    feature["tags"] = tag_ids
+                    feature["inputs"] = inputs
+                    feature["flag_ids"] = flag_ids
+                    feature["bound_ids"] = bound_ids
+                    feature["extra"] = extra_features
+                    feature["lm_ids"] = lm_ids
+                    feature = tuple(feature.values())
+                    # print(feature)
+                    feature = pickle.dumps(feature)
+
+                    sz = fea_writer.write(feature)
+                    fea_pos_writer.write('{}\n'.format(fea_pos))
+                    fea_pos += sz
+                    inputs = []
+                    tags = []
+                    extra_features = []
+                elif line.startswith('^'*10):
+                    idx = line.replace('^', '')
+                    idxs.add(idx)
+                else:
+                    pair = line.split(' ')
+                    if not pair[0] or not pair[1]:
+                        continue
+                    token, tag, *extra_fea = pair
+                    inputs.append(token)
+                    tags.append(tag)
+                    extra_features.append([float(v) for v in extra_fea])
+                    if pair[1] == 'B':
+                        num_entities += 1
 
     print('totoal entities:', num_entities)
     print('totoal lines:', len(idxs))
