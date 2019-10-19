@@ -40,7 +40,7 @@ from pytorch_transformers import (WEIGHTS_NAME, BertConfig,
                                   XLNetTokenizer)
 
 from pytorch_transformers import AdamW, WarmupLinearSchedule
-
+import torch.optim as optim
 from utils_squad import (read_squad_examples, convert_examples_to_features,
                          RawResult, write_predictions, CharTokenizer,
                          RawResultExtended, write_predictions_extended)
@@ -92,7 +92,12 @@ def train(args, train_dataset, model, tokenizer):
         {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': args.weight_decay},
         {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         ]
-    optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    if args.optimizer == 'AdamW':
+        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+    elif args.optimizer == 'SGD':
+        optimizer = optim.SGD(optimizer_grouped_parameters, lr=args.learning_rate)
+    else:
+        raise ValueError(f"No such optimizer:{args.optimizer}")
     scheduler = WarmupLinearSchedule(optimizer, warmup_steps=args.warmup_steps, t_total=t_total)
     if args.fp16:
         try:
@@ -352,6 +357,8 @@ def main():
     parser.add_argument('--null_score_diff_threshold', type=float, default=0.0,
                         help="If null_score - best_non_null is greater than the threshold predict null.")
 
+    parser.add_argument("--optimizer", default='AdamW', type=str,
+                        help="optimizer to be used.")
     parser.add_argument("--max_seq_length", default=384, type=int,
                         help="The maximum total input sequence length after WordPiece tokenization. Sequences "
                              "longer than this will be truncated, and sequences shorter than this will be padded.")
@@ -514,7 +521,8 @@ def main():
 
         for checkpoint in checkpoints:
             # Reload the model
-            global_step = checkpoint.split('-')[-1] if len(checkpoints) > 1 else ""
+            global_step = checkpoint.split('/')[-1] if len(checkpoints) > 1 else ""
+            logger.info(f"global step;{global_step}")
             model = model_class.from_pretrained(checkpoint)
             model.to(args.device)
 

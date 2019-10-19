@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('output_dir')
 args = parser.parse_args()
 random.seed(2019)
-MAX_SEQ_LEN = 400
+MAX_SEQ_LEN = 1000
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
@@ -57,9 +57,9 @@ def create_squad_data(data, output_filename, is_test):
 
             while len(text) > MAX_SEQ_LEN:
                 sub_texts.append(text[:MAX_SEQ_LEN])
-                comma_pos = text.find('，', MAX_SEQ_LEN*3//4)
+                comma_pos = text.rfind('，', MAX_SEQ_LEN*4//5)
                 if comma_pos == -1:
-                    comma_pos = MAX_SEQ_LEN*3//4
+                    comma_pos = MAX_SEQ_LEN*4//5
                 text = text[comma_pos:]
             else:
                 sub_texts.append(text)
@@ -79,7 +79,7 @@ def create_squad_data(data, output_filename, is_test):
                     }]
                     qa = {
                         "answers": answers,
-                        "question": "有哪些金融实体、公司、平台、中心、投资、币、银行、基金、外汇、集团、链、股份、商城、店、资本、家园、金服、交易所、理财、贷款？",
+                        "question": "有哪些金融公司、平台、中心、投资、币、银行、基金、外汇、集团、链、股份、商城、店、资本、家园、金服、交易所、理财、贷款？",
                         "id": '{}-{}'.format(idx, i)
                     }
                     qas.append(qa)

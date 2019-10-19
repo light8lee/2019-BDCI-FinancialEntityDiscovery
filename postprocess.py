@@ -13,9 +13,12 @@ BAD_CASES = {
     '韩国',
     '美国',
     'app',
-    '京东金融'
+    '京东金融',
+    '5g',
+    '5G'
 }
 
+ONLY_NUM = re.compile(r'^\d+$')
 INVALID = re.compile(r'[,▌丨\u200b!#$%&*+./:;<=>?@\[\\\]^_`{|}~！#￥？《》{}“”，：‘’。·、；【】]')
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 train_data.fillna('', inplace=True)
@@ -45,6 +48,8 @@ def filter(entities, invalid_entities=None):
         if '(' in entity and ')' not in entity:
             continue
         if '(' not in entity and ')' in entity:
+            continue
+        if ONLY_NUM.match(entity):
             continue
         if INVALID.search(entity):
             continue
