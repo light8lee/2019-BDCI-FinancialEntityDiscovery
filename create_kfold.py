@@ -27,7 +27,7 @@ def split_kfold(input_dir, output_dir):
     train_kfolds = []
 
     for k in range(FOLD):
-        train_data = train_data.sample(frac=1, random_state=2019-k).reset_index(drop=True)
+        train_data = train_data.sample(frac=1, random_state=2018-k).reset_index(drop=True)
         dev_kfolds.append(train_data.tail(100))
         train_kfolds.append(train_data.head(train_data.shape[0]-100))
 

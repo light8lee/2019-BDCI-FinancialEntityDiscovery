@@ -251,7 +251,7 @@ if __name__ == '__main__':
     elif args.squad_model and not args.crf_model:
         convert_to_submit(args.squad_model,)
     else:
-        output_filename = os.path.join('submits', f'{args.crf_model}-{args.squad_model}.csv')
+        output_filename = os.path.join('submits', f'{args.crf_model}-{args.squad_model.replace("/", "-")}.csv')
         crf_names = args.crf_model
         crf_names = crf_names.split(',')
         if args.kfold:
