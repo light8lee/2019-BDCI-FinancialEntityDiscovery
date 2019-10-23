@@ -15,7 +15,9 @@ BAD_CASES = {
     'app',
     '京东金融',
     '5g',
-    '5G'
+    '5G',
+    'App',
+    'APP',
 }
 
 ONLY_NUM = re.compile(r'^\d+$')
