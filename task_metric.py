@@ -11,7 +11,7 @@ F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
 
 BIO_BEGIN_TAG_ID = BIO_TAG2ID['B']
 BIO_INTER_TAG_ID = BIO_TAG2ID['I']
-OTHER_TAG_IDS = [0, 4]
+OTHER_TAG_IDS = [BIO_TAG2ID[v] for v in ['O', '[CLS]', '[SEP]']]
 Invalid_entities = set()
 
 def get_BIO_entities(batch_tag_ids, max_lens):
@@ -24,11 +24,13 @@ def get_BIO_entities(batch_tag_ids, max_lens):
             if (status == 0) and (tag_id == BIO_BEGIN_TAG_ID):  # correct begin
                 status = 1
                 begin_pos = idx
-            # elif (status == 1) and (tag_id == BIO_INTER_TAG_ID):  # in entity Bx(Ix) -> Ix
-            #     continue
             elif (status == 1) and (tag_id in OTHER_TAG_IDS):  # Bx(Ix) -> O
                 status = 0
                 entities.add((begin_pos, idx))
+            elif (status == 1) and (tag_id == BIO_BEGIN_TAG_ID):
+                status = 1
+                entities.add((begin_pos, idx))
+                begin_pos = idx
         yield entities
 
 def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writer, Log):
