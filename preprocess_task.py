@@ -85,15 +85,21 @@ def do_augment(input_ids, vocabs):
     sep_id = vocabs['[SEP]']
     mask_id = vocabs['[MASK]']
     lm_ids = [-1] * len(input_ids)
+    if random.random() < 0.6:
+        return input_ids, lm_ids
     for i in range(1, len(input_ids)):
         if input_ids[i] == sep_id:
             break
-        if random.random() < 0.15:
+        if random.random() < 0.5:
             lm_ids[i] = input_ids[i]
-            if random.random() < 0.5:
+            if random.random() < 0.2:
                 input_ids[i] = mask_id
-            else:
-                input_ids[i] = random.randint(672, len(vocabs)-1)
+            elif str.islower(input_ids[i]):
+                input_ids[i] = random.randint(vocabs['a'], vocabs['z'])
+            elif str.isnumeric(input_ids[i]):
+                inputs_ids[i] = random.randint(vocabs['0'], vocabs['9'])
+            elif 672 <= inputs_ids[i] <= 7993:
+                input_ids[i] = random.randint(672, 7993)
     return input_ids, lm_ids
 
 

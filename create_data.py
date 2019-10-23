@@ -107,19 +107,22 @@ def create_data(data, output_filename, important_chars, is_evaluate):
             # print('---------------line:', line)
             entities = entities.split(';')
             sub_texts = []
+            offsets = [0]
             title = set(ch for ch in title)
 
-            while len(text) > MAX_SEQ_LEN:
-                sub_texts.append(text[:MAX_SEQ_LEN])
-                comma_pos = text.find('，', MAX_SEQ_LEN*4//5)
+            segment = text
+            while len(segment) > MAX_SEQ_LEN:
+                sub_texts.append(segment[:MAX_SEQ_LEN])
+                comma_pos = segment.find('，', MAX_SEQ_LEN*4//5)
                 if comma_pos == -1:
                     comma_pos = MAX_SEQ_LEN*4//5
-                text = text[comma_pos:]
+                segment = segment[comma_pos:]
+                offsets.append(comma_pos)
             else:
-                sub_texts.append(text)
+                sub_texts.append(segment)
             # print(sub_texts)
 
-            for sub_text in sub_texts:
+            for sub_text, offset in zip(sub_texts, offsets):
                 sub_text = sub_text.strip()
                 if not sub_text:
                     continue
@@ -133,14 +136,16 @@ def create_data(data, output_filename, important_chars, is_evaluate):
                 f.write(idx)
                 f.write('\n')
                 print(sub_text)
-                for char, tag in zip(sub_text, tags):
+                for i, (char, tag) in enumerate(zip(sub_text, tags)):
                     in_title = 1 if char in title else 0
                     important = 1 if char in important_chars else 0
                     is_lower = 1 if str.islower(char) else 0
                     is_upper = 1 if str.isupper(char) else 0
                     is_num = 1 if str.isnumeric(char) else 0
                     is_sign = 1 if char in extra_chars else 0
-                    f.write(f'{char} {tag} {in_title} {important} {is_lower} {is_upper} {is_num} {is_sign}\n')
+                    rel_pos = (i + offset) / len(text)
+                    abs_pos = 1 if (i + offset < 100 or i + offset > text - 100) else 0
+                    f.write(f'{char} {tag} {in_title} {important} {is_lower} {is_upper} {is_num} {is_sign} {rel_pos} {abs_pos}\n')
                 f.write('$'*10)
                 f.write('\n')
             line += 1
