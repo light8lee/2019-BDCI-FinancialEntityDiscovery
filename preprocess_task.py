@@ -84,6 +84,10 @@ def get_padded_tokens(tokens, tags, flags, bounds, extra_features, vocabs, max_s
 def do_augment(input_ids, vocabs):
     sep_id = vocabs['[SEP]']
     mask_id = vocabs['[MASK]']
+    zero_id = vocabs['0']
+    nine_id = vocabs['9']
+    a_id = vocabs['a']
+    z_id = vocabs['z']
     lm_ids = [-1] * len(input_ids)
     if random.random() < 0.6:
         return input_ids, lm_ids
@@ -94,11 +98,9 @@ def do_augment(input_ids, vocabs):
             lm_ids[i] = input_ids[i]
             if random.random() < 0.2:
                 input_ids[i] = mask_id
-            elif str.islower(input_ids[i]):
-                input_ids[i] = random.randint(vocabs['a'], vocabs['z'])
-            elif str.isnumeric(input_ids[i]):
-                inputs_ids[i] = random.randint(vocabs['0'], vocabs['9'])
-            elif 672 <= inputs_ids[i] <= 7993:
+            elif a_id <= input_ids[i] <= z_id:
+                input_ids[i] = random.randint(a_id, z_id)
+            elif 672 <= input_ids[i] <= 7993:
                 input_ids[i] = random.randint(672, 7993)
     return input_ids, lm_ids
 

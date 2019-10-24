@@ -144,7 +144,7 @@ def create_data(data, output_filename, important_chars, is_evaluate):
                     is_num = 1 if str.isnumeric(char) else 0
                     is_sign = 1 if char in extra_chars else 0
                     rel_pos = (i + offset) / len(text)
-                    abs_pos = 1 if (i + offset < 100 or i + offset > text - 100) else 0
+                    abs_pos = 1 if (i + offset < 100 or i + offset > len(text) - 100) else 0
                     f.write(f'{char} {tag} {in_title} {important} {is_lower} {is_upper} {is_num} {is_sign} {rel_pos} {abs_pos}\n')
                 f.write('$'*10)
                 f.write('\n')
