@@ -1,4 +1,5 @@
 import pandas as pd
+import math
 import argparse
 import os
 import pickle
@@ -12,16 +13,31 @@ BAD_CASES = {
     '日本',
     '韩国',
     '美国',
-    'app',
     '京东金融',
     '5g',
     '5G',
+    'IMG',
+    'admin',
+    'QQ',
+    'VIP'
+}
+
+BAD_HEADS = {
+    'iphone',
+    'iPhone'
+}
+
+BAD_TAILS = {
+    'app',
     'App',
     'APP',
+    "有",
+    "有限",
+    "有限公"
 }
 
 ONLY_NUM = re.compile(r'^\d+$')
-INVALID = re.compile(r'[,▌丨\u200b!#$%&*+./:;<=>?@\[\\\]^_`{|}~！#￥？《》{}“”，：‘’。·、；【】]')
+INVALID = re.compile(r'[,▌丨\u200b!#$%&*+./:;<=>?@\[\\\]^_`{|}~！#￥？《》{}“”，：‘’。·、；【】的]')
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 train_data.fillna('', inplace=True)
 train_entities = set()
@@ -67,6 +83,19 @@ def filter(entities, invalid_entities=None):
             #     continue
         if entity in train_entities or entity in BAD_CASES:
             continue
+        is_bad = False
+        for bad_head in BAD_HEADS:
+            if entity.startswith(bad_head):
+                is_bad = True
+                break
+        if is_bad:
+            continue
+        for bad_tail in BAD_TAILS:
+            if entity.endswith(bad_tail):
+                is_bad = True
+                break
+        if is_bad:
+            continue
         new_entites.append(entity)
     # entities = new_entites
     # new_entites = []
@@ -96,6 +125,27 @@ def filter(entities, invalid_entities=None):
     return ';'.join(new_entites)
 
 
+def keep_topk(outputs, sample, k=5):
+    for i, row in outputs.iterrows():
+        entities = row['unknownEntities'].split(';')
+        if not entities:
+            continue
+        scores = []
+        origin_text = sample.at[i, 'text']
+        for entity in entities:
+            if not entity:  # 可能会有问题，有些实体在清洗后才出现
+                continue
+            count = origin_text.count(entity)
+            pos = origin_text.find(entity)
+            size = len(entity)
+            scores.append(
+                (entity, count+1/(2+pos)+math.log10(size))
+            )
+            scores.sort(key=lambda v: v[1], reverse=True)
+            scores = scores[:k]
+            row['unknownEntities'] = ';'.join(v[0] for v in scores)
+
+
 def extract_keywords(phase):
     TR4K.analyze(phase, window=4)
     keywords = [item.word for item in TR4K.get_keywords(20, word_min_len=2)]
@@ -118,7 +168,7 @@ def extract_keywords(phase):
     return ';'.join(entities)
 
 
-def convert_to_submit(name, invalid_entities=None):
+def convert_to_submit(name, invalid_entities=None, topk=0):
     input_filename = os.path.join('outputs', name, 'submit.csv')
     preds = pd.read_csv(input_filename, sep=',', index_col='id')
     sample = pd.read_csv('data/Test_Data.csv', sep=',', index_col='id')
@@ -134,11 +184,13 @@ def convert_to_submit(name, invalid_entities=None):
     # for idx, row in outputs.iterrows():
     #     if not row['unknownEntities']:
     #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
+    if topk > 0:
+        keep_topk(squad_output, sample, topk)
     output_filename = os.path.join('submits', '{}.csv'.format(name))
     outputs.to_csv(output_filename)
 
 
-def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities=None):
+def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities=None, topk=0):
     crf_filename = os.path.join('outputs', crf_name, 'submit.csv')
     crf_preds = pd.read_csv(crf_filename, sep=',', index_col='id')
     squad_filename = os.path.join('outputs', squad_name, 'submit.csv')
@@ -170,11 +222,13 @@ def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities=None):
     # for idx, row in crf_outputs.iterrows():
     #     if not row['unknownEntities']:
     #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
+    if topk > 0:
+        keep_topk(squad_output, sample, topk)
     output_filename = os.path.join('submits', '{}-{}.csv'.format(crf_name, squad_name))
     crf_outputs.to_csv(output_filename)
 
 
-def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_entities=None):
+def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_entities=None, topk=0):
     crf_filenames = [os.path.join('outputs', crf_name, 'submit.csv') for crf_name in crf_names]
     crf_preds = [pd.read_csv(crf_filename, sep=',', index_col='id') for crf_filename in crf_filenames]
     squad_filename = os.path.join('outputs', squad_name, 'submit.csv')
@@ -218,6 +272,8 @@ def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_e
     # for idx, row in crf_outputs.iterrows():
     #     if not row['unknownEntities']:
     #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
+    if topk > 0:
+        keep_topk(squad_output, sample, topk)
     squad_output.to_csv(output_name)
 
 if __name__ == '__main__':
@@ -225,6 +281,7 @@ if __name__ == '__main__':
     parser.add_argument('--crf_model', type=str, default='')
     parser.add_argument('--squad_model', type=str, default='')
     parser.add_argument('--kfold', type=int, default=0)
+    parser.add_argument('--topk', type=int, default=0)
     # parser.add_argument('--invalid_entities', type=str, default='')
     # parser.add_argument('--fold', type=int, default=-1)
     args = parser.parse_args()
@@ -249,13 +306,13 @@ if __name__ == '__main__':
     if not args.crf_model and not args.squad_model:
         raise ValueError("Should be at least one model")
     elif args.crf_model and not args.squad_model:
-        convert_to_submit(args.crf_model,)
+        convert_to_submit(args.crf_model, topk=args.topk)
     elif args.squad_model and not args.crf_model:
-        convert_to_submit(args.squad_model,)
+        convert_to_submit(args.squad_model, topk=args.topk)
     else:
         output_filename = os.path.join('submits', f'{args.crf_model}-{args.squad_model.replace("/", "-")}.csv')
         crf_names = args.crf_model
         crf_names = crf_names.split(',')
         if args.kfold:
             crf_names = [os.path.join(crf_names[0], f'fold{i}') for i in range(args.kfold)]
-        merge_and_convert_to_submit_v2(output_filename, crf_names, args.squad_model,)
+        merge_and_convert_to_submit_v2(output_filename, crf_names, args.squad_model, topk=args.topk)

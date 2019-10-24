@@ -81,7 +81,7 @@ def get_padded_tokens(tokens, tags, flags, bounds, extra_features, vocabs, max_s
     return input_ids, input_mask, tag_ids, flag_ids, bound_ids, extra_features
 
 
-def do_augment(input_ids, vocabs):
+def do_augment(input_ids, tag_ids, vocabs):
     sep_id = vocabs['[SEP]']
     mask_id = vocabs['[MASK]']
     zero_id = vocabs['0']
@@ -94,14 +94,24 @@ def do_augment(input_ids, vocabs):
     for i in range(1, len(input_ids)):
         if input_ids[i] == sep_id:
             break
-        if random.random() < 0.5:
+        if tag_ids[i] == 0:  # not entity, predict it
             lm_ids[i] = input_ids[i]
-            if random.random() < 0.2:
+            if random.random() < 0.2:  # keep origin
+                continue
+            elif random.random() < 0.3:  # replace to [MASK]
                 input_ids[i] = mask_id
-            elif a_id <= input_ids[i] <= z_id:
-                input_ids[i] = random.randint(a_id, z_id)
-            elif 672 <= input_ids[i] <= 7993:
+            elif 672 <= input_ids[i] <= 7993:  # replace chinese character
                 input_ids[i] = random.randint(672, 7993)
+        else:  # entity
+            if random.random() < 0.2:  # add noise to entity, but do not predict it
+                if a_id <= input_ids[i] <= z_id:
+                    input_ids[i] = random.randint(a_id, z_id)
+                elif 672 <= input_ids[i] <= 7993:
+                    input_ids[i] = random.randint(672, 7993)
+            elif random.random() < 0.1:  # replace part of entity to [MASK] and predict it
+                lm_ids[i] = input_ids[i]
+                input_ids[i] = mask_id
+
     return input_ids, lm_ids
 
 
@@ -147,7 +157,7 @@ def prepare_ner(args, vocabs, phase):
                     input_ids, input_masks, tag_ids, flag_ids, bound_ids, extra_features, = \
                         get_padded_tokens(inputs, tags, flags, bounds, extra_features, vocabs, args.max_seq_length+2)
                     if augment:
-                        input_ids, lm_ids = do_augment(input_ids, vocabs)
+                        input_ids, lm_ids = do_augment(input_ids, tag_ids, vocabs)
                     else:
                         lm_ids = [-1] * len(input_ids)
                     feature = collections.OrderedDict()
