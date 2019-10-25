@@ -9,7 +9,6 @@ import re
 from collections import defaultdict, Counter
 
 random.seed(2019)
-MAX_SEQ_LEN = 510
 
 img = re.compile(r'\{IMG:\d{1,}\}')
 img2 = re.compile(r'<!--(IMG[_\d\s]+)-->')
@@ -166,7 +165,9 @@ def collect_important_chars(entities_column):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir')
+    parser.add_argument('--max_seq_len', default=510, type=int)
     args = parser.parse_args()
+    MAX_SEQ_LEN = args.max_seq_len
 
     train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
     test_data = pd.read_csv('./data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')

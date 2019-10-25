@@ -185,7 +185,7 @@ def convert_to_submit(name, invalid_entities=None, topk=0):
     #     if not row['unknownEntities']:
     #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
     if topk > 0:
-        keep_topk(squad_output, sample, topk)
+        keep_topk(outputs, sample, topk)
     output_filename = os.path.join('submits', '{}.csv'.format(name))
     outputs.to_csv(output_filename)
 
@@ -223,7 +223,7 @@ def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities=None, top
     #     if not row['unknownEntities']:
     #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
     if topk > 0:
-        keep_topk(squad_output, sample, topk)
+        keep_topk(outputs, sample, topk)
     output_filename = os.path.join('submits', '{}-{}.csv'.format(crf_name, squad_name))
     crf_outputs.to_csv(output_filename)
 
