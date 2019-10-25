@@ -9,6 +9,7 @@ import create_data
 
 BAD_CASES = {
     'http',
+    'HTTP',
     '中国',
     '日本',
     '韩国',
@@ -138,8 +139,9 @@ def keep_topk(outputs, sample, k=5):
             count = origin_text.count(entity)
             pos = origin_text.find(entity)
             size = len(entity)
+            score = math.pow(10, count) + math.pow(10, 1/(2+pos)) + math.log1p(size)  # count+1/(2+pos)+math.log10(size)
             scores.append(
-                (entity, count+1/(2+pos)+math.log10(size))
+                (entity, score)
             )
             scores.sort(key=lambda v: v[1], reverse=True)
             scores = scores[:k]

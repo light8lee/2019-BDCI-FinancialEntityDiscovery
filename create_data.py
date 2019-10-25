@@ -99,7 +99,7 @@ def create_tags(tokens, entities):
     return tags, has_entity
 
 
-def create_data(data, output_filename, important_chars, is_evaluate):
+def create_data(data, output_filename, important_chars, is_evaluate, keep_none):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
         for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
@@ -129,7 +129,7 @@ def create_data(data, output_filename, important_chars, is_evaluate):
                     continue
 
                 tags, has_entity = create_tags(sub_text, entities)
-                if not is_evaluate and not has_entity:
+                if not is_evaluate and not keep_none and not has_entity:
                     continue
                 f.write('^'*10)
                 f.write(idx)
@@ -166,6 +166,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir')
     parser.add_argument('--max_seq_len', default=510, type=int)
+    parser.add_argument('--keep_none', default=False, action='store_true')
+
     args = parser.parse_args()
     MAX_SEQ_LEN = args.max_seq_len
 
@@ -189,8 +191,8 @@ if __name__ == '__main__':
     dev_data = train_data.tail(100)
     train_data = train_data.head(train_data.shape[0]-100)
 
-    create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False)
+    create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False, keep_none=args.keep_none)
 
-    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), important_chars, True)
+    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), important_chars, True, keep_none=args.keep_none)
 
-    create_data(test_data, '{}/test.txt'.format(args.output_dir), important_chars, True)
+    create_data(test_data, '{}/test.txt'.format(args.output_dir), important_chars, True, keep_none=args.keep_none)

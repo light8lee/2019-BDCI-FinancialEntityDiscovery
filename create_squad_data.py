@@ -14,9 +14,10 @@ import create_data
 
 parser = argparse.ArgumentParser()
 parser.add_argument('output_dir')
+parser.add_argument('--max_seq_len', type=int, default=400)
 args = parser.parse_args()
 random.seed(2019)
-MAX_SEQ_LEN = 1000
+MAX_SEQ_LEN = args.max_seq_len
 
 
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')

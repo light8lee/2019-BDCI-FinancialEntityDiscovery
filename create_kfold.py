@@ -7,7 +7,7 @@ import create_data
 
 FOLD = 5
 
-def split_kfold(input_dir, output_dir):
+def split_kfold(input_dir, output_dir, keep_none):
     train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
     test_data = pd.read_csv('./data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
 
@@ -35,11 +35,12 @@ def split_kfold(input_dir, output_dir):
         kfold_dir = os.path.join(output_dir, 'fold{}'.format(k))
         if not os.path.isdir(kfold_dir):
             os.mkdir(kfold_dir)
-        create_data.create_data(dev_kfolds[k], f'{kfold_dir}/dev.txt', important_chars, True)
-        create_data.create_data(train_kfolds[k], f'{kfold_dir}/train.txt', important_chars, False)
+        create_data.create_data(dev_kfolds[k], f'{kfold_dir}/dev.txt', important_chars, True, keep_none)
+        create_data.create_data(train_kfolds[k], f'{kfold_dir}/train.txt', important_chars, False, keep_none)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir')
+    parser.add_argument('--keep_none', default=False, action='store_true')
     args = parser.parse_args()
-    split_kfold('data', args.output_dir)
+    split_kfold('data', args.output_dir, args.keep_none)
