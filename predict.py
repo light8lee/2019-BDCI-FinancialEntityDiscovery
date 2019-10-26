@@ -46,25 +46,25 @@ def infer(data, model, cuda):
             result = ''.join(inputs[start:end])
             if len(result) < 2:
                 continue
-            # is_spaned = False
-            # # span to english character boundary
-            # while start > 0 and ENGLISH.match(inputs[start]):
-            #     if ENGLISH.match(inputs[start-1]):
-            #         start -= 1
-            #         is_spaned = True
-            #     else:
-            #         break
-            # while end < len(inputs) and ENGLISH.match(inputs[end-1]):
-            #     if ENGLISH.match(inputs[end]):
-            #         end += 1
-            #         is_spaned = True
-            #     else:
-            #         break
-            # if is_spaned:
-            #     print('inputs:', inputs)
-            #     print('before spaned:', result)
-            #     result = ''.join(inputs[start:end])
-            #     print('after spaned:', result)
+            is_spaned = False
+            # span to english character boundary
+            while start > 0 and ENGLISH.match(inputs[start]):
+                if ENGLISH.match(inputs[start-1]):
+                    start -= 1
+                    is_spaned = True
+                else:
+                    break
+            while end < len(inputs) and ENGLISH.match(inputs[end-1]):
+                if ENGLISH.match(inputs[end]):
+                    end += 1
+                    is_spaned = True
+                else:
+                    break
+            if is_spaned:
+                print('inputs:', inputs)
+                print('before spaned:', result)
+                result = ''.join(inputs[start:end])
+                print('after spaned:', result)
 
             result = result.replace('※', ' ')
             results[idx].add(result)

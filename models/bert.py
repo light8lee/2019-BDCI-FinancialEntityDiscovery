@@ -98,10 +98,10 @@ class BERT_Pretrained(nn.Module):
         super(BERT_Pretrained, self).__init__()
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
-        self.gnn_layers = nn.ModuleList()  # compatable needs
+        # self.gnn_layers = nn.ModuleList()  # compatable needs
         self.bert_dim = bert_dim
-        self.rescale_ws = nn.ParameterList()  # compatable needs
-        self.rescale_bs = nn.ParameterList()  # compatable needs
+        # self.rescale_ws = nn.ParameterList()  # compatable needs
+        # self.rescale_bs = nn.ParameterList()  # compatable needs
         self.need_flags = need_flags
         self.need_bounds = need_bounds  # do not use when do word segmentation task
         self.need_birnn = need_birnn
@@ -135,6 +135,7 @@ class BERT_Pretrained(nn.Module):
         if word_seg_task:
             self.seg_crf = CRF(6, batch_first=True)
             self.seg_hidden2tags = nn.Linear(out_dim, 6)
+        self.drop = nn.Dropout(p=drop_rate)
 
     def tag_outputs(self, input_ids, input_masks,
                     flags=None, bounds=None,
@@ -162,6 +163,7 @@ class BERT_Pretrained(nn.Module):
             # print('shape:', extra.shape, file=sys.stderr)
             # print('output shape:', outputs.shape, file=sys.stderr)
             seq_outputs = torch.cat([seq_outputs, extra], -1)
+        seq_outputs = self.drop(seq_outputs)
         emissions = self.hidden2tags(seq_outputs)
         if self.word_seg_task:
             seg_emissions = self.seg_hidden2tags(seq_outputs)

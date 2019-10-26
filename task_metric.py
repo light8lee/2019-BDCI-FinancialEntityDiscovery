@@ -62,20 +62,30 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
         nonlocal running_size
         global Invalid_entities
 
-        running_loss += loss.item()
         running_size += result['batch_size']
-        pred_gen = get_BIO_entities(result['pred_tag_ids'], result['max_lens'])
-        target_gen = get_BIO_entities(result['target_tag_ids'], result['max_lens'])
-        for target_entities, pred_entities, inputs in zip(target_gen, pred_gen, result['inputs']):
-            Invalid_entities.update(''.join(inputs[e[0]:e[1]]) for e in (pred_entities-target_entities))
-            running_fn += len(target_entities-pred_entities)
-            running_fp += len(pred_entities-target_entities)
-            running_tp += len(pred_entities&target_entities)
+        if phase == 'dev':
+            pred_gen = get_BIO_entities(result['pred_tag_ids'], result['max_lens'])
+            target_gen = get_BIO_entities(result['target_tag_ids'], result['max_lens'])
+            for target_entities, pred_entities, inputs in zip(target_gen, pred_gen, result['inputs']):
+                Invalid_entities.update(''.join(inputs[e[0]:e[1]]) for e in (pred_entities-target_entities))
+                target_entity_set = set()
+                Log('inputs:', ''.join(inputs))
+                for start, end in target_entities:
+                    target_entity_set.add(''.join(inputs[start:end]))
+                pred_entity_set = set()
+                for start, end in pred_entities:
+                    pred_entity_set.add(''.join(inputs[start:end]))
+                Log('target:', target_entity_set)
+                Log('predict:', pred_entity_set)
+                running_fn += len(target_entity_set-pred_entity_set)
+                running_fp += len(pred_entity_set-target_entity_set)
+                running_tp += len(pred_entity_set&target_entity_set)
         if phase == 'train':
+            running_loss += loss.item()
             curr_lr = optimizer.param_groups[0]['lr']
             pbar.set_postfix(mean_loss=running_loss/running_size,lr=curr_lr)
         else:
-            pbar.set_postfix(mean_loss=running_loss/running_size)
+            pbar.set_postfix()
 
     def post_fn(phase, epoch):
         nonlocal epoch_loss
@@ -109,8 +119,8 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
                 Log('dev Epoch {}: Not Improved.  P: {}, R: {}, F1: {} Loss: {}'.format(
                     epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
         else:
-            Log('{} Epoch {}: P: {}, R: {}, F1: {} Loss: {}'.format(
-                phase, epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+            # Log('{} Epoch {}: P: {}, R: {}, F1: {} Loss: {}'.format(
+            #     phase, epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
             model_to_save = model.module if hasattr(model, 'module') else model  # Take care of distributed/parallel training
             save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
                                     epoch, model_to_save.state_dict(), optimizer.state_dict(), scheduler.state_dict())

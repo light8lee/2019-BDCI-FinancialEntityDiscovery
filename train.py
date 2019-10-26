@@ -24,7 +24,7 @@ from pytorch_transformers import optimization
 
 
 SHOW = True
-def infer(data, model, cuda):
+def infer(data, model, cuda, is_evaluate=False):
     idx, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds, batch_extra, lm_ids = data
     global SHOW
     if SHOW:
@@ -40,17 +40,23 @@ def infer(data, model, cuda):
         batch_extra = batch_extra.cuda()
         lm_ids = lm_ids.cuda()
 
+    if is_evaluate:
+        model_to_predict = model.module if hasattr(model, "module") else model
+        with t.no_grad():
+            predicts = model_to_predict.predict(batch_ids, batch_masks,
+                                                flags=batch_flags, bounds=batch_bounds, extra=batch_extra)
+        result = {
+            'inputs': batch_inputs,
+            'target_tag_ids': batch_tags,
+            'pred_tag_ids': predicts,
+            'max_lens': batch_masks.sum(-1).tolist(),
+            'batch_size': batch_masks.shape[0]
+        }
+        return result, 0
+
     loss = model(input_ids=batch_ids, input_masks=batch_masks, target_tags=batch_tags,
                    flags=batch_flags, bounds=batch_bounds, extra=batch_extra, lm_ids=lm_ids)
-    model_to_predict = model.module if hasattr(model, "module") else model
-    with t.no_grad():
-        predicts = model_to_predict.predict(batch_ids, batch_masks,
-                                            flags=batch_flags, bounds=batch_bounds, extra=batch_extra)
     result = {
-        'inputs': batch_inputs,
-        'target_tag_ids': batch_tags,
-        'pred_tag_ids': predicts,
-        'max_lens': batch_masks.sum(-1).tolist(),
         'batch_size': batch_masks.shape[0]
     }
     return result, loss
@@ -141,7 +147,7 @@ def train(args):
                 optimizer.zero_grad()
 
                 with t.set_grad_enabled(phase == 'train'):
-                    result, loss = infer(data, model, args.cuda)
+                    result, loss = infer(data, model, args.cuda, is_evaluate=phase!='train')
                     if args.multi_gpu and args.n_gpu > 1:
                         loss = loss.mean()
                     if phase == 'train':

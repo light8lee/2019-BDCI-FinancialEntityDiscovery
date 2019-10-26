@@ -139,7 +139,8 @@ def keep_topk(outputs, sample, k=5):
             count = origin_text.count(entity)
             pos = origin_text.find(entity)
             size = len(entity)
-            score = math.pow(10, count) + math.pow(10, 1/(2+pos)) + math.log1p(size)  # count+1/(2+pos)+math.log10(size)
+            # print(count, pos, size)
+            score = 10 * count + math.pow(10, 1/(2+pos)) + math.log10(size)  # count+1/(2+pos)+math.log10(size)
             scores.append(
                 (entity, score)
             )
@@ -254,17 +255,17 @@ def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_e
         entities.add('')
         entities.update(crf_row['unknownEntities'].split(';'))
         # entities.update(squad_outputs.at[index, 'unknownEntities'].split(';'))
-        crf_entities = set()
+        # crf_entities = set()
         for crf_output in crf_outputs:
             tmp_entites = set(crf_output.at[index, 'unknownEntities'].split(';'))
-            if not tmp_entites:
-                continue
-            if not crf_entities:
-                crf_entities = tmp_entites
-            else:
-                crf_entities = crf_entities & tmp_entites
-            # entities.update(tmp_entites)
-        entities.update(crf_entities)
+            # if not tmp_entites:
+            #     continue
+            # if not crf_entities:
+            #     crf_entities = tmp_entites
+            # else:
+            #     crf_entities = crf_entities & tmp_entites
+            entities.update(tmp_entites)
+        # entities.update(crf_entities)
         entities.remove('')
         crf_row['unknownEntities'] = ';'.join(entities)
         print(crf_row)
