@@ -80,7 +80,7 @@ def findall(text, entity):
         pos = text.find(entity, begin)
         if pos != -1:
             result.append((pos, pos+entity_length))
-            begin = pos + entity_length
+            begin += pos + entity_length
         else:
             return result
 

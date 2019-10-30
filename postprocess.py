@@ -1,4 +1,6 @@
 import pandas as pd
+import jieba
+import jieba.posseg as pseg
 import math
 import argparse
 import os
@@ -7,20 +9,35 @@ import re
 from textrank4zh import TextRank4Keyword
 import create_data
 
+DOMAINS = set()
+with open('data/domains.txt') as f:
+    for line in f:
+        line = line.strip()
+        if line.endswith('市'):
+            DOMAINS.add((line, line[:-1]))
+        elif line.endswith('省'):
+            DOMAINS.add((line, line[:-1]))
+        else:
+            DOMAINS.add((line, line))
+
+TOGGLES = {
+    '平台', '国际',
+}
+
+COMPLETES = {
+    '限公司', '司',
+}
+
+PARTS = {
+    '交易中心',
+    '有限公司',
+}
+
 BAD_CASES = {
-    'http',
-    'HTTP',
-    '中国',
-    '日本',
-    '韩国',
-    '美国',
-    '京东金融',
-    '5g',
-    '5G',
-    'IMG',
-    'admin',
-    'QQ',
-    'VIP'
+    'http', 'HTTP', '中国', '日本',
+    '韩国', '美国', '京东金融', '5g', '5G',
+    'IMG', 'admin', 'QQ', 'VIP',
+    'IP'
 }
 
 BAD_HEADS = {
@@ -29,16 +46,12 @@ BAD_HEADS = {
 }
 
 BAD_TAILS = {
-    'app',
-    'App',
-    'APP',
-    "有",
-    "有限",
-    "有限公"
+    'app', 'App', 'APP'
 }
 
+REPLACE = re.compile(r'[*“,/#?]')
 ONLY_NUM = re.compile(r'^\d+$')
-INVALID = re.compile(r'[,▌丨\u200b!#$%&*+./:;<=>?@\[\\\]^_`{|}~！#￥？《》{}“”，：‘’。·、；【】的]')
+INVALID = re.compile(r'[\s▌丨\u200b!$%:;<=>@\[\\\]^_`{|}~！#￥？《》{}”，：‘’。、；【】的]')
 train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 train_data.fillna('', inplace=True)
 train_entities = set()
@@ -58,19 +71,26 @@ def filter(entities, invalid_entities=None):
     entities = entities.split(';')
     new_entites = []
     for entity in entities:
+        is_bad = False
         if len(entity) < 2:
             continue
         if '（' in entity and '）' not in entity:
+            print(f"括号不完全：{entity}")
             continue
         if '（' not in entity and '）' in entity:
+            print(f"括号不完全：{entity}")
             continue
         if '(' in entity and ')' not in entity:
+            print(f"括号不完全：{entity}")
             continue
         if '(' not in entity and ')' in entity:
+            print(f"括号不完全：{entity}")
             continue
         if ONLY_NUM.match(entity):
+            print(f"纯数字：{entity}")
             continue
         if INVALID.search(entity):
+            print(f"包含不正常符号：{entity}")
             continue
         if invalid_entities:
             if entity in invalid_entities:
@@ -82,19 +102,42 @@ def filter(entities, invalid_entities=None):
             #         break
             # if skip:
             #     continue
+        new_entity = REPLACE.sub('', entity)
+        if entity != new_entity:
+            print(f"去除特殊字符：{entity} => {new_entity}")
+            entity = new_entity
+
         if entity in train_entities or entity in BAD_CASES:
+            print(f"已在训练集中或错例：{entity}")
             continue
-        is_bad = False
+        # for oentity in train_entities:
+        #     loentity = oentity.lower()
+        #     if loentity in entity.lower() and not str.islower(loentity):
+        #         print(f"已包含训练集中或错例：{entity} : {oentity}")
+        #         is_bad = True
+        #         break
+        # if is_bad:
+        #     continue
+
         for bad_head in BAD_HEADS:
             if entity.startswith(bad_head):
+                print(f"错误开头：{entity}")
                 is_bad = True
                 break
         if is_bad:
             continue
         for bad_tail in BAD_TAILS:
             if entity.endswith(bad_tail):
+                print(f"错误结尾：{entity}")
                 is_bad = True
                 break
+        if is_bad:
+            continue
+        for full_domain, mini_domain in DOMAINS:
+            if entity == full_domain or entity == mini_domain:
+                print(f"地名：{entity}")
+                is_bad = True
+            break
         if is_bad:
             continue
         new_entites.append(entity)
@@ -149,6 +192,223 @@ def keep_topk(outputs, sample, k=5):
             row['unknownEntities'] = ';'.join(v[0] for v in scores)
 
 
+def do_rule(outputs, sample):
+    for i, row in outputs.iterrows():
+        entities = row['unknownEntities'].split(';')
+        if not entities:
+            continue
+        origin_text = sample.at[i, 'text']
+        new_entities = set(entities)
+        for entity in entities:
+            if not entity:
+                continue
+            if INVALID.search(entity):
+                continue
+            need_remove = False
+            origin_entity = entity
+
+            # 去除地名
+            # for full_domain, mini_domain in DOMAINS:
+            #     if entity.startswith(full_domain):
+            #         new_entity = entity[len(full_domain):]
+            #         print(f'删除地名：{entity} => {new_entity}')
+            #         entity = new_entity
+            #     if entity.startswith(mini_domain):
+            #         new_entity = entity[len(mini_domain):]
+            #         print(f'删除地名：{entity} => {new_entity}')
+            #         entity = new_entity
+            
+            # 去除平台
+            # if entity.endswith('平台'):
+            #     new_entity = entity[:-2]
+            #     print(f'删除平台：{entity} => {new_entity}')
+            #     entity = new_entity
+            
+            # 补全 有限公司
+            if entity.endswith('有限公'):
+                new_entity = entity + '司'
+                if new_entity in origin_text:
+                    print(f'补全有限公司：{entity} => {new_entity}')
+                    new_entities.add(new_entity)
+                    need_remove = True
+            if entity.endswith('有限'):
+                new_entity = entity + '公司'
+                if new_entity in origin_text:
+                    print(f'补全有限公司：{entity} => {new_entity}')
+                    new_entities.add(new_entity)
+                    need_remove = True
+            if entity.endswith('有'):
+                new_entity = entity + '限公司'
+                if new_entity in origin_text:
+                    print(f'补全有限公司：{entity} => {new_entity}')
+                    new_entities.add(new_entity)
+                    need_remove = True
+            
+            # 去除 有限公司、公司、集团
+            # if entity.endswith('有限公司'):
+            #     new_entity = ''
+            #     for word, flag in pseg.lcut(entity):
+            #         if len(new_entity) + len(word) <= 5:
+            #             new_entity = new_entity + word
+            #         else:
+            #             break
+            #     if new_entity:
+            #         print(f'去除有限公司：{entity} => {new_entity}')
+            #         entity = new_entity
+            # if entity.endswith('公司'):
+            #     new_entity = ''
+            #     for word, flag in pseg.lcut(entity[:-2]):
+            #         if len(new_entity) + len(word) <= 5:
+            #             new_entity = new_entity + word
+            #         else:
+            #             break
+            #     print(f'去除公司：{entity} => {new_entity}')
+            #     entity = new_entity
+            # if entity.endswith('集团'):
+            #     new_entity = entity[:-2]
+            #     print(f'去除集团：{entity} => {new_entity}')
+            #     entity = new_entity
+
+            # 提取括号前的东西
+            if '（' in entity and '）' not in entity:
+                new_entity = entity[:entity.find('（')]
+                print(f'删除括号：{entity} => {new_entity}')
+                new_entities.add(new_entity)
+                need_remove = True
+            if '(' in entity and ')' not in entity:
+                new_entity = entity[:entity.find('(')]
+                print(f'删除括号：{entity} => {new_entity}')
+                new_entities.add(new_entity)
+                need_remove = True
+
+            if need_remove:
+                new_entities.remove(origin_entity)
+                    
+            # 尝试补全括号
+            if '（' in entity and '）' not in entity:
+                pos = origin_text.find(entity)
+                if pos != -1:
+                    start = pos + len(entity)
+                    end = start + 5
+                    pos = origin_text[start:end].find('）')
+                    if pos != -1:
+                        new_entity = entity + origin_text[start:start+pos+1]
+                        new_entities.add(new_entity)
+                        print(f'括号：', origin_text[start:end])
+                        print(f'补全括号：{entity} => {new_entity}')
+                        need_remove = True
+                        new_entity = new_entity[new_entity.find('（')+1:new_entity.find('）')]
+                        print(f'=> {new_entity}')
+                        new_entities.add(new_entity)
+            if '(' in entity and ')' not in entity:
+                pos = origin_text.find(entity)
+                if pos != -1:
+                    start = pos + len(entity)
+                    end = start + 5
+                    pos = origin_text[start:end].find(')')
+                    if pos != -1:
+                        new_entity = entity + origin_text[start:start+pos+1]
+                        new_entities.add(new_entity)
+                        print(f'括号：', origin_text[start:end])
+                        print(f'补全括号：{entity} => {new_entity}')
+                        need_remove = True
+                        new_entity = new_entity[new_entity.find('(')+1:new_entity.find(')')]
+                        print(f'=> {new_entity}')
+                        new_entities.add(new_entity)
+            
+            # 补全 有限公司
+            # for complete in COMPLETES:
+            #     new_entity = entity + complete
+            #     if new_entity in origin_text:
+            #         new_entities.remove(entity)
+            #         new_entities.add(new_entity)
+            #         print(f'补全有限公司：{entity} => {new_entity}')
+            #         entity = new_entity
+            # 
+            # # 补全 后缀
+            # for part in PARTS:
+            #     pos = origin_text.find(entity)
+            #     start = pos + len(entity)
+            #     end = start + 10
+            #     pos = origin_text[start:end].find(part)
+            #     if pos != -1:
+            #         new_entity = entity + origin_text[start:start+pos+len(part)]
+            #         new_entities.add(new_entity)
+            #         print(f'后缀：', origin_text[start:end])
+            #         print(f'补全后缀：{entity} => {new_entity}')
+            #         entity = new_entity
+
+            # 尝试增加或删除结尾的一些相关词
+            # for toggle in TOGGLES:
+            #     if entity.endswith(toggle):
+            #         # new_entity = entity[:-len(toggle)]
+            #         # if len(new_entity) > 3:
+            #         #     new_entities.add(new_entity)
+            #         #     print(f'删除结尾：{entity} => {new_entity}')
+            #         pass
+            #     else:
+            #         new_entity = entity + toggle
+            #         if new_entity in origin_text:
+            #             new_entities.add(new_entity)
+            #             print(f'增加结尾：{entity} => {new_entity}')
+                    
+            # # 尝试补全后面的英文
+            # if str.islower(entity[-1]) or str.isupper(entity[-1]):
+            #     start = origin_text.find(entity)
+            #     if start != -1:
+            #         end = start + len(entity)
+            #         while end < len(origin_text) - 1 and (str.islower(origin_text[end]) or str.isupper(origin_text[end])):
+            #             end += 1
+            #         new_entity = origin_text[start:end]
+            #         if new_entity != entity:
+            #             new_entities.remove(entity)
+            #             new_entities.add(new_entity)
+            #             print(f'补全英文：{entity} => {new_entity}')
+
+            # 尝试删除后面的英文
+            # if not ENGLISH.match(entity):
+            #     new_entity = entity
+            #     while str.islower(new_entity[-1]) or str.isupper(new_entity[-1]):
+            #         new_entity = new_entity[:-1]
+            #     if new_entity and new_entity != entity:
+            #         new_entities.remove(entity)
+            #         new_entities.add(new_entity)
+            #         print(f'删除英文：{entity} => {new_entity}')
+            #         entity = new_entity
+
+            # 尝试增加或删除开头的地名
+            # for full_domain, mini_domain in DOMAINS:
+            #     if entity.startswith(mini_domain) and not entity.startswith(full_domain):
+            #         # new_entity = entity[len(mini_domain):]
+            #         # new_entities.add(new_entity)
+            #         # print(f'删除地名：{entity} => {new_entity}')
+            #         pass
+            #     else:
+            #         new_entity = full_domain + entity
+            #         if new_entity in origin_text:
+            #             new_entities.add(new_entity)
+            #             print(f'添加地名：{entity} => {new_entity}')
+            #         new_entity = mini_domain + entity
+            #         if new_entity in origin_text:
+            #             new_entities.add(new_entity)
+            #             print(f'添加地名：{entity} => {new_entity}')
+            
+            # # 尝试在开头添加英文
+            # new_entity = entity
+            # pos = origin_text.find(entity)
+            # if pos != -1:
+            #     while pos > 0 and (str.islower(origin_text[pos-1]) or str.isupper(origin_text[pos-1])):
+            #         new_entity = origin_text[pos-1] + new_entity
+            #         pos -= 1
+            #     if new_entity != entity:
+            #         new_entities.add(new_entity)
+            #         print(f'添加开头英文：{entity} => {new_entity}')
+
+        if '' in new_entities:
+            new_entities.remove('')
+        row['unknownEntities'] = ';'.join(new_entities)
+
+
 def extract_keywords(phase):
     TR4K.analyze(phase, window=4)
     keywords = [item.word for item in TR4K.get_keywords(20, word_min_len=2)]
@@ -182,11 +442,12 @@ def convert_to_submit(name, invalid_entities=None, topk=0):
     outputs = preds.reindex(sample.index)
     outputs.fillna('', inplace=True)
     sample.fillna('', inplace=True)
-    outputs['unknownEntities'] = outputs['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
     # clean_samples(sample)
     # for idx, row in outputs.iterrows():
     #     if not row['unknownEntities']:
     #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
+    # do_rule(outputs, sample)
+    outputs['unknownEntities'] = outputs['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
     if topk > 0:
         keep_topk(outputs, sample, topk)
     output_filename = os.path.join('submits', '{}.csv'.format(name))
@@ -220,13 +481,14 @@ def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities=None, top
         crf_row['unknownEntities'] = ';'.join(entities)
         print(crf_row)
 
-    crf_outputs['unknownEntities'] = crf_outputs['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
     # clean_samples(sample)
     # for idx, row in crf_outputs.iterrows():
     #     if not row['unknownEntities']:
     #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
+    # do_rule(crf_outputs, sample)
+    crf_outputs['unknownEntities'] = crf_outputs['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
     if topk > 0:
-        keep_topk(outputs, sample, topk)
+        keep_topk(crf_outputs, sample, topk)
     output_filename = os.path.join('submits', '{}-{}.csv'.format(crf_name, squad_name))
     crf_outputs.to_csv(output_filename)
 
@@ -270,11 +532,12 @@ def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_e
         crf_row['unknownEntities'] = ';'.join(entities)
         print(crf_row)
 
-    squad_output['unknownEntities'] = squad_output['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
     # clean_samples(sample)
     # for idx, row in crf_outputs.iterrows():
     #     if not row['unknownEntities']:
     #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
+    # do_rule(squad_output, sample)
+    squad_output['unknownEntities'] = squad_output['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
     if topk > 0:
         keep_topk(squad_output, sample, topk)
     squad_output.to_csv(output_name)
