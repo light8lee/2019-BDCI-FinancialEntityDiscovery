@@ -110,6 +110,7 @@ class BERT_Pretrained(nn.Module):
         self.lm_task = lm_task
         self.word_seg_task = word_seg_task
         self.crf = CRF(num_tag, batch_first=True)
+        # self.norm = nn.LayerNorm(bert_dim)
 
         if lm_task:
             self.bert4pretrain = BertForMaskedLM_V2.from_pretrained(pretrained_model_path)
@@ -164,6 +165,7 @@ class BERT_Pretrained(nn.Module):
             # print('output shape:', outputs.shape, file=sys.stderr)
             seq_outputs = torch.cat([seq_outputs, extra], -1)
         seq_outputs = self.drop(seq_outputs)
+        # seq_outputs = self.norm(seq_outputs)
         emissions = self.hidden2tags(seq_outputs)
         if self.word_seg_task:
             seg_emissions = self.seg_hidden2tags(seq_outputs)

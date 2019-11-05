@@ -76,11 +76,13 @@ def findall(text, entity):
     begin = 0
     if not entity:
         return result
+    text = text.lower()
+    entity = entity.lower()
     while True:
         pos = text.find(entity, begin)
         if pos != -1:
             result.append((pos, pos+entity_length))
-            begin += pos + entity_length
+            begin = pos + entity_length
         else:
             return result
 
@@ -171,8 +173,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     MAX_SEQ_LEN = args.max_seq_len
 
-    train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
-    test_data = pd.read_csv('./data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
+    train_data = pd.read_csv('./round2_data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
+    test_data = pd.read_csv('./round2_data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
 
     train_data.fillna('', inplace=True)
     test_data.fillna('', inplace=True)

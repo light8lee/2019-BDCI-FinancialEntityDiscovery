@@ -37,7 +37,7 @@ BAD_CASES = {
     'http', 'HTTP', '中国', '日本',
     '韩国', '美国', '京东金融', '5g', '5G',
     'IMG', 'admin', 'QQ', 'VIP',
-    'IP'
+    'IP', 'font-family', 'font', 'family', 'font-size'
 }
 
 BAD_HEADS = {
@@ -46,7 +46,8 @@ BAD_HEADS = {
 }
 
 BAD_TAILS = {
-    'app', 'App', 'APP'
+    'app', 'App', 'APP', '-',
+    '美元', '日元', '人民币'
 }
 
 REPLACE = re.compile(r'[*“,/#?]')
@@ -137,7 +138,7 @@ def filter(entities, invalid_entities=None):
             if entity == full_domain or entity == mini_domain:
                 print(f"地名：{entity}")
                 is_bad = True
-            break
+                break
         if is_bad:
             continue
         new_entites.append(entity)
