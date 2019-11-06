@@ -109,8 +109,13 @@ def train(args):
         args.n_gpu = 1
         model = model.cuda()
 
+    bert_parameters = list(map(id, model.bert4pretrain.parameters()))
+    other_parameters = filter(lambda p: id(p) not in bert_parameters, model.parameters())
     if hasattr(optim, optimizer_config.name):
-        optimizer = getattr(optim, optimizer_config.name)(model.parameters(), **optimizer_config.values)
+        optimizer = getattr(optim, optimizer_config.name)([
+            {'params': other_parameters, 'lr': optimizer_config.lr*args.scale_rate},
+            {'params': model.bert4pretrain.parameters()}
+        ], **optimizer_config.values)
         scheduler = getattr(optim.lr_scheduler, scheduler_config.name)(optimizer, **scheduler_config.values)
     else:
         t_total = len(dataloaders['train']) * args.epoch
@@ -119,7 +124,10 @@ def train(args):
         #     {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)], 'weight_decay': 0.0},
         #     {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
         #     ]
-        optimizer = getattr(optimization, optimizer_config.name)(model.parameters(), **optimizer_config.values)
+        optimizer = getattr(optimization, optimizer_config.name)([
+            {'params': other_parameters, 'lr': optimizer_config.lr*args.scale_rate},
+            {'params': model.bert4pretrain.parameters()}
+        ], **optimizer_config.values)
         scheduler = getattr(optimization, scheduler_config.name)(optimizer, t_total=t_total, **scheduler_config.values)
 
     if not os.path.isdir(args.save_dir):
@@ -173,6 +181,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=16, help="batch size")
     parser.add_argument('--epoch', type=int, default=20, help="number of epochs")
     parser.add_argument('--conti', type=int, default=None, help="the start epoch for continue training")
+    parser.add_argument('--scale_rate', type=float, default=1., help="scale rate of learning rate")
     parser.add_argument('--multi_gpu', dest='multi_gpu', action='store_true', help="use multi gpu")
     parser.add_argument('--fold', type=str, default='')
     parser.add_argument('--do_test', dest='do_test', action='store_true')
