@@ -94,23 +94,13 @@ def do_augment(input_ids, tag_ids, vocabs):
     for i in range(1, len(input_ids)):
         if input_ids[i] == sep_id:
             break
-        if tag_ids[i] == 0:  # not entity, predict it
-            lm_ids[i] = input_ids[i]
-            if random.random() < 0.2:  # keep origin
-                continue
-            elif random.random() < 0.3:  # replace to [MASK]
-                input_ids[i] = mask_id
-            elif 672 <= input_ids[i] <= 7993:  # replace chinese character
-                input_ids[i] = random.randint(672, 7993)
-        else:  # entity
-            if random.random() < 0.2:  # add noise to entity, but do not predict it
-                if a_id <= input_ids[i] <= z_id:
-                    input_ids[i] = random.randint(a_id, z_id)
-                elif 672 <= input_ids[i] <= 7993:
-                    input_ids[i] = random.randint(672, 7993)
-            elif random.random() < 0.1:  # replace part of entity to [MASK] and predict it
-                lm_ids[i] = input_ids[i]
-                input_ids[i] = mask_id
+        lm_ids[i] = input_ids[i]
+        if random.random() < 0.9:  # keep origin
+            continue
+        elif random.random() < 0.3:  # replace to [MASK]
+            input_ids[i] = mask_id
+        elif 672 <= input_ids[i] <= 7993:  # replace chinese character
+            input_ids[i] = random.randint(672, 7993)
 
     return input_ids, lm_ids
 
