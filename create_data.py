@@ -114,7 +114,7 @@ def create_data(data, output_filename, important_chars, is_evaluate, keep_none):
             segment = text
             while len(segment) > MAX_SEQ_LEN:
                 sub_texts.append(segment[:MAX_SEQ_LEN])
-                comma_pos = segment.find('，', MAX_SEQ_LEN*4//5)
+                comma_pos = segment.find('，', MAX_SEQ_LEN*4//5, MAX_SEQ_LEN)
                 if comma_pos == -1:
                     comma_pos = MAX_SEQ_LEN*4//5
                 segment = segment[comma_pos:]

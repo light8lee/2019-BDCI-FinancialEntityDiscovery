@@ -53,7 +53,7 @@ BAD_TAILS = {
 REPLACE = re.compile(r'[*“,/#?]')
 ONLY_NUM = re.compile(r'^\d+$')
 INVALID = re.compile(r'[\s▌丨\u200b!$%:;<=>@\[\\\]^_`{|}~！#￥？《》{}”，：‘’。、；【】的]')
-train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
+train_data = pd.read_csv('./round2_data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 train_data.fillna('', inplace=True)
 train_entities = set()
 for entities in train_data['unknownEntities']:
@@ -435,7 +435,7 @@ def extract_keywords(phase):
 def convert_to_submit(name, invalid_entities=None, topk=0):
     input_filename = os.path.join('outputs', name, 'submit.csv')
     preds = pd.read_csv(input_filename, sep=',', index_col='id')
-    sample = pd.read_csv('data/Test_Data.csv', sep=',', index_col='id')
+    sample = pd.read_csv('round2_data/Test_Data.csv', sep=',', index_col='id')
     assert sample.shape[0] == preds.shape[0]
     assert sample.shape[0] == len(sample.index & preds.index)
     print('not in sample', set(preds.index)-set(sample.index))
@@ -460,7 +460,7 @@ def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities=None, top
     crf_preds = pd.read_csv(crf_filename, sep=',', index_col='id')
     squad_filename = os.path.join('outputs', squad_name, 'submit.csv')
     squad_preds = pd.read_csv(squad_filename, sep=',', index_col='id')
-    sample = pd.read_csv('data/Test_Data.csv', sep=',', index_col='id')
+    sample = pd.read_csv('round2_data/Test_Data.csv', sep=',', index_col='id')
     print('crf:', crf_preds.shape)
     print('squad:', squad_preds.shape)
     assert sample.shape[0] == crf_preds.shape[0] == squad_preds.shape[0]
@@ -499,7 +499,7 @@ def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_e
     crf_preds = [pd.read_csv(crf_filename, sep=',', index_col='id') for crf_filename in crf_filenames]
     squad_filename = os.path.join('outputs', squad_name, 'submit.csv')
     squad_pred = pd.read_csv(squad_filename, sep=',', index_col='id')
-    sample = pd.read_csv('data/Test_Data.csv', sep=',', index_col='id')
+    sample = pd.read_csv('round2_data/Test_Data.csv', sep=',', index_col='id')
     # print('crf:', crf_preds.shape)
     # print('squad:', squad_preds.shape)
     for crf_pred in crf_preds:

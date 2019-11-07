@@ -20,8 +20,8 @@ random.seed(2019)
 MAX_SEQ_LEN = args.max_seq_len
 
 
-train_data = pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
-test_data = pd.read_csv('./data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
+train_data = pd.read_csv('./round2_data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
+test_data = pd.read_csv('./round2_data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
 
 train_data.fillna('', inplace=True)
 test_data.fillna('', inplace=True)
@@ -40,7 +40,9 @@ train_data = train_data.head(train_data.shape[0]-100)
 
 
 def create_tags(text, entities):
+    text = text.lower()
     for entity in entities:
+        entity = entity.lower()
         start_pos = text.find(entity)
         if start_pos != -1:
             yield (start_pos, entity)
@@ -58,7 +60,7 @@ def create_squad_data(data, output_filename, is_test):
 
             while len(text) > MAX_SEQ_LEN:
                 sub_texts.append(text[:MAX_SEQ_LEN])
-                comma_pos = text.rfind('，', MAX_SEQ_LEN*4//5)
+                comma_pos = text.rfind('，', MAX_SEQ_LEN*4//5, MAX_SEQ_LEN)
                 if comma_pos == -1:
                     comma_pos = MAX_SEQ_LEN*4//5
                 text = text[comma_pos:]
