@@ -59,11 +59,14 @@ def create_squad_data(data, output_filename, is_test):
             sub_texts = []
 
             while len(text) > MAX_SEQ_LEN:
-                sub_texts.append(text[:MAX_SEQ_LEN])
-                comma_pos = text.rfind('，', MAX_SEQ_LEN*4//5, MAX_SEQ_LEN)
-                if comma_pos == -1:
-                    comma_pos = MAX_SEQ_LEN*4//5
-                text = text[comma_pos:]
+                right_bound = text[:MAX_SEQ_LEN].rfind('，', MAX_SEQ_LEN*4//5)
+                if right_bound == -1:
+                    right_bound = MAX_SEQ_LEN
+                sub_texts.append(text[:right_bound])
+                left_bound = text.rfind('，', right_bound*4//5, right_bound)
+                if left_bound == -1:
+                    left_bound = right_bound*4//5
+                text = text[left_bound:]
             else:
                 sub_texts.append(text)
             # print(sub_texts)
