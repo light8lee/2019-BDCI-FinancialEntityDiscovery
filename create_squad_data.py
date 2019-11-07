@@ -59,14 +59,15 @@ def create_squad_data(data, output_filename, is_test):
             sub_texts = []
 
             while len(text) > MAX_SEQ_LEN:
-                right_bound = text[:MAX_SEQ_LEN].rfind('，', MAX_SEQ_LEN*4//5)
+                right_bound = -1
+                for stop in '，。？?':
+                    tmp = text[:MAX_SEQ_LEN].rfind(stop, MAX_SEQ_LEN//2)
+                    if tmp > right_bound:
+                        right_bound = tmp
                 if right_bound == -1:
-                    right_bound = MAX_SEQ_LEN
-                sub_texts.append(text[:right_bound])
-                left_bound = text.rfind('，', right_bound*4//5, right_bound)
-                if left_bound == -1:
-                    left_bound = right_bound*4//5
-                text = text[left_bound:]
+                    right_bound = MAX_SEQ_LEN-1
+                sub_texts.append(text[:right_bound+1])
+                text = text[right_bound+1:]
             else:
                 sub_texts.append(text)
             # print(sub_texts)
@@ -89,6 +90,8 @@ def create_squad_data(data, output_filename, is_test):
                         "id": '{}-{}'.format(idx, i)
                     }
                     qas.append(qa)
+                if not qas:
+                    continue
                 para_entry = dict()
                 para_entry["context"] = sub_text
                 para_entry["qas"] = qas
