@@ -113,15 +113,18 @@ def create_data(data, output_filename, important_chars, is_evaluate, keep_none):
 
             segment = text
             while len(segment) > MAX_SEQ_LEN:
-                sub_texts.append(segment[:MAX_SEQ_LEN])
-                comma_pos = segment.find('，', MAX_SEQ_LEN*4//5, MAX_SEQ_LEN)
-                if comma_pos == -1:
-                    comma_pos = MAX_SEQ_LEN*4//5
-                segment = segment[comma_pos:]
-                offsets.append(comma_pos)
+                right_bound = segment[:MAX_SEQ_LEN].rfind('，', MAX_SEQ_LEN*4//5)
+                if right_bound == -1:
+                    right_bound = MAX_SEQ_LEN
+                sub_texts.append(segment[:right_bound])
+                left_bound = segment.find('，', right_bound*4//5, right_bound)
+                if left_bound == -1:
+                    left_bound = right_bound*4//5
+                segment = segment[left_bound:]
+                offsets.append(left_bound)
             else:
                 sub_texts.append(segment)
-            # print(sub_texts)
+            print(sub_texts)
 
             for sub_text, offset in zip(sub_texts, offsets):
                 sub_text = sub_text.strip()
@@ -136,7 +139,7 @@ def create_data(data, output_filename, important_chars, is_evaluate, keep_none):
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
-                print(sub_text)
+                # print(sub_text)
                 for i, (char, tag) in enumerate(zip(sub_text, tags)):
                     in_title = 1 if char in title else 0
                     important = 1 if char in important_chars else 0
