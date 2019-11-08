@@ -40,7 +40,7 @@ train_data = train_data.head(train_data.shape[0]-100)
 
 
 def create_tags(text, entities):
-    text = text.lower()
+    # text = text.lower()
     for entity in entities:
         entity = entity.lower()
         start_pos = text.find(entity)
