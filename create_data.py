@@ -38,23 +38,24 @@ def clean(text):
     text = user.sub('，', text)
     # text = num.sub('0', text)
 
-    text = text.replace("\xa0", "")
-    text = text.replace("\b", "")
+    text = text.replace("\xa0", "，")
+    text = text.replace("\b", "，")
     text = text.replace('"', "")
-    text = re.sub(r"\t|\n|\x0b|\x1c|\x1d|\x1e", "", text)
+    text = re.sub(r"\t|\n|\x0b|\x1c|\x1d|\x1e", "，", text)
     text = text.strip()
-    text = re.sub(r'\?\?+', '', text)
+    text = re.sub(r'\?\?+', '，', text)
     text = re.sub(r'\{IMG:.?.?.?\}', '，', text)
     text = re.sub(r'\t|\n', '，', text)
     text = dots.sub(r'\1', text)
     return text
 
 
-def remove_chars(train_df, test_df):
+def remove_chars(train_df, test_df, round1_df):
     test_df['cleaned_text'] = test_df['cleaned_title'] + '，' + test_df['cleaned_text']
     train_df['cleaned_text'] = train_df['cleaned_title']  + '，' + train_df['cleaned_text']
+    round1_df['cleaned_text'] = round1_df['cleaned_title']  + '，' + round1_df['cleaned_text']
     additional_chars = set()
-    for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']):
+    for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']) + list(round1_df['cleaned_text']):
         additional_chars.update(re.findall(r'[^\u4e00-\u9fa5a-zA-Z0-9\*]', t))
 
     # 一些需要保留的符号
@@ -67,7 +68,7 @@ def remove_chars(train_df, test_df):
 
     train_df["cleaned_text"] = train_df["cleaned_text"].apply(remove_additional_chars)
     test_df["cleaned_text"] = test_df["cleaned_text"].apply(remove_additional_chars)
-
+    round1_df["cleaned_text"] = round1_df["cleaned_text"].apply(remove_additional_chars)
 
 
 def findall(text, entity):
@@ -172,29 +173,36 @@ if __name__ == '__main__':
     parser.add_argument('output_dir')
     parser.add_argument('--max_seq_len', default=510, type=int)
     parser.add_argument('--keep_none', default=False, action='store_true')
+    parser.add_argument('--need_round1', default=False, action='store_true')
 
     args = parser.parse_args()
     MAX_SEQ_LEN = args.max_seq_len
 
     train_data = pd.read_csv('./round2_data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
     test_data = pd.read_csv('./round2_data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
+    round1_data= pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 
     train_data.fillna('', inplace=True)
     test_data.fillna('', inplace=True)
+    round1_data.fillna('', inplace=True)
 
     train_data['cleaned_text'] = train_data['text'].apply(clean)
     train_data['cleaned_title'] = train_data['title'].apply(clean)
     test_data['cleaned_text'] = test_data['text'].apply(clean)
     test_data['cleaned_title'] = test_data['title'].apply(clean)
     test_data['unknownEntities'] = ''
+    round1_data['cleaned_text'] = round1_data['text'].apply(clean)
+    round1_data['cleaned_title'] = round1_data['title'].apply(clean)
 
     important_chars = collect_important_chars(train_data['unknownEntities'])
     # print(important_chars)
-    remove_chars(train_data, test_data)
+    remove_chars(train_data, test_data, round1_data)
 
     train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
     dev_data = train_data.tail(100)
     train_data = train_data.head(train_data.shape[0]-100)
+    if args.need_round1:
+        train_data = pd.concat([train_data, round1_data], ignore_index=True)
 
     create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False, keep_none=args.keep_none)
 
