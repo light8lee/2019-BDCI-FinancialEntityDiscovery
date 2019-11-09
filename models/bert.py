@@ -92,25 +92,23 @@ POS_FLAGS = ['[PAD]', '[CLS]', '[SEP]',
 
 class BERT_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, bert_dim,
-                 rescale:bool=False, need_flags:bool=False, adj_act="relu", num_tag=5,
-                 need_bounds:bool=False, need_birnn:bool=False, rnn="LSTM", rnn_dim=0,
-                 need_extra:bool=False, num_extra=0, lm_task:bool=False, word_seg_task:bool=False, **kwargs):
+                 rescale:bool=False, need_flags:bool=False, num_tag:int=5,
+                 need_bounds:bool=False, need_birnn:bool=False, rnn:str="LSTM", rnn_dim:int=0,
+                 need_extra:bool=False, num_extra:int=0, need_norm:bool=False,
+                 lm_task:bool=False, word_seg_task:bool=False, **kwargs):
         super(BERT_Pretrained, self).__init__()
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
-        # self.gnn_layers = nn.ModuleList()  # compatable needs
         self.bert_dim = bert_dim
-        # self.rescale_ws = nn.ParameterList()  # compatable needs
-        # self.rescale_bs = nn.ParameterList()  # compatable needs
         self.need_flags = need_flags
         self.need_bounds = need_bounds  # do not use when do word segmentation task
         self.need_birnn = need_birnn
+        self.need_norm = need_norm
         self.need_extra = need_extra
         self.num_tag = num_tag
         self.lm_task = lm_task
         self.word_seg_task = word_seg_task
         self.crf = CRF(num_tag, batch_first=True)
-        # self.norm = nn.LayerNorm(bert_dim)
 
         if lm_task:
             self.bert4pretrain = BertForMaskedLM_V2.from_pretrained(pretrained_model_path)
@@ -124,6 +122,9 @@ class BERT_Pretrained(nn.Module):
             out_dim = rnn_dim * 2
         else:
             out_dim = bert_dim
+
+        if need_norm:
+            self.norm = nn.LayerNorm(out_dim)
 
         if need_flags:
             out_dim += len(POS_FLAGS)
@@ -165,7 +166,8 @@ class BERT_Pretrained(nn.Module):
             # print('output shape:', outputs.shape, file=sys.stderr)
             seq_outputs = torch.cat([seq_outputs, extra], -1)
         seq_outputs = self.drop(seq_outputs)
-        # seq_outputs = self.norm(seq_outputs)
+        if self.need_norm:
+            seq_outputs = self.norm(seq_outputs)
         emissions = self.hidden2tags(seq_outputs)
         if self.word_seg_task:
             seg_emissions = self.seg_hidden2tags(seq_outputs)
@@ -191,7 +193,7 @@ class BERT_Pretrained(nn.Module):
 
 class BERTOnly_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, bert_dim,
-                 rescale:bool=False, need_flags:bool=False, adj_act="relu", num_tag=5,
+                 rescale:bool=False, need_flags:bool=False, num_tag=5,
                  need_bounds:bool=False, need_birnn:bool=False, rnn="LSTM", rnn_dim=0,
                  need_extra:bool=False, num_extra=0, **kwargs):
         super(BERTOnly_Pretrained, self).__init__()
