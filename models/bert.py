@@ -65,22 +65,20 @@ class BertForMaskedLM_V2(BertPreTrainedModel):
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, masked_lm_labels=None,
                 position_ids=None, head_mask=None):
         outputs = self.bert(input_ids, position_ids=position_ids, token_type_ids=token_type_ids,
-                            attention_mask=attention_mask, head_mask=head_mask)
+                            attention_mask=attention_mask, head_mask=head_mask)  # seq_output, pooled_output, (hidden_states)
 
         sequence_output = outputs[0]
         prediction_scores = self.cls(sequence_output)
 
-        outputs = (sequence_output, )  # + outputs[2:]  # Add hidden states and attention if they are here
+        outputs = (sequence_output, ) + outputs[2:]  # Add hidden states and attention if they are here
         if masked_lm_labels is not None:
             loss_fct = CrossEntropyLoss(ignore_index=-1)
             masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), masked_lm_labels.view(-1))
-            outputs = outputs + (masked_lm_loss,)
         else:
-            outputs = outputs + (0,)
+            masked_lm_loss = 0
+        outputs = (masked_lm_loss,) + outputs  # loss, seq_output, (hidden_states)
 
-        return outputs  # (masked_lm_loss), prediction_scores, (hidden_states), (attentions)
-
-
+        return outputs
 
 
 POS_FLAGS = ['[PAD]', '[CLS]', '[SEP]',
@@ -94,7 +92,7 @@ class BERT_Pretrained(nn.Module):
     def __init__(self, pretrained_model_path, max_seq_len, drop_rate, bert_dim,
                  rescale:bool=False, need_flags:bool=False, num_tag:int=5,
                  need_bounds:bool=False, need_birnn:bool=False, rnn:str="LSTM", rnn_dim:int=0,
-                 need_extra:bool=False, num_extra:int=0, need_norm:bool=False,
+                 need_extra:bool=False, num_extra:int=0, inner_layers:list=None,
                  lm_task:bool=False, word_seg_task:bool=False, **kwargs):
         super(BERT_Pretrained, self).__init__()
         self.max_seq_len = max_seq_len
@@ -103,17 +101,20 @@ class BERT_Pretrained(nn.Module):
         self.need_flags = need_flags
         self.need_bounds = need_bounds  # do not use when do word segmentation task
         self.need_birnn = need_birnn
-        self.need_norm = need_norm
+        # self.need_norm = need_norm
+        self.inner_layers = inner_layers
         self.need_extra = need_extra
         self.num_tag = num_tag
         self.lm_task = lm_task
         self.word_seg_task = word_seg_task
         self.crf = CRF(num_tag, batch_first=True)
 
-        if lm_task:
-            self.bert4pretrain = BertForMaskedLM_V2.from_pretrained(pretrained_model_path)
-        else:
-            self.bert4pretrain = BertModel.from_pretrained(pretrained_model_path)
+        self.bert4pretrain = BertForMaskedLM_V2.from_pretrained(pretrained_model_path)
+
+        if inner_layers is not None:
+            self.bert4pretrain.bert.encoder.output_hidden_states = True
+            self.proj = nn.Linear(len(inner_layers)*bert_dim, bert_dim)
+
         if self.need_birnn:
             if rnn == "LSTM":
                 self.birnn = nn.LSTM(bert_dim, rnn_dim, 1, bidirectional=True, batch_first=True)
@@ -123,8 +124,8 @@ class BERT_Pretrained(nn.Module):
         else:
             out_dim = bert_dim
 
-        if need_norm:
-            self.norm = nn.LayerNorm(out_dim)
+        # if need_norm:
+        #     self.norm = nn.LayerNorm(out_dim)
 
         if need_flags:
             out_dim += len(POS_FLAGS)
@@ -142,13 +143,18 @@ class BERT_Pretrained(nn.Module):
     def tag_outputs(self, input_ids, input_masks,
                     flags=None, bounds=None,
                     extra=None, lm_ids=None):
-        extra_loss = 0
         if self.lm_task:
-            seq_outputs, lm_loss = self.bert4pretrain(input_ids, attention_mask=input_masks, 
+            outputs = self.bert4pretrain(input_ids, attention_mask=input_masks,
                                                 masked_lm_labels=lm_ids)
-            extra_loss = extra_loss + lm_loss
         else:
-            seq_outputs, _ = self.bert4pretrain(input_ids, attention_mask=input_masks)
+            outputs = self.bert4pretrain(input_ids, attention_mask=input_masks)
+        extra_loss = outputs[0]
+        if self.inner_layers is None:
+            seq_outputs = outputs[1]
+        else:
+            states = outputs[2]
+            seq_outputs = torch.cat([states[i] for i in self.inner_layers], dim=-1)
+            seq_outputs = self.proj(seq_outputs)
 
         seq_outputs = seq_outputs * input_masks.unsqueeze(-1)
 
@@ -166,8 +172,8 @@ class BERT_Pretrained(nn.Module):
             # print('output shape:', outputs.shape, file=sys.stderr)
             seq_outputs = torch.cat([seq_outputs, extra], -1)
         seq_outputs = self.drop(seq_outputs)
-        if self.need_norm:
-            seq_outputs = self.norm(seq_outputs)
+        # if self.need_norm:
+        #     seq_outputs = self.norm(seq_outputs)
         emissions = self.hidden2tags(seq_outputs)
         if self.word_seg_task:
             seg_emissions = self.seg_hidden2tags(seq_outputs)
