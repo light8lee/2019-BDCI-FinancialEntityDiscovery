@@ -111,15 +111,17 @@ class BERT_Pretrained(nn.Module):
 
         self.bert4pretrain = BertForMaskedLM_V2.from_pretrained(pretrained_model_path)
 
+        out_dim = bert_dim
         if inner_layers is not None:
             self.bert4pretrain.bert.encoder.output_hidden_states = True
-            self.proj = nn.Linear(len(inner_layers)*bert_dim, bert_dim)
+            # self.proj = nn.Linear(len(inner_layers)*bert_dim, bert_dim)
+            out_dim = len(inner_layers) * bert_dim
 
         if self.need_birnn:
             if rnn == "LSTM":
-                self.birnn = nn.LSTM(bert_dim, rnn_dim, 1, bidirectional=True, batch_first=True)
+                self.birnn = nn.LSTM(out_dim, rnn_dim, 1, bidirectional=True, batch_first=True)
             else:
-                self.birnn = nn.GRU(bert_dim, rnn_dim, 1, bidirectional=True, batch_first=True)
+                self.birnn = nn.GRU(out_dim, rnn_dim, 1, bidirectional=True, batch_first=True)
             out_dim = rnn_dim * 2
         else:
             out_dim = bert_dim
@@ -154,7 +156,7 @@ class BERT_Pretrained(nn.Module):
         else:
             states = outputs[2]
             seq_outputs = torch.cat([states[i] for i in self.inner_layers], dim=-1)
-            seq_outputs = self.proj(seq_outputs)
+            # seq_outputs = self.proj(seq_outputs)
 
         seq_outputs = seq_outputs * input_masks.unsqueeze(-1)
 
