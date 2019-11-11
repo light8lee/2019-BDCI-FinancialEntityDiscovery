@@ -89,7 +89,19 @@ def findall(text, entity):
             return result
 
 
-def create_tags(tokens, entities):
+def create_BO_tags(tokens, entities):
+    tags = ['O'] * len(tokens)
+    has_entity = False
+    for entity in entities:
+        # print('entity:', entity)
+        for begin, end in findall(tokens, entity):
+            has_entity = True
+            for i in range(begin, end):
+                tags[i] = 'B'
+    return tags, has_entity
+
+
+def create_BIO_tags(tokens, entities):
     tags = ['O'] * len(tokens)
     has_entity = False
     for entity in entities:
@@ -103,7 +115,7 @@ def create_tags(tokens, entities):
     return tags, has_entity
 
 
-def create_data(data, output_filename, important_chars, is_evaluate, keep_none):
+def create_data(data, output_filename, important_chars, is_evaluate, tag_type, keep_none):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
         for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
@@ -135,7 +147,12 @@ def create_data(data, output_filename, important_chars, is_evaluate, keep_none):
                 if not is_evaluate and len(sub_text) < 6:
                     continue
 
-                tags, has_entity = create_tags(sub_text, entities)
+                if tag_type == 'BIO':
+                    tags, has_entity = create_BIO_tags(sub_text, entities)
+                elif tag_type == 'BO':
+                    tags, has_entity = create_BIO_tags(sub_text, entities)
+                else:
+                    raise ValueError(f"No such tag_type: {tag_type}")
                 if not is_evaluate and not keep_none and not has_entity:
                     continue
                 f.write('^'*10)
@@ -173,6 +190,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir')
     parser.add_argument('--max_seq_len', default=510, type=int)
+    parser.add_argument('--tag_type', default='BIO', type=str, choices=['BIO', 'BO'])
     parser.add_argument('--keep_none', default=False, action='store_true')
     # parser.add_argument('--need_round1', default=False, action='store_true')
 
@@ -205,8 +223,8 @@ if __name__ == '__main__':
     # if args.need_round1:
     #     train_data = pd.concat([train_data, round1_data], ignore_index=True)
 
-    create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False, keep_none=args.keep_none)
+    create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False, args.tag_type, keep_none=args.keep_none)
 
-    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), important_chars, True, keep_none=args.keep_none)
+    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), important_chars, True, args.tag_type, keep_none=args.keep_none)
 
-    create_data(test_data, '{}/test.txt'.format(args.output_dir), important_chars, True, keep_none=args.keep_none)
+    create_data(test_data, '{}/test.txt'.format(args.output_dir), important_chars, True, args.tag_type, keep_none=args.keep_none)

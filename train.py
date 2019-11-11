@@ -184,6 +184,7 @@ if __name__ == '__main__':
     parser.add_argument('--scale_rate', type=float, default=1., help="scale rate of learning rate")
     parser.add_argument('--multi_gpu', dest='multi_gpu', action='store_true', help="use multi gpu")
     parser.add_argument('--fold', type=str, default='')
+    parser.add_argument('--tag_type', type=str, default='BIO', choices=['BIO', 'BO'])
     parser.add_argument('--do_test', dest='do_test', action='store_true')
     parser.add_argument('--do_eval', dest='do_eval', action='store_true')
     parser.add_argument('--seed', type=int, default=2019)

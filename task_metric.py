@@ -5,14 +5,40 @@ from scipy.stats import pearsonr
 from collections import Counter
 from proj_utils import BIO_TAG2ID
 
-Precision = lambda tp, fp: tp / (tp + fp) if (tp + fp) != 0 else 0
-Recall = lambda tp, fn: tp / (tp + fn) if (tp + fn) != 0 else 0
-F1 = lambda p, r: ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
+
+def Precision(tp, fp):
+    return tp / (tp + fp) if (tp + fp) != 0 else 0
+
+
+def Recall(tp, fn):
+    return tp / (tp + fn) if (tp + fn) != 0 else 0
+
+
+def F1(p, r):
+    return ((2 * p * r) / (p + r)) if (p != 0) and (r != 0) else 0
+
 
 BIO_BEGIN_TAG_ID = BIO_TAG2ID['B']
 BIO_INTER_TAG_ID = BIO_TAG2ID['I']
 OTHER_TAG_IDS = [BIO_TAG2ID[v] for v in ['O', '[CLS]', '[SEP]']]
 Invalid_entities = set()
+
+
+def get_BO_entities(batch_tag_ids, max_lens):
+    max_lens = [int(v) for v in max_lens]
+    for tag_ids, max_len in zip(batch_tag_ids, max_lens):
+        entities = set()
+        status = 0
+        for idx in range(1, max_len):  # not consider [CLS] and [SEP]
+            tag_id = tag_ids[idx]
+            if (status == 0) and (tag_id == BIO_BEGIN_TAG_ID):  # correct begin
+                status = 1
+                begin_pos = idx
+            elif (status == 1) and (tag_id != BIO_BEGIN_TAG_ID):  # Bx -> O
+                status = 0
+                entities.add((begin_pos, idx))
+        yield entities
+
 
 def get_BIO_entities(batch_tag_ids, max_lens):
     max_lens = [int(v) for v in max_lens]
@@ -32,6 +58,7 @@ def get_BIO_entities(batch_tag_ids, max_lens):
                 entities.add((begin_pos, idx))
                 begin_pos = idx
         yield entities
+
 
 def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writer, Log):
     best_f1 = 0
@@ -64,8 +91,12 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
 
         running_size += result['batch_size']
         if phase == 'dev':
-            pred_gen = get_BIO_entities(result['pred_tag_ids'], result['max_lens'])
-            target_gen = get_BIO_entities(result['target_tag_ids'], result['max_lens'])
+            if args.tag_type == 'BIO':
+                pred_gen = get_BIO_entities(result['pred_tag_ids'], result['max_lens'])
+                target_gen = get_BIO_entities(result['target_tag_ids'], result['max_lens'])
+            elif args.tag_type == 'BO':
+                pred_gen = get_BO_entities(result['pred_tag_ids'], result['max_lens'])
+                target_gen = get_BO_entities(result['target_tag_ids'], result['max_lens'])
             for target_entities, pred_entities, inputs in zip(target_gen, pred_gen, result['inputs']):
                 Invalid_entities.update(''.join(inputs[e[0]:e[1]]) for e in (pred_entities-target_entities))
                 target_entity_set = set()
