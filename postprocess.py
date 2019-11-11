@@ -36,8 +36,9 @@ PARTS = {
 BAD_CASES = {
     'http', 'HTTP', '中国', '日本',
     '韩国', '美国', '京东金融', '5g', '5G',
-    'IMG', 'admin', 'QQ', 'VIP',
-    'IP', 'font-family', 'font', 'family', 'font-size'
+    'IMG', 'admin', 'QQ', 'VIP', '保险',
+    'IP', 'font-family', 'font', 'family', 'font-size',
+    'wifi'
 }
 
 BAD_HEADS = {
@@ -47,12 +48,37 @@ BAD_HEADS = {
 
 BAD_TAILS = {
     'app', 'App', 'APP', '-',
-    '美元', '日元', '人民币'
+    '美元', '日元', '人民币', '.'
 }
+
+# BAD_WORDS = {
+#     '同时', '提供', '以为', '购买', '时代', '作者', '个人', '近期', '免费', '点击', '针对',
+#     '首个', '发挥', '从业', '目前', '制度', '一个', '一位', '一名', '一件', '一部分', '邀请', '实现',
+#     '排行榜', '相关', '方便', '指数', '关心', '回报', '技术', '项目', '开发', '--', '超级', '指标',
+#     '倡导', '保护', '账号', '根据', '计划', '发行', '投资', '营销', '服务', '货币', '保证金', '咨询',
+#     '股票', '期权', '牛人', '成功', '指数', '一键', '优质', '红包', '浏览器', 
+# }
+# BAD_WORDS.update('.总报许多无于与喝的没就抢长今说像寻以万亿及导航找派趋势出樊维权在也还只金是借每等亏损雷棋牌石炒'
+#                  '你我行动得付款奖积去励联盟给什么买划算他抄才人它和而酒如但且起不了到拿吧吗呢哪请至最死更过又让想'
+#                  '怎这可为或用倍增雨赌宣布竞家城能赚合')
+BAD_WORDS = {
+    '同时', '提供', '以为', '购买', '时代', '作者', '个人', '近期', '免费', '点击', '针对',
+    '首个', '发挥', '从业', '目前', '制度', '一个', '一位', '一名', '一件', '一部分', '邀请', '实现',
+    '排行榜', '相关', '方便', '指数', '关心', '回报', '技术', '项目', '开发', '--', '超级', '指标',
+    '倡导', '保护', '账号', '根据', '计划', '发行', '投资', '营销', '服务', '货币', '保证金', '咨询',
+    '股票', '期权', '牛人', '成功', '指数', '一键', '优质', '红包', '浏览器', '融资', '有风险', '打款', 
+    '一站式', '大额', '查看', '汇集', '挖矿', '炒外汇', '大数据', '搞投资', '投资理财', '外汇金融', 
+    '首席', '手机云交易', '秒卖币', '秒收款', '日赚', '格林威治', '涉案', '外汇理财', '韭菜', '金块',
+    '抢单', '再讲', '量化基金', '有把握', '一滴酒', '持股', '分红', '受骗', '向所有', '链接', '茶水钱',
+    '人命币', '轻松', '秒赚'
+}
+BAD_WORDS.update('.总报许多无于与喝的没就抢长今说像寻以万亿及导航找派趋势出樊维权在也还只金是借每等亏损雷棋牌石炒'
+                 '你我行动得付款奖积去励联盟给什么买划算他抄才人它和而酒如但且起不了到拿吧吗呢哪请至最死更过又让想'
+                 '怎这可为或用倍增雨赌宣布竞家城能赚合')
 
 REPLACE = re.compile(r'[*“,/#?]')
 ONLY_NUM = re.compile(r'^\d+$')
-INVALID = re.compile(r'[\s▌丨\u200b!$%:;<=>@\[\\\]^_`{|}~！#￥？《》{}”，：‘’。、；【】的]')
+INVALID = re.compile(r'[\s▌丨\u200b!$%:;<=>@\[\\\]^_`{|}~！#￥？《》{}”，：‘’。、；【】]')
 train_data = pd.read_csv('./round2_data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 train_data.fillna('', inplace=True)
 train_entities = set()
@@ -66,6 +92,24 @@ ENGLISH = re.compile(r'^[a-zA-Z0-9.+-]+$')
 def clean_samples(samples):
     samples['cleaned_text'] = samples['text'].apply(create_data.clean)
     samples['cleaned_title'] = samples['title'].apply(create_data.clean)
+
+
+def clean_rc_result(entities):
+    entities = entities.split(';')
+    new_entities = []
+    for entity in entities:
+        is_bad = False
+        for bad in BAD_WORDS:
+            if bad in entity:
+                print(f'有不正常的词：{entity}')
+                is_bad = True
+                break
+        if ENGLISH.match(entity):
+            is_bad = True
+        if is_bad:
+            continue
+        new_entities.append(entity)
+    return ';'.join(new_entities)
 
 
 def filter(entities, invalid_entities=None):
@@ -171,8 +215,8 @@ def filter(entities, invalid_entities=None):
 
 
 def keep_topk(outputs, sample, k=5):
-    for i, row in outputs.iterrows():
-        entities = row['unknownEntities'].split(';')
+    for i in range(outputs.shape[0]):
+        entities = outputs.at[i, 'unknownEntities'].split(';')
         if not entities:
             continue
         scores = []
@@ -190,12 +234,12 @@ def keep_topk(outputs, sample, k=5):
             )
             scores.sort(key=lambda v: v[1], reverse=True)
             scores = scores[:k]
-            row['unknownEntities'] = ';'.join(v[0] for v in scores)
+            outputs.at[i, 'unknownEntities'] = ';'.join(v[0] for v in scores)
 
 
 def do_rule(outputs, sample):
-    for i, row in outputs.iterrows():
-        entities = row['unknownEntities'].split(';')
+    for i in range(outputs.shape[0]):
+        entities = outputs.at[i, 'unknownEntities'].split(';')
         if not entities:
             continue
         origin_text = sample.at[i, 'text']
@@ -407,7 +451,7 @@ def do_rule(outputs, sample):
 
         if '' in new_entities:
             new_entities.remove('')
-        row['unknownEntities'] = ';'.join(new_entities)
+        outputs.at[i, 'unknownEntities'] = ';'.join(new_entities)
 
 
 def extract_keywords(phase):
@@ -432,11 +476,11 @@ def extract_keywords(phase):
     return ';'.join(entities)
 
 
-def convert_to_submit(name, invalid_entities=None, topk=0):
+def convert_to_submit(name, invalid_entities=None, topk=0, is_squad=False):
     input_filename = os.path.join('outputs', name, 'submit.csv')
     preds = pd.read_csv(input_filename, sep=',', index_col='id')
     sample = pd.read_csv('round2_data/Test_Data.csv', sep=',', index_col='id')
-    assert sample.shape[0] == preds.shape[0]
+    assert sample.shape[0] == preds.shape[0], f"{sample.shape[0]}, {preds.shape[0]}"
     assert sample.shape[0] == len(sample.index & preds.index)
     print('not in sample', set(preds.index)-set(sample.index))
     print('not in preds', set(sample.index)-set(preds.index))
@@ -448,10 +492,12 @@ def convert_to_submit(name, invalid_entities=None, topk=0):
     #     if not row['unknownEntities']:
     #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
     # do_rule(outputs, sample)
+    if is_squad:
+        outputs['unknownEntities'] = outputs['unknownEntities'].apply(lambda v: clean_rc_result(v))
     outputs['unknownEntities'] = outputs['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
     if topk > 0:
         keep_topk(outputs, sample, topk)
-    output_filename = os.path.join('submits', '{}.csv'.format(name))
+    output_filename = os.path.join('submits', '{}.csv'.format(name.replace('/', '-')))
     outputs.to_csv(output_filename)
 
 
@@ -470,7 +516,7 @@ def merge_and_convert_to_submit(crf_name, squad_name, invalid_entities=None, top
     sample.fillna('', inplace=True)
     crf_outputs = crf_preds.reindex(sample.index)
     squad_outputs = squad_preds.reindex(sample.index)
-    for (index, crf_row) in crf_outputs.iterrows():
+    for (index, crf_row) in crf_outputs.iterrows():  # FIXME
         print(crf_row)
         # if not crf_row['unknownEntities']:
         #     crf_row['unknownEntities'] = squad_outputs.at[index, 'unknownEntities']
@@ -510,13 +556,14 @@ def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_e
     sample.fillna('', inplace=True)
     crf_outputs = [crf_pred.reindex(sample.index) for crf_pred in crf_preds]
     squad_output = squad_pred.reindex(sample.index)
-    for (index, crf_row) in squad_output.iterrows():
+    squad_output['unknownEntities'] = squad_output['unknownEntities'].apply(lambda v: clean_rc_result(v))
+    for index in range(squad_output.shape[0]):
         # print(crf_row)
         # if not crf_row['unknownEntities']:
         #     crf_row['unknownEntities'] = squad_outputs.at[index, 'unknownEntities']
         entities = set()
         entities.add('')
-        entities.update(crf_row['unknownEntities'].split(';'))
+        entities.update(squad_output.at[index, 'unknownEntities'].split(';'))
         # entities.update(squad_outputs.at[index, 'unknownEntities'].split(';'))
         # crf_entities = set()
         for crf_output in crf_outputs:
@@ -530,13 +577,8 @@ def merge_and_convert_to_submit_v2(output_name, crf_names, squad_name, invalid_e
             entities.update(tmp_entites)
         # entities.update(crf_entities)
         entities.remove('')
-        crf_row['unknownEntities'] = ';'.join(entities)
-        print(crf_row)
+        squad_output.at[index, 'unknownEntities'] = ';'.join(entities)
 
-    # clean_samples(sample)
-    # for idx, row in crf_outputs.iterrows():
-    #     if not row['unknownEntities']:
-    #         row['unknownEntities'] = extract_keywords(sample.at[idx, 'cleaned_title']+';'+sample.at[idx, 'cleaned_text'][:50])
     # do_rule(squad_output, sample)
     squad_output['unknownEntities'] = squad_output['unknownEntities'].apply(lambda v: filter(v, invalid_entities))
     if topk > 0:
@@ -575,7 +617,7 @@ if __name__ == '__main__':
     elif args.crf_model and not args.squad_model:
         convert_to_submit(args.crf_model, topk=args.topk)
     elif args.squad_model and not args.crf_model:
-        convert_to_submit(args.squad_model, topk=args.topk)
+        convert_to_submit(args.squad_model, topk=args.topk, is_squad=True)
     else:
         output_filename = os.path.join('submits', f'{args.crf_model}-{args.squad_model.replace("/", "-")}.csv')
         crf_names = args.crf_model

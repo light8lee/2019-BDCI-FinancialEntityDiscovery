@@ -18,18 +18,18 @@ import torch.optim as optim
 from sklearn.metrics import confusion_matrix
 from collections import Counter, defaultdict
 from scipy.stats import pearsonr
-from task_metric import get_BIO_entities
+from task_metric import get_BIO_entities, get_BO_entities
 from tokenization import convert_ids_to_tokens, load_vocab
 import re
 
 
 ENGLISH = re.compile(r'^[a-zA-Z]+$')
 
-def infer(data, model, cuda):
+def infer(data, model, args):
     idxs, batch_ids, batch_masks, batch_tags, batch_inputs, batch_flags, batch_bounds, batch_extra, lm_ids = data
     print(idxs)
 
-    if cuda:
+    if args.cuda:
         batch_ids_t = batch_ids.cuda()
         batch_masks_t = batch_masks.cuda()
         batch_flags = batch_flags.cuda()
@@ -40,7 +40,11 @@ def infer(data, model, cuda):
                               flags=batch_flags, bounds=batch_bounds,
                               extra=batch_extra)
     results = defaultdict(set)
-    for idx, entities, inputs in zip(idxs, get_BIO_entities(pred_tags, batch_lens), batch_inputs):
+    if args.tag_type == 'BIO':
+        get_entity_fn = get_BIO_entities
+    elif args.tag_type == 'BO':
+        get_entity_fn = get_BO_entities
+    for idx, entities, inputs in zip(idxs, get_entity_fn(pred_tags, batch_lens), batch_inputs):
         results[idx].add('')
         for start, end in entities:
             result = ''.join(inputs[start:end])
@@ -129,6 +133,7 @@ if __name__ == '__main__':
     parser.set_defaults(cuda=False)
     parser.add_argument('--data', type=str, default="./inputs/train", help="input/target data name")
     parser.add_argument('--save_dir', type=str, default='./outputs/', help="model directory path")
+    parser.add_argument('--tag_type', type=str, default='BIO', choices=['BIO', 'BO'])
     parser.add_argument('--config', type=str, default='model_config.json', help="config file")
     parser.add_argument('--batch_size', type=int, default=16, help="batch size")
     parser.add_argument('--seed', type=int, default=2019)
