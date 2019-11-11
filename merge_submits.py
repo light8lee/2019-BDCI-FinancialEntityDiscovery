@@ -44,4 +44,5 @@ def merge_v2():
 
     base_submit.to_csv(os.path.join('submits', f"{args.base}-{args.add}.csv"), index=False)
 
-merge_v2()
+merge_v1()
+# merge_v2()

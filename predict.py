@@ -111,7 +111,7 @@ def predict(args):
     pbar = tqdm(dataloader)
     for data in pbar:
         with t.no_grad():
-            results = infer(data, model, args.cuda)
+            results = infer(data, model, args)
             for key in results:
                 curr_preds[key].update(results[key])
     idxs = []

@@ -41,35 +41,44 @@ train_data = train_data.head(train_data.shape[0]-100)
 
 def create_tags(text, entities):
     # text = text.lower()
+    entities.sort(key=lambda v: len(v), reverse=True)
     for entity in entities:
         entity = entity.lower()
         start_pos = text.find(entity)
         if start_pos != -1:
             yield (start_pos, entity)
+            break
 
 
-def create_squad_data(data, output_filename, is_test):
+def create_squad_data(data, output_filename, is_evaluate):
     line = 0
     datas = []
     i = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
-        for idx, text, entities in zip(data['id'], data['cleaned_text'], data['unknownEntities']):
+        for idx, title, text, entities in zip(data['id'], data['cleaned_title'], data['cleaned_text'], data['unknownEntities']):
             # print('---------------line:', line)
+            if not is_evaluate and not entities:
+                continue
             entities = entities.split(';')
             sub_texts = []
+            if title:
+                sub_texts.append(title[:MAX_SEQ_LEN])
+            sub_texts.append(text[:MAX_SEQ_LEN])
+            if len(text) > MAX_SEQ_LEN:
+                sub_texts.append(text[-MAX_SEQ_LEN:])
 
-            while len(text) > MAX_SEQ_LEN:
-                right_bound = -1
-                for stop in '，。？?':
-                    tmp = text[:MAX_SEQ_LEN].rfind(stop, MAX_SEQ_LEN//2)
-                    if tmp > right_bound:
-                        right_bound = tmp
-                if right_bound == -1:
-                    right_bound = MAX_SEQ_LEN-1
-                sub_texts.append(text[:right_bound+1])
-                text = text[right_bound+1:]
-            else:
-                sub_texts.append(text)
+            # while len(text) > MAX_SEQ_LEN:
+            #     right_bound = -1
+            #     for stop in '，。？?':
+            #         tmp = text[:MAX_SEQ_LEN].rfind(stop, MAX_SEQ_LEN//2)
+            #         if tmp > right_bound:
+            #             right_bound = tmp
+            #     if right_bound == -1:
+            #         right_bound = MAX_SEQ_LEN-1
+            #     sub_texts.append(text[:right_bound+1])
+            #     text = text[right_bound+1:]
+            # else:
+            #     sub_texts.append(text)
             # print(sub_texts)
             # sub_texts.append(text)
 
@@ -86,7 +95,7 @@ def create_squad_data(data, output_filename, is_test):
                     }]
                     qa = {
                         "answers": answers,
-                        "question": "有哪些金融公司、平台、中心、投资、币、银行、基金、外汇、集团、链、股份、商城、店、资本、家园、金服、交易所、理财、贷款？",
+                        "question": "有哪些金融公司、平台、中心、投资、币、银行、基金、外汇、集团、链、股份、商城、店、资本、家园、金服、交易所、理财、贷款",
                         "id": '{}-{}'.format(idx, i)
                     }
                     qas.append(qa)

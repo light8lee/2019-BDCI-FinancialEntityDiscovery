@@ -50,13 +50,13 @@ def clean(text):
     return text
 
 
-def remove_chars(train_df, test_df,):
+def remove_chars(train_df, test_df, round1_df):
     test_df['cleaned_text'] = test_df['cleaned_title'] + '，' + test_df['cleaned_text']
     train_df['cleaned_text'] = train_df['cleaned_title']  + '，' + train_df['cleaned_text']
-    # round1_df['cleaned_text'] = round1_df['cleaned_title']  + '，' + round1_df['cleaned_text']
+    round1_df['cleaned_text'] = round1_df['cleaned_title']  + '，' + round1_df['cleaned_text']
     additional_chars = set()
-    # for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']) + list(round1_df['cleaned_text']):
-    for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']):
+    # for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']):
+    for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']) + list(round1_df['cleaned_text']):
         additional_chars.update(re.findall(r'[^\u4e00-\u9fa5a-zA-Z0-9\*]', t))
 
     # 一些需要保留的符号
@@ -69,7 +69,10 @@ def remove_chars(train_df, test_df,):
 
     train_df["cleaned_text"] = train_df["cleaned_text"].apply(remove_additional_chars)
     test_df["cleaned_text"] = test_df["cleaned_text"].apply(remove_additional_chars)
-    # round1_df["cleaned_text"] = round1_df["cleaned_text"].apply(remove_additional_chars)
+    round1_df["cleaned_text"] = round1_df["cleaned_text"].apply(remove_additional_chars)
+    train_df["cleaned_title"] = train_df["cleaned_title"].apply(remove_additional_chars)
+    train_df["cleaned_title"] = train_df["cleaned_title"].apply(remove_additional_chars)
+    round1_df["cleaned_title"] = round1_df["cleaned_title"].apply(remove_additional_chars)
 
 
 def findall(text, entity):
@@ -89,19 +92,7 @@ def findall(text, entity):
             return result
 
 
-def create_BO_tags(tokens, entities):
-    tags = ['O'] * len(tokens)
-    has_entity = False
-    for entity in entities:
-        # print('entity:', entity)
-        for begin, end in findall(tokens, entity):
-            has_entity = True
-            for i in range(begin, end):
-                tags[i] = 'B'
-    return tags, has_entity
-
-
-def create_BIO_tags(tokens, entities):
+def create_tags(tokens, entities):
     tags = ['O'] * len(tokens)
     has_entity = False
     for entity in entities:
@@ -115,60 +106,40 @@ def create_BIO_tags(tokens, entities):
     return tags, has_entity
 
 
-def create_data(data, output_filename, important_chars, is_evaluate, tag_type, keep_none):
+def create_data(data, output_filename, important_chars, is_evaluate, keep_none):
     line = 0
     with open(output_filename, 'w', encoding='utf-8') as f:
         for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
             # print('---------------line:', line)
             entities = entities.split(';')
-            sub_texts = []
-            offsets = [0]
-            title = set(ch for ch in title)
+            sub_texts = [
+                title[:MAX_SEQ_LEN],
+                text[:MAX_SEQ_LEN]
+            ]
 
-            segment = text
-            while len(segment) > MAX_SEQ_LEN:
-                right_bound = segment[:MAX_SEQ_LEN].rfind('，', MAX_SEQ_LEN*4//5)
-                if right_bound == -1:
-                    right_bound = MAX_SEQ_LEN
-                sub_texts.append(segment[:right_bound])
-                left_bound = segment.find('，', right_bound*4//5, right_bound)
-                if left_bound == -1:
-                    left_bound = right_bound*4//5
-                segment = segment[left_bound:]
-                offsets.append(left_bound)
-            else:
-                sub_texts.append(segment)
             print(sub_texts)
 
-            for sub_text, offset in zip(sub_texts, offsets):
+            for sub_text in sub_texts:
                 sub_text = sub_text.strip()
                 if not sub_text:
                     continue
-                if not is_evaluate and len(sub_text) < 6:
-                    continue
+                # if not is_evaluate and len(sub_text) < 6:
+                #     continue
 
-                if tag_type == 'BIO':
-                    tags, has_entity = create_BIO_tags(sub_text, entities)
-                elif tag_type == 'BO':
-                    tags, has_entity = create_BO_tags(sub_text, entities)
-                else:
-                    raise ValueError(f"No such tag_type: {tag_type}")
-                if not is_evaluate and not keep_none and not has_entity:
-                    continue
+                tags, has_entity = create_tags(sub_text, entities)
+                # if not is_evaluate and not keep_none and not has_entity:
+                #     continue
                 f.write('^'*10)
                 f.write(idx)
                 f.write('\n')
                 # print(sub_text)
                 for i, (char, tag) in enumerate(zip(sub_text, tags)):
-                    in_title = 1 if char in title else 0
                     important = 1 if char in important_chars else 0
                     is_lower = 1 if str.islower(char) else 0
                     is_upper = 1 if str.isupper(char) else 0
                     is_num = 1 if str.isnumeric(char) else 0
                     is_sign = 1 if char in extra_chars else 0
-                    rel_pos = (i + offset) / len(text)
-                    abs_pos = 1 if (i + offset < 100 or i + offset > len(text) - 100) else 0
-                    f.write(f'{char} {tag} {in_title} {important} {is_lower} {is_upper} {is_num} {is_sign} {rel_pos} {abs_pos}\n')
+                    f.write(f'{char} {tag} {important} {is_lower} {is_upper} {is_num} {is_sign}\n')
                 f.write('$'*10)
                 f.write('\n')
             line += 1
@@ -190,41 +161,40 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('output_dir')
     parser.add_argument('--max_seq_len', default=510, type=int)
-    parser.add_argument('--tag_type', default='BIO', type=str, choices=['BIO', 'BO'])
     parser.add_argument('--keep_none', default=False, action='store_true')
-    # parser.add_argument('--need_round1', default=False, action='store_true')
+    parser.add_argument('--need_round1', default=False, action='store_true')
 
     args = parser.parse_args()
     MAX_SEQ_LEN = args.max_seq_len
 
     train_data = pd.read_csv('./round2_data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
     test_data = pd.read_csv('./round2_data/Test_Data.csv', sep=',', dtype=str, encoding='utf-8')
-    # round1_data= pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
+    round1_data= pd.read_csv('./data/Train_Data.csv', sep=',', dtype=str, encoding='utf-8')
 
     train_data.fillna('', inplace=True)
     test_data.fillna('', inplace=True)
-    # round1_data.fillna('', inplace=True)
+    round1_data.fillna('', inplace=True)
 
     train_data['cleaned_text'] = train_data['text'].apply(clean)
     train_data['cleaned_title'] = train_data['title'].apply(clean)
     test_data['cleaned_text'] = test_data['text'].apply(clean)
     test_data['cleaned_title'] = test_data['title'].apply(clean)
     test_data['unknownEntities'] = ''
-    # round1_data['cleaned_text'] = round1_data['text'].apply(clean)
-    # round1_data['cleaned_title'] = round1_data['title'].apply(clean)
+    round1_data['cleaned_text'] = round1_data['text'].apply(clean)
+    round1_data['cleaned_title'] = round1_data['title'].apply(clean)
 
     important_chars = collect_important_chars(train_data['unknownEntities'])
     # print(important_chars)
-    remove_chars(train_data, test_data)
+    remove_chars(train_data, test_data, round1_data)
 
     train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
     dev_data = train_data.tail(100)
     train_data = train_data.head(train_data.shape[0]-100)
-    # if args.need_round1:
-    #     train_data = pd.concat([train_data, round1_data], ignore_index=True)
+    if args.need_round1:
+        train_data = pd.concat([train_data, round1_data], ignore_index=True)
 
-    create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False, args.tag_type, keep_none=args.keep_none)
+    create_data(train_data, '{}/train.txt'.format(args.output_dir), important_chars, False, keep_none=args.keep_none)
 
-    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), important_chars, True, args.tag_type, keep_none=args.keep_none)
+    create_data(dev_data, '{}/dev.txt'.format(args.output_dir), important_chars, True, keep_none=args.keep_none)
 
-    create_data(test_data, '{}/test.txt'.format(args.output_dir), important_chars, True, args.tag_type, keep_none=args.keep_none)
+    create_data(test_data, '{}/test.txt'.format(args.output_dir), important_chars, True, keep_none=args.keep_none)
