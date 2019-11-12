@@ -156,3 +156,97 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
             save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
                                     epoch, model_to_save.state_dict(), optimizer.state_dict(), scheduler.state_dict())
     return pre_fn, step_fn, post_fn
+
+
+def mrc_acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writer, Log):
+    best_f1 = 0
+    epoch_loss = 10000
+    running_loss = 0.
+    running_tp = 0
+    running_fp = 0
+    running_fn = 0
+    running_size = 0
+    def pre_fn():
+        nonlocal running_loss
+        nonlocal running_fn
+        nonlocal running_fp
+        nonlocal running_tp
+        nonlocal running_size
+
+        running_loss = 0.
+        running_tp = 0
+        running_fp = 0
+        running_fn = 0
+        running_size = 0
+
+    def step_fn(result, loss, pbar, phase):
+        nonlocal running_loss
+        nonlocal running_fn
+        nonlocal running_fp
+        nonlocal running_tp
+        nonlocal running_size
+        global Invalid_entities
+
+        running_size += result['batch_size']
+        if phase == 'dev':
+            for target_entities, pred_entities, inputs in zip(result['target_pairs'], result['predict_pairs'], result['inputs']):
+                target_entities = set(target_entities)
+                pred_entities = set(pred_entities)
+                Invalid_entities.update(''.join(inputs[e[0]:e[1]+1]) for e in (pred_entities-target_entities))
+                target_entity_set = set()
+                Log('inputs:', ''.join(inputs))
+                for start, end in target_entities:
+                    target_entity_set.add(''.join(inputs[start:end+1]))
+                pred_entity_set = set()
+                for start, end in pred_entities:
+                    pred_entity_set.add(''.join(inputs[start:end+1]))
+                Log('target:', target_entity_set)
+                Log('predict:', pred_entity_set)
+                running_fn += len(target_entity_set-pred_entity_set)
+                running_fp += len(pred_entity_set-target_entity_set)
+                running_tp += len(pred_entity_set&target_entity_set)
+        if phase == 'train':
+            running_loss += loss.item()
+            curr_lr = optimizer.param_groups[0]['lr']
+            pbar.set_postfix(mean_loss=running_loss/running_size,lr=curr_lr)
+        else:
+            pbar.set_postfix()
+
+    def post_fn(phase, epoch):
+        nonlocal epoch_loss
+        nonlocal running_loss
+        nonlocal best_f1
+
+        epoch_loss = running_loss / running_size
+        epoch_precision = Precision(running_tp, running_fp)
+        epoch_recall = Recall(running_tp, running_fn)
+        epoch_f1 = F1(epoch_precision, epoch_recall)
+        if args.log:
+            writer.add_scalars('loss', {
+                phase: epoch_loss,
+            }, epoch)
+            writer.add_scalars('f1', {
+                phase: epoch_f1,
+            }, epoch)
+        if phase == 'dev':
+            if scheduler_config.name == 'ReduceLROnPlateau':
+                scheduler.step(epoch_loss)
+            else:
+                scheduler.step()
+            if epoch_f1 > best_f1:
+                best_f1 = epoch_f1
+                Log('dev Epoch {}: Saving New Record... P: {}, R: {}, F1: {} Loss: {}'.format(
+                    epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+                model_to_save = model.module if hasattr(model, 'module') else model  # Take care of distributed/parallel training
+                save_ckpt(os.path.join(args.save_dir, 'model{}.best.pt.tar'.format(args.fold)),
+                                        epoch, model_to_save.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+            else:
+                Log('dev Epoch {}: Not Improved.  P: {}, R: {}, F1: {} Loss: {}'.format(
+                    epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+        else:
+            # Log('{} Epoch {}: P: {}, R: {}, F1: {} Loss: {}'.format(
+            #     phase, epoch, epoch_precision, epoch_recall, epoch_f1, epoch_loss))
+            model_to_save = model.module if hasattr(model, 'module') else model  # Take care of distributed/parallel training
+            save_ckpt(os.path.join(args.save_dir, 'model{}.epoch{}.pt.tar'.format(args.fold, epoch)),
+                                    epoch, model_to_save.state_dict(), optimizer.state_dict(), scheduler.state_dict())
+    return pre_fn, step_fn, post_fn
