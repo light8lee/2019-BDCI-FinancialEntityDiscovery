@@ -19,7 +19,7 @@ class BERT_Pretrained(nn.Module):
                  rescale:bool=False, need_flags:bool=False, num_tag:int=5,
                  need_bounds:bool=False, need_birnn:bool=False, rnn:str="LSTM", rnn_dim:int=0,
                  need_extra:bool=False, num_extra:int=0, inner_layers:list=None,
-                 lm_task:bool=False, word_seg_task:bool=False, **kwargs):
+                 lm_task:bool=False, **kwargs):
         super(BERT_Pretrained, self).__init__()
         self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
@@ -32,7 +32,6 @@ class BERT_Pretrained(nn.Module):
         self.need_extra = need_extra
         self.num_tag = num_tag
         self.lm_task = lm_task
-        self.word_seg_task = word_seg_task
         self.crf = CRF(num_tag, batch_first=True)
 
         self.bert4pretrain = BertForMaskedLM_V2.from_pretrained(pretrained_model_path)
@@ -42,6 +41,12 @@ class BERT_Pretrained(nn.Module):
             self.bert4pretrain.bert.encoder.output_hidden_states = True
             # self.proj = nn.Linear(len(inner_layers)*bert_dim, bert_dim)
             out_dim = len(inner_layers) * bert_dim
+        if need_flags:
+            self.flag_embedding = nn.Linear(len(POS_FLAGS), 10)
+            out_dim += 10
+        if need_bounds:
+            self.boun_embedding = nn.Linear(6, 3)
+            out_dim += 3
 
         if self.need_birnn:
             if rnn == "LSTM":
@@ -52,20 +57,10 @@ class BERT_Pretrained(nn.Module):
         else:
             out_dim = bert_dim
 
-        # if need_norm:
-        #     self.norm = nn.LayerNorm(out_dim)
-
-        if need_flags:
-            out_dim += len(POS_FLAGS)
-        if not word_seg_task and need_bounds:
-            out_dim += 6
         if need_extra:
             out_dim += num_extra
 
         self.hidden2tags = nn.Linear(out_dim, num_tag)
-        if word_seg_task:
-            self.seg_crf = CRF(6, batch_first=True)
-            self.seg_hidden2tags = nn.Linear(out_dim, 6)
         self.drop = nn.Dropout(p=drop_rate)
 
     def tag_outputs(self, input_ids, input_masks,
@@ -86,15 +81,14 @@ class BERT_Pretrained(nn.Module):
 
         seq_outputs = seq_outputs * input_masks.unsqueeze(-1)
 
+        if self.need_flags:
+            seq_outputs = torch.cat([seq_outputs, self.flag_embedding(flags)], -1)
+        if self.need_bounds:
+            seq_outputs = torch.cat([seq_outputs, self.boun_embedding(bounds)], -1)
+
         if self.need_birnn:
             seq_outputs, *_ = self.birnn(seq_outputs)
 
-        if self.need_flags:
-            # print('outputs:', outputs.shape)
-            # print('flags:', flags.shape)
-            seq_outputs = torch.cat([seq_outputs, flags], -1)
-        if not self.word_seg_task and self.need_bounds:
-            seq_outputs = torch.cat([seq_outputs, bounds], -1)
         if self.need_extra:
             # print('shape:', extra.shape, file=sys.stderr)
             # print('output shape:', outputs.shape, file=sys.stderr)
@@ -103,10 +97,10 @@ class BERT_Pretrained(nn.Module):
         # if self.need_norm:
         #     seq_outputs = self.norm(seq_outputs)
         emissions = self.hidden2tags(seq_outputs)
-        if self.word_seg_task:
-            seg_emissions = self.seg_hidden2tags(seq_outputs)
-            seg_scores = self.seg_crf(seg_emissions, torch.argmax(bounds, dim=-1), input_masks.byte())
-            extra_loss = extra_loss - seg_scores
+        # if self.word_seg_task:
+        #     seg_emissions = self.seg_hidden2tags(seq_outputs)
+        #     seg_scores = self.seg_crf(seg_emissions, torch.argmax(bounds, dim=-1), input_masks.byte())
+        #     extra_loss = extra_loss - seg_scores
         return emissions, extra_loss
 
     def forward(self, input_ids, input_masks, target_tags,
