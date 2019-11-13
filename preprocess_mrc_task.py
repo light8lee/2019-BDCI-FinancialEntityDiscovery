@@ -60,6 +60,9 @@ def get_span_from_tags(tags):
 
 
 def get_padded_tokens(tokens, tags, flags, bounds, extra_features, vocabs, max_seq_length,):
+    max_seq_length += 64
+    tokens.extend('有哪些金融公司、平台、中心、币、银行、基金、外汇、集团、链、股份、商城、店、资本、家园、金服、交易所、理财、贷款')
+    tokens.append('[SEP]')
     tokens = [token.lower() if token not in ['[CLS]', '[SEP]'] else token for token in tokens]
     tokens = [token if token in vocabs else '[UNK]' for token in tokens]
     input_ids = tokenization.convert_tokens_to_ids(vocabs, tokens)
@@ -69,26 +72,29 @@ def get_padded_tokens(tokens, tags, flags, bounds, extra_features, vocabs, max_s
     end_tag_ids = [1 if tag == 'E' else 0 for tag in tags]
     pairs = get_span_from_tags(tags)
 
-    flag_ids = [POS_FLAGS_TO_IDS[flag] for flag in flags]
-    bound_ids = [WORD_BOUNDS_TO_IDS[bound] for bound in bounds]
+    # flag_ids = [POS_FLAGS_TO_IDS[flag] for flag in flags]
+    # bound_ids = [WORD_BOUNDS_TO_IDS[bound] for bound in bounds]
     assert len(input_ids) <= max_seq_length, "len:{}".format(len(input_ids))
 
     # to_pad = [0] * (max_seq_length - len(input_ids))
     # fea_to_pad = [[0] * len(extra_features[0])] * (max_seq_length - len(input_ids))
+    while len(begin_tag_ids) < len(tokens):
+        begin_tag_ids.append(-1)
+        end_tag_ids.append(-1)
     while len(input_ids) < max_seq_length:
         input_ids.append(0)
         input_mask.append(0)
-        flag_ids.append(0)
+        # flag_ids.append(0)
         begin_tag_ids.append(-1)
         end_tag_ids.append(-1)
-        bound_ids.append(0)
-        extra_features.append([0]*len(extra_features[0]))
+        # bound_ids.append(0)
+        # extra_features.append([0]*len(extra_features[0]))
 
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(begin_tag_ids) == max_seq_length
     assert len(end_tag_ids) == max_seq_length
-    return input_ids, input_mask, (begin_tag_ids, end_tag_ids, pairs), flag_ids, bound_ids, extra_features
+    return input_ids, input_mask, (begin_tag_ids, end_tag_ids, pairs)  # , flag_ids, bound_ids, extra_features
 
 
 def do_augment(input_ids, tag_ids, vocabs):
@@ -146,16 +152,18 @@ def prepare_ner(args, vocabs, phase):
                         tags.insert(0, '[CLS]')
                     else:
                         tags.insert(0, 'O')
-                    extra_features.insert(0, [0]*len(extra_features[0]))
+                    # extra_features.insert(0, [0]*len(extra_features[0]))
                     inputs.append('[SEP]')
 
                     if args.rich_tag:
                         tags.append('[SEP]')
                     else:
                         tags.append('O')
-                    extra_features.append([0]*len(extra_features[0]))
+                    # extra_features.append([0]*len(extra_features[0]))
                     flags, bounds = tokens_to_flags(inputs)
-                    input_ids, input_masks, tag_ids, flag_ids, bound_ids, extra_features, = \
+                    # input_ids, input_masks, tag_ids, flag_ids, bound_ids, extra_features, = \
+                    #     get_padded_tokens(inputs, tags, flags, bounds, extra_features, vocabs, args.max_seq_length+2)
+                    input_ids, input_masks, tag_ids = \
                         get_padded_tokens(inputs, tags, flags, bounds, extra_features, vocabs, args.max_seq_length+2)
                     if augment:
                         input_ids, lm_ids = do_augment(input_ids, tag_ids, vocabs)
@@ -170,11 +178,13 @@ def prepare_ner(args, vocabs, phase):
                     feature["end_tag_ids"] = tag_ids[1]
                     feature["pairs"] = tag_ids[2]
                     feature["inputs"] = inputs
-                    feature["flag_ids"] = flag_ids
-                    feature["bound_ids"] = bound_ids
-                    feature["extra"] = extra_features
+                    # feature["flag_ids"] = flag_ids
+                    # feature["bound_ids"] = bound_ids
+                    # feature["extra"] = extra_features
                     feature["lm_ids"] = lm_ids
-                    to_print = feature
+                    if to_print is None:
+                        to_print = feature
+                        print(to_print)
                     feature = tuple(feature.values())
                     # print(feature)
                     feature = pickle.dumps(feature)
@@ -184,7 +194,7 @@ def prepare_ner(args, vocabs, phase):
                     fea_pos += sz
                     inputs = []
                     tags = []
-                    extra_features = []
+                    # extra_features = []
                 elif line.startswith('^'*10):
                     idx = line.replace('^', '')
                     idxs.add(idx)
@@ -195,11 +205,10 @@ def prepare_ner(args, vocabs, phase):
                     token, tag, *extra_fea = pair
                     inputs.append(token)
                     tags.append(tag)
-                    extra_features.append([float(v) for v in extra_fea])
+                    # extra_features.append([float(v) for v in extra_fea])
                     if pair[1] == 'B':
                         num_entities += 1
 
-    print(to_print)
     print('totoal entities:', num_entities)
     print('totoal lines:', len(idxs))
     fea_writer.close()

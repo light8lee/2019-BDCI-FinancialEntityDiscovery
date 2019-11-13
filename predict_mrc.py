@@ -3,7 +3,7 @@ from sklearn.externals import joblib
 from proj_utils.files import save_ckpt, load_ckpt, load_config_from_json
 from proj_utils.configuration import Config
 from proj_utils.logs import log_info
-from dataset import GraphDataset, collect_single
+from dataset import MRCDataset, collect_mrc
 import sys
 from tqdm import tqdm
 import os
@@ -92,9 +92,9 @@ def predict(args):
     fea_file = open(fea_filename, 'rb')
     with open(pos_filename, 'r') as f:
         positions = [int(v.strip()) for v in f]
-    dataset = GraphDataset(fea_file, positions)
+    dataset = MRCDataset(fea_file, positions)
     dataloader = t.utils.data.DataLoader(dataset, batch_size=args.batch_size,
-                                            shuffle=False, collate_fn=collect_single, num_workers=1)
+                                            shuffle=False, collate_fn=collect_mrc, num_workers=1)
 
     model = model_class(**model_config.values)
     ckpt_file = os.path.join(args.save_dir, 'model.{}.pt.tar'.format(args.model))

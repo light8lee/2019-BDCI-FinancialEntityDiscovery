@@ -189,9 +189,9 @@ def mrc_acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, 
 
         running_size += result['batch_size']
         if phase == 'dev':
-            for target_entities, pred_entities, inputs in zip(result['target_pairs'], result['predict_pairs'], result['inputs']):
+            for target_entities, pred_entities, inputs, max_len in zip(result['target_pairs'], result['predict_pairs'], result['inputs'], result['max_lens']):
                 target_entities = set(target_entities)
-                pred_entities = set(pred_entities)
+                pred_entities = set([entity for entity in pred_entities if entity[0] < max_len and entity[1] < max_len])
                 Invalid_entities.update(''.join(inputs[e[0]:e[1]+1]) for e in (pred_entities-target_entities))
                 target_entity_set = set()
                 Log('inputs:', ''.join(inputs))

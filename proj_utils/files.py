@@ -8,8 +8,9 @@ import re
 import json
 import re
 import numpy as np
+import torch
 import pickle
-from collections import Counter
+from collections import Counter, OrderedDict
 
 
 def get_chunks(f, drop_edge=False):
@@ -46,7 +47,7 @@ def load_ckpt(ckpt_path, model, optimizer=None, scheduler=None, cuda=False):
         optimizer.load_state_dict(checkpoint['optimizer_state'])
     if scheduler and checkpoint['scheduler_state']:
         scheduler.load_state_dict(checkpoint['scheduler_state'])
-    return checkpoint['optimizer_state']['param_groups'][0]['lr']
+    # return checkpoint['optimizer_state']['param_groups'][0]['lr']
 
 
 def cut_sent(para):
@@ -87,3 +88,16 @@ def create_embedding(additional_words, embedding_filename, embedding_dim=300):
     pretrained_embeddings = np.array(pretrained_embeddings)
     embeddings = np.append(embeddings, pretrained_embeddings, axis=0)
     return embeddings, vocabs
+
+
+def merge_ckpts(ckpt_paths, save_path):
+    models = [torch.load(path, map_location='cpu') for path in ckpt_paths]
+    new_state = OrderedDict()
+    for key in models[0]['model_state'].keys():
+        value = 0
+        for model in models:
+            value += model['model_state'][key]
+        new_state[key] = value / len(ckpt_paths)
+    torch.save({
+        'model_state': new_state
+    }, save_path)

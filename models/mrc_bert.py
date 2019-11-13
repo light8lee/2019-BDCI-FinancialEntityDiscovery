@@ -13,13 +13,12 @@ POS_FLAGS = ['[PAD]', '[CLS]', '[SEP]',
              'vg', 'v', 'vd', 'vn', 'w', 'x', 'y', 'z']
 
 class MRCBERT_Pretrained(nn.Module):
-    def __init__(self, pretrained_model_path, max_seq_len, drop_rate, bert_dim,
+    def __init__(self, pretrained_model_path, drop_rate, bert_dim,
                  rescale:bool=False, need_flags:bool=False, 
                  need_bounds:bool=False, need_birnn:bool=False, rnn:str="LSTM", rnn_dim:int=0,
                  need_extra:bool=False, num_extra:int=0,
                  lm_task:bool=False, word_seg_task:bool=False, **kwargs):
         super(MRCBERT_Pretrained, self).__init__()
-        self.max_seq_len = max_seq_len
         self.drop_rate = drop_rate
         self.bert_dim = bert_dim
         self.need_flags = need_flags
@@ -65,21 +64,11 @@ class MRCBERT_Pretrained(nn.Module):
         extra_loss = outputs[0]
         seq_outputs = outputs[1]
 
-        seq_outputs = seq_outputs * input_masks.unsqueeze(-1)
+        # seq_outputs = seq_outputs * input_masks.unsqueeze(-1)
 
         if self.need_birnn:
             seq_outputs, *_ = self.birnn(seq_outputs)
 
-        if self.need_flags:
-            # print('outputs:', outputs.shape)
-            # print('flags:', flags.shape)
-            seq_outputs = torch.cat([seq_outputs, flags], -1)
-        if self.need_bounds:
-            seq_outputs = torch.cat([seq_outputs, bounds], -1)
-        if self.need_extra:
-            # print('shape:', extra.shape, file=sys.stderr)
-            # print('output shape:', outputs.shape, file=sys.stderr)
-            seq_outputs = torch.cat([seq_outputs, extra], -1)
         seq_outputs = self.drop(seq_outputs)  # [b, t, h]
         # if self.need_norm:
         #     seq_outputs = self.norm(seq_outputs)
@@ -95,13 +84,17 @@ class MRCBERT_Pretrained(nn.Module):
         begin_emissions, end_emissions, span_emissions, loss = self.tag_outputs(input_ids, input_masks,
                                      flags=flags, bounds=bounds,
                                      extra=extra, lm_ids=lm_ids)
-        point_loss_fct = nn.CrossEntropyLoss(ignore_index=-1)
+        point_loss_fct = nn.CrossEntropyLoss(ignore_index=-1, reduction='mean')
         # print(f"begin:{begin_emissions.shape}", file=sys.stderr)
         # print(f"target:{target_begin_tag_ids.shape}", file=sys.stderr)
         loss = loss + point_loss_fct(begin_emissions.view(-1, 2), target_begin_tag_ids.view(-1))
         loss = loss + point_loss_fct(end_emissions.view(-1, 2), target_end_tag_ids.view(-1))
-        span_loss_fct = nn.BCELoss()
-        loss = loss + span_loss_fct(span_emissions, target_span_ids)
+        # batch_size = input_ids.shape[0]
+        # span_emissions = span_emissions.view(batch_size, -1)  # [b, t*t]
+        # target_span_ids = target_span_ids.view(batch_size, -1)  # [b, t*t]
+        # masks = torch.bmm(input_masks.unsqueeze(-1), input_masks.unsqueeze(1)).view(batch_size, -1)  # [b, t, t] -> [b, t*t]
+        # span_loss_fct = nn.BCELoss(10*(target_span_ids+masks)*masks, reduction='none')
+        # loss = loss + span_loss_fct(span_emissions, target_span_ids).sum(-1).mean()
         return loss
 
     def decode(self, emissions, input_masks):
@@ -111,15 +104,26 @@ class MRCBERT_Pretrained(nn.Module):
         span_emissions = span_emissions.cpu().numpy()  # [b, t, t]
         batch_entities = []
         for begins, ends, span in zip(possible_begins, possible_ends, span_emissions):
+            # print('span:', span, file=sys.stderr)
             entities = []
             for i, begin_score in enumerate(begins):
                 if begin_score == 0:
                     continue
+                print('has begin:', i, file=sys.stderr)
                 for j in range(i+1, len(ends)):
                     if ends[j] == 0:
                         continue
-                    if span[i][j] > 0.5:
-                        entities.append((i, j))
+                    print('has end:', j, file=sys.stderr)
+                    print('yes:', i, j, file=sys.stderr)
+                    entities.append((i, j))
+                    break
+                    # print('has end:', j, file=sys.stderr)
+                    # if span[i][j] > 0.5:
+                    #     print('yes:', i, j, span[i][j], file=sys.stderr)
+                    #     entities.append((i, j))
+                    #     break
+                    # else:
+                    #     print('no:', i, j, span[i][j], file=sys.stderr)
             batch_entities.append(entities)
         return batch_entities
 

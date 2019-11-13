@@ -26,7 +26,7 @@ from pytorch_transformers import optimization
 SHOW = True
 def infer(data, model, cuda, is_evaluate=False):
     idx, batch_ids, batch_masks, batch_begin_ids, batch_end_ids, batch_spans, \
-        batch_inputs, batch_flags, batch_bounds, batch_extra, lm_ids, batch_pairs = data
+        batch_inputs, lm_ids, batch_pairs = data
     global SHOW
     if SHOW:
         print(data)
@@ -38,29 +38,28 @@ def infer(data, model, cuda, is_evaluate=False):
         batch_begin_ids = batch_begin_ids.cuda()
         batch_end_ids = batch_end_ids.cuda()
         batch_spans = batch_spans.cuda()
-        batch_flags = batch_flags.cuda()
-        batch_bounds = batch_bounds.cuda()
-        batch_extra = batch_extra.cuda()
+        # batch_flags = batch_flags.cuda()
+        # batch_bounds = batch_bounds.cuda()
+        # batch_extra = batch_extra.cuda()
         lm_ids = lm_ids.cuda()
 
     if is_evaluate:
         model_to_predict = model.module if hasattr(model, "module") else model
         with t.no_grad():
-            predicts = model_to_predict.predict(batch_ids, batch_masks,
-                                                flags=batch_flags, bounds=batch_bounds, extra=batch_extra)
+            predicts = model_to_predict.predict(batch_ids, batch_masks)
+            #                                     flags=batch_flags, bounds=batch_bounds, extra=batch_extra)
         result = {
             'inputs': batch_inputs,
             'predict_pairs': predicts,
             'target_pairs': batch_pairs,
-            'max_lens': batch_masks.sum(-1).tolist(),
+            'max_lens': [inputs.index('[SEP]') for inputs in batch_inputs],
             'batch_size': batch_masks.shape[0]
         }
         return result, 0
 
     loss = model(input_ids=batch_ids, input_masks=batch_masks,
                  target_begin_tag_ids=batch_begin_ids, target_end_tag_ids=batch_end_ids,
-                 target_span_ids=batch_spans, flags=batch_flags, bounds=batch_bounds,
-                 extra=batch_extra, lm_ids=lm_ids)
+                 target_span_ids=batch_spans, lm_ids=lm_ids)
     result = {
         'batch_size': batch_masks.shape[0]
     }

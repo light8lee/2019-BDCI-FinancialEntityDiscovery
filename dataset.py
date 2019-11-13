@@ -119,7 +119,7 @@ def sparse_scipy2torch(sparse_matrix):
 
 def collect_mrc(batch):
     # raise ValueError("{}".format(batch))
-    idx, batch_input_ids, batch_masks, batch_begin_tag_ids, batch_end_tag_ids, batch_pairs, batch_inputs, batch_flag_ids, batch_bound_ids, batch_extra, lm_ids = zip(*batch)
+    idx, batch_input_ids, batch_masks, batch_begin_tag_ids, batch_end_tag_ids, batch_pairs, batch_inputs, lm_ids = zip(*batch)
 
     batch_input_ids = t.from_numpy(np.array(batch_input_ids)).long()
     batch_masks = t.from_numpy(np.array(batch_masks)).float()
@@ -142,28 +142,28 @@ def collect_mrc(batch):
     batch_spans = t.stack(batch_spans, 0)
     batch_spans = batch_spans.to_dense().float()
 
-    batch_oh_flags = []
-    for flag_ids in batch_flag_ids:
-        flag_ids = t.from_numpy(np.array(flag_ids)).long().unsqueeze(-1)  # [t, 1]
-        # raise ValueError(f'{flag_ids.shape}')
-        batch_oh_flags.append(t.zeros(flag_ids.shape[0], len(POS_FLAGS)).scatter_(1, flag_ids, 1))
-    batch_oh_flags = t.stack(batch_oh_flags, 0)
+    # batch_oh_flags = []
+    # for flag_ids in batch_flag_ids:
+    #     flag_ids = t.from_numpy(np.array(flag_ids)).long().unsqueeze(-1)  # [t, 1]
+    #     # raise ValueError(f'{flag_ids.shape}')
+    #     batch_oh_flags.append(t.zeros(flag_ids.shape[0], len(POS_FLAGS)).scatter_(1, flag_ids, 1))
+    # batch_oh_flags = t.stack(batch_oh_flags, 0)
 
-    batch_oh_bounds = []
-    for bound_ids in batch_bound_ids:
-        bound_ids = t.from_numpy(np.array(bound_ids)).long().unsqueeze(-1)  # [t, 1]
-        # raise ValueError(f'{flag_ids.shape}')
-        batch_oh_bounds.append(t.zeros(bound_ids.shape[0], 6).scatter_(1, bound_ids, 1))
-    batch_oh_bounds = t.stack(batch_oh_bounds, 0)
+    # batch_oh_bounds = []
+    # for bound_ids in batch_bound_ids:
+    #     bound_ids = t.from_numpy(np.array(bound_ids)).long().unsqueeze(-1)  # [t, 1]
+    #     # raise ValueError(f'{flag_ids.shape}')
+    #     batch_oh_bounds.append(t.zeros(bound_ids.shape[0], 6).scatter_(1, bound_ids, 1))
+    # batch_oh_bounds = t.stack(batch_oh_bounds, 0)
 
-    try:
-        batch_extra = t.from_numpy(np.array(batch_extra)).float()
-    except Exception as e:
-        print('error:', file=sys.stderr)
-        print(e, file=sys.stderr)
-        print(batch_extra, file=sys.stderr)
-        exit(0)
+    # try:
+    #     batch_extra = t.from_numpy(np.array(batch_extra)).float()
+    # except Exception as e:
+    #     print('error:', file=sys.stderr)
+    #     print(e, file=sys.stderr)
+    #     print(batch_extra, file=sys.stderr)
+    #     exit(0)
 
     lm_ids = t.from_numpy(np.array(lm_ids)).long()
     return  idx, batch_input_ids, batch_masks, batch_begin_tag_ids, batch_end_tag_ids, batch_spans,\
-         batch_inputs, batch_oh_flags, batch_oh_bounds, batch_extra, lm_ids, batch_pairs
+         batch_inputs, lm_ids, batch_pairs
