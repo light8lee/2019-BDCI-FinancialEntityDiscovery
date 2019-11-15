@@ -89,12 +89,16 @@ class MRCBERT_Pretrained(nn.Module):
         # print(f"target:{target_begin_tag_ids.shape}", file=sys.stderr)
         loss = loss + point_loss_fct(begin_emissions.view(-1, 2), target_begin_tag_ids.view(-1))
         loss = loss + point_loss_fct(end_emissions.view(-1, 2), target_end_tag_ids.view(-1))
-        # batch_size = input_ids.shape[0]
-        # span_emissions = span_emissions.view(batch_size, -1)  # [b, t*t]
-        # target_span_ids = target_span_ids.view(batch_size, -1)  # [b, t*t]
-        # masks = torch.bmm(input_masks.unsqueeze(-1), input_masks.unsqueeze(1)).view(batch_size, -1)  # [b, t, t] -> [b, t*t]
-        # span_loss_fct = nn.BCELoss(10*(target_span_ids+masks)*masks, reduction='none')
-        # loss = loss + span_loss_fct(span_emissions, target_span_ids).sum(-1).mean()
+        batch_size = input_ids.shape[0]
+        masks = torch.bmm(input_masks.unsqueeze(-1), input_masks.unsqueeze(1))  # [b, t, t]
+        weights = 5*(target_span_ids+masks) * masks
+        weights = weights.chunk(weights.shape[0], 0)  # [t, t] * b
+        weights = [torch.triu(weight, diagonal=1) for weight in weights]
+        weights = torch.stack(weights, 0).view(batch_size, -1)  # [b, t, t] -> [b, t*t]
+        span_emissions = span_emissions.view(batch_size, -1)  # [b, t*t]
+        target_span_ids = target_span_ids.view(batch_size, -1)  # [b, t*t]
+        span_loss_fct = nn.BCELoss(weights, reduction='none')
+        loss = loss + span_loss_fct(span_emissions, target_span_ids).sum(-1).mean()
         return loss
 
     def decode(self, emissions, input_masks):
@@ -106,24 +110,24 @@ class MRCBERT_Pretrained(nn.Module):
         for begins, ends, span in zip(possible_begins, possible_ends, span_emissions):
             # print('span:', span, file=sys.stderr)
             entities = []
-            for i, begin_score in enumerate(begins):
-                if begin_score == 0:
+            for i, end_score in enumerate(ends):
+                if end_score == 0:
                     continue
-                print('has begin:', i, file=sys.stderr)
-                for j in range(i+1, len(ends)):
-                    if ends[j] == 0:
+                print('has end:', i, file=sys.stderr)
+                for j in range(i-1, 0, -1):
+                    if begins[j] == 0:
                         continue
-                    print('has end:', j, file=sys.stderr)
-                    print('yes:', i, j, file=sys.stderr)
-                    entities.append((i, j))
-                    break
-                    # print('has end:', j, file=sys.stderr)
-                    # if span[i][j] > 0.5:
-                    #     print('yes:', i, j, span[i][j], file=sys.stderr)
-                    #     entities.append((i, j))
-                    #     break
-                    # else:
-                    #     print('no:', i, j, span[i][j], file=sys.stderr)
+                    print('has begin:', j, file=sys.stderr)
+                    # print('yes:', i, j, file=sys.stderr) m5
+                    # entities.append((j, i))
+                    # break
+
+                    if span[j][i] > 0.5:
+                        print('yes:', i, j, span[j][i], file=sys.stderr)
+                        entities.append((j, i))
+                        break
+                    else:
+                        print('no:', i, j, span[j][i], file=sys.stderr)
             batch_entities.append(entities)
         return batch_entities
 

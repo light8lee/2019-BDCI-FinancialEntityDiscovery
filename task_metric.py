@@ -60,6 +60,46 @@ def get_BIO_entities(batch_tag_ids, max_lens):
         yield entities
 
 
+def get_BIO_entities_v2(batch_tag_ids_list, max_lens, min_count, batch_inputs):
+    max_lens = [int(v) for v in max_lens]
+    # for tag_ids, max_len in zip(batch_tag_ids, max_lens):
+    for i, max_len in enumerate(max_lens):
+        inputs = batch_inputs[i]
+        tag_ids = []
+        for j in range(max_len):
+            counter = Counter()
+            print(inputs[j], end=' ')
+            for batch_tag_ids in batch_tag_ids_list:
+                char = batch_tag_ids[i][j]
+                print(char, end=' ')
+                counter[char] += 1
+            # value = counter.most_common(1)[0]
+            values = [v for v in counter if v[1] >= min_count]  # (tag, count)
+            values.sort(key=lambda v: (v[1], -v[0]), reverse=True)  # 先按照出现次数降序，然后按照OBI升序
+            if values:
+                tag_ids.append(values[0][1])
+            else:
+                tag_ids.append(0)
+            print('=>', tag_ids[-1])
+
+        # print(tag_ids)
+        entities = set()
+        status = 0
+        for idx in range(1, max_len):  # not consider [CLS] and [SEP]
+            tag_id = tag_ids[idx]
+            if (status == 0) and (tag_id == BIO_BEGIN_TAG_ID):  # correct begin
+                status = 1
+                begin_pos = idx
+            elif (status == 1) and (tag_id in OTHER_TAG_IDS):  # Bx(Ix) -> O
+                status = 0
+                entities.add((begin_pos, idx))
+            elif (status == 1) and (tag_id == BIO_BEGIN_TAG_ID):
+                status = 1
+                entities.add((begin_pos, idx))
+                begin_pos = idx
+        yield entities
+
+
 def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writer, Log):
     best_f1 = 0
     epoch_loss = 10000
@@ -68,6 +108,7 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
     running_fp = 0
     running_fn = 0
     running_size = 0
+    steps = 0
     def pre_fn():
         nonlocal running_loss
         nonlocal running_fn
@@ -87,7 +128,9 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
         nonlocal running_fp
         nonlocal running_tp
         nonlocal running_size
+        nonlocal steps
         global Invalid_entities
+        steps += 1
 
         running_size += result['batch_size']
         if phase == 'dev':
@@ -115,6 +158,11 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
             running_loss += loss.item()
             curr_lr = optimizer.param_groups[0]['lr']
             pbar.set_postfix(mean_loss=running_loss/running_size,lr=curr_lr)
+            if args.save_steps > 0 and steps % args.save_steps == 0:
+                Log('Saving steps:', steps)
+                model_to_save = model.module if hasattr(model, 'module') else model  # Take care of distributed/parallel training
+                save_ckpt(os.path.join(args.save_dir, 'model{}.step{}.pt.tar'.format(args.fold, steps)),
+                                        '', model_to_save.state_dict(), optimizer.state_dict(), scheduler.state_dict())
         else:
             pbar.set_postfix()
 
@@ -122,6 +170,7 @@ def acc_metric_builder(args, scheduler_config, model, optimizer, scheduler, writ
         nonlocal epoch_loss
         nonlocal running_loss
         nonlocal best_f1
+        Log('epoch:', epoch)
 
         epoch_loss = running_loss / running_size
         epoch_precision = Precision(running_tp, running_fp)

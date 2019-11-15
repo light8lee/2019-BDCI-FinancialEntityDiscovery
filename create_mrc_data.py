@@ -7,7 +7,7 @@ import numpy as np
 import argparse
 import re
 from collections import defaultdict, Counter
-from create_data import clean, remove_chars, extra_chars
+from create_title_data import clean, remove_chars, extra_chars
 
 random.seed(2019)
 
@@ -52,26 +52,31 @@ def create_data(data, output_filename, important_chars, is_evaluate, keep_none):
         for idx, text, title, entities in zip(data['id'], data['cleaned_text'], data['cleaned_title'], data['unknownEntities']):
             # print('---------------line:', line)
             entities = entities.split(';')
-            sub_texts = []
-            offsets = [0]
-            title = set(ch for ch in title)
+            sub_texts = [
+                title[:MAX_SEQ_LEN],
+                text[:MAX_SEQ_LEN]
+            ]
+            # sub_texts = []
+            # offsets = [0]
+            # title = set(ch for ch in title)
 
-            segment = text
-            while len(segment) > MAX_SEQ_LEN:
-                right_bound = segment[:MAX_SEQ_LEN].rfind('，', MAX_SEQ_LEN*4//5)
-                if right_bound == -1:
-                    right_bound = MAX_SEQ_LEN
-                sub_texts.append(segment[:right_bound])
-                left_bound = segment.find('，', right_bound*4//5, right_bound)
-                if left_bound == -1:
-                    left_bound = right_bound*4//5
-                segment = segment[left_bound:]
-                offsets.append(left_bound)
-            else:
-                sub_texts.append(segment)
-            print(sub_texts)
+            # segment = text
+            # while len(segment) > MAX_SEQ_LEN:
+            #     right_bound = segment[:MAX_SEQ_LEN].rfind('，', MAX_SEQ_LEN*4//5)
+            #     if right_bound == -1:
+            #         right_bound = MAX_SEQ_LEN
+            #     sub_texts.append(segment[:right_bound])
+            #     left_bound = segment.find('，', right_bound*4//5, right_bound)
+            #     if left_bound == -1:
+            #         left_bound = right_bound*4//5
+            #     segment = segment[left_bound:]
+            #     offsets.append(left_bound)
+            # else:
+            #     sub_texts.append(segment)
+            # print(sub_texts)
 
-            for sub_text, offset in zip(sub_texts, offsets):
+            # for sub_text, offset in zip(sub_texts, offsets):
+            for sub_text in sub_texts:
                 sub_text = sub_text.strip()
                 if not sub_text:
                     continue
@@ -86,15 +91,15 @@ def create_data(data, output_filename, important_chars, is_evaluate, keep_none):
                 f.write('\n')
                 # print(sub_text)
                 for i, (char, tag) in enumerate(zip(sub_text, tags)):
-                    in_title = 1 if char in title else 0
+                    # in_title = 1 if char in title else 0
                     important = 1 if char in important_chars else 0
                     is_lower = 1 if str.islower(char) else 0
                     is_upper = 1 if str.isupper(char) else 0
                     is_num = 1 if str.isnumeric(char) else 0
                     is_sign = 1 if char in extra_chars else 0
-                    rel_pos = (i + offset) / len(text)
-                    abs_pos = 1 if (i + offset < 100 or i + offset > len(text) - 100) else 0
-                    f.write(f'{char} {tag} {in_title} {important} {is_lower} {is_upper} {is_num} {is_sign} {rel_pos} {abs_pos}\n')
+                    # rel_pos = (i + offset) / len(text)
+                    # abs_pos = 1 if (i + offset < 100 or i + offset > len(text) - 100) else 0
+                    f.write(f'{char} {tag} {important} {is_lower} {is_upper} {is_num} {is_sign}\n')
                 f.write('$'*10)
                 f.write('\n')
             line += 1
@@ -134,7 +139,7 @@ if __name__ == '__main__':
     test_data['unknownEntities'] = ''
 
     important_chars = collect_important_chars(train_data['unknownEntities'])
-    remove_chars(train_data, test_data)
+    remove_chars(train_data, test_data, None)
 
     train_data = train_data.sample(frac=1, random_state=2019).reset_index(drop=True)
     dev_data = train_data.tail(100)

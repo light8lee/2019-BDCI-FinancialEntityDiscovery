@@ -44,5 +44,31 @@ def merge_v2():
 
     base_submit.to_csv(os.path.join('submits', f"{args.base}-{args.add}.csv"), index=False)
 
-merge_v1()
+
+def merge_v3():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('models', type=str, default='')
+    args = parser.parse_args()
+
+    submits = [pd.read_csv(os.path.join('submits', f"{name}.csv")) for name in args.models.split('&')]
+    for submit in submits:
+        submit.fillna('', inplace=True)
+    size = submits[0].shape[0]
+    output = pd.DataFrame()
+    output['id'] = submits[0]['id']
+    output['unknownEntities'] = ''
+
+    for i in range(size):
+        entity_set = None
+        for submit in submits:
+            if entity_set is None:
+                entity_set = set(submit.at[i, 'unknownEntities'].split(';'))
+            else:
+                entity_set = entity_set & set(submit.at[i, 'unknownEntities'].split(';'))
+        print(entity_set)
+        output.at[i, 'unknownEntities'] = ';'.join(entity_set)
+
+    output.to_csv(os.path.join('submits', f"{args.models}.csv"), index=False)
+# merge_v1()
 # merge_v2()
+merge_v3()

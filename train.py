@@ -70,6 +70,8 @@ def train(args):
     model_class = getattr(models, model_name)
     Log(model_config.values)
     model = model_class(**model_config.values)
+    if os.path.exists(args.ckpt_path):
+        load_ckpt(args.ckpt_path, model)
 
     dataloaders = {}
     datasets = {}
@@ -177,6 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('--log', dest='log', action='store_true', help='whether use tensorboard')
     parser.add_argument('--data', type=str, default="./inputs/train", help="input/target data name")
     parser.add_argument('--save_dir', type=str, default='./outputs/', help="model directory path")
+    parser.add_argument('--ckpt_path', type=str, default='', help="ckpt path")
     parser.add_argument('--config', type=str, default='model_config.json', help="config file")
     parser.add_argument('--batch_size', type=int, default=16, help="batch size")
     parser.add_argument('--epoch', type=int, default=20, help="number of epochs")
@@ -188,6 +191,7 @@ if __name__ == '__main__':
     parser.add_argument('--do_test', dest='do_test', action='store_true')
     parser.add_argument('--do_eval', dest='do_eval', action='store_true')
     parser.add_argument('--seed', type=int, default=2019)
+    parser.add_argument('--save_steps', type=int, default=0)
     parser.set_defaults(multi_gpu=False, log=False, do_test=False, do_eval=False)
     args = parser.parse_args()
     t.manual_seed(args.seed)

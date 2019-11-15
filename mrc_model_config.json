@@ -1,0 +1,21 @@
+{
+    "optimizer": {
+        "name": "Adam",
+        "lr": 1e-4
+    },
+    "model": {
+        "name": "MRCBERT_Pretrained",
+        "drop_rate": 0.1,
+        "pretrained_model_path": "roberta_finetune_ab2",
+        "bert_dim": 768,
+        "freeze": false,
+        "need_flags": false,
+        "need_bounds": false,
+        "need_birnn": false,
+        "rnn": "LSTM",
+        "rnn_dim": 256,
+        "need_extra": false,
+        "num_extra": 8,
+        "lm_task": false
+    }
+}

@@ -53,10 +53,10 @@ def clean(text):
 def remove_chars(train_df, test_df, round1_df):
     test_df['cleaned_text'] = test_df['cleaned_title'] + '，' + test_df['cleaned_text']
     train_df['cleaned_text'] = train_df['cleaned_title']  + '，' + train_df['cleaned_text']
-    round1_df['cleaned_text'] = round1_df['cleaned_title']  + '，' + round1_df['cleaned_text']
+    # round1_df['cleaned_text'] = round1_df['cleaned_title']  + '，' + round1_df['cleaned_text']
     additional_chars = set()
-    # for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']):
-    for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']) + list(round1_df['cleaned_text']):
+    # for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']) + list(round1_df['cleaned_text']):
+    for t in list(test_df['cleaned_text']) + list(train_df['cleaned_text']):
         additional_chars.update(re.findall(r'[^\u4e00-\u9fa5a-zA-Z0-9\*]', t))
 
     # 一些需要保留的符号
@@ -69,10 +69,10 @@ def remove_chars(train_df, test_df, round1_df):
 
     train_df["cleaned_text"] = train_df["cleaned_text"].apply(remove_additional_chars)
     test_df["cleaned_text"] = test_df["cleaned_text"].apply(remove_additional_chars)
-    round1_df["cleaned_text"] = round1_df["cleaned_text"].apply(remove_additional_chars)
+    # round1_df["cleaned_text"] = round1_df["cleaned_text"].apply(remove_additional_chars)
     train_df["cleaned_title"] = train_df["cleaned_title"].apply(remove_additional_chars)
     train_df["cleaned_title"] = train_df["cleaned_title"].apply(remove_additional_chars)
-    round1_df["cleaned_title"] = round1_df["cleaned_title"].apply(remove_additional_chars)
+    # round1_df["cleaned_title"] = round1_df["cleaned_title"].apply(remove_additional_chars)
 
 
 def findall(text, entity):

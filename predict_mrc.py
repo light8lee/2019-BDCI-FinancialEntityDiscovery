@@ -26,22 +26,20 @@ ENGLISH = re.compile(r'^[a-zA-Z]+$')
 
 def infer(data, model, args):
     idxs, batch_ids, batch_masks, batch_begin_ids, batch_end_ids, batch_spans, \
-        batch_inputs, batch_flags, batch_bounds, batch_extra, lm_ids, _ = data
+        batch_inputs, lm_ids, batch_pairs = data
     print(idxs)
 
     if args.cuda:
         batch_ids_t = batch_ids.cuda()
         batch_masks_t = batch_masks.cuda()
-        # batch_begin_ids = batch_begin_ids.cuda()
-        # batch_end_ids = batch_end_ids.cuda()
-        # batch_spans = batch_spans.cuda()
-        batch_flags = batch_flags.cuda()
-        batch_bounds = batch_bounds.cuda()
-        batch_extra = batch_extra.cuda()
+        batch_begin_ids = batch_begin_ids.cuda()
+        batch_end_ids = batch_end_ids.cuda()
+        batch_spans = batch_spans.cuda()
+        # batch_flags = batch_flags.cuda()
+        # batch_bounds = batch_bounds.cuda()
+        # batch_extra = batch_extra.cuda()
     batch_lens = batch_masks_t.sum(-1).tolist()
-    pred_pairs = model.predict(batch_ids_t, batch_masks_t,
-                              flags=batch_flags, bounds=batch_bounds,
-                              extra=batch_extra)
+    pred_pairs = model.predict(batch_ids_t, batch_masks_t)
     results = defaultdict(set)
     for idx, entities, inputs in zip(idxs, pred_pairs, batch_inputs):
         results[idx].add('')
@@ -49,27 +47,27 @@ def infer(data, model, args):
             result = ''.join(inputs[start:end+1])
             if len(result) < 2:
                 continue
-            is_spaned = False
-            # span to english character boundary
-            while start > 0 and ENGLISH.match(inputs[start]):
-                if ENGLISH.match(inputs[start-1]):
-                    start -= 1
-                    is_spaned = True
-                else:
-                    break
-            while end+1 < len(inputs) and ENGLISH.match(inputs[end]):
-                if ENGLISH.match(inputs[end+1]):
-                    end += 1
-                    is_spaned = True
-                else:
-                    break
-            if is_spaned:
-                print('inputs:', inputs)
-                print('before spaned:', result)
-                result = ''.join(inputs[start:end+1])
-                print('after spaned:', result)
+            # is_spaned = False
+            # # span to english character boundary
+            # while start > 0 and ENGLISH.match(inputs[start]):
+            #     if ENGLISH.match(inputs[start-1]):
+            #         start -= 1
+            #         is_spaned = True
+            #     else:
+            #         break
+            # while end+1 < len(inputs) and ENGLISH.match(inputs[end]):
+            #     if ENGLISH.match(inputs[end+1]):
+            #         end += 1
+            #         is_spaned = True
+            #     else:
+            #         break
+            # if is_spaned:
+            #     print('inputs:', inputs)
+            #     print('before spaned:', result)
+            #     result = ''.join(inputs[start:end+1])
+            #     print('after spaned:', result)
 
-            result = result.replace('※', ' ')
+            # result = result.replace('※', ' ')
             results[idx].add(result)
     return results
 
