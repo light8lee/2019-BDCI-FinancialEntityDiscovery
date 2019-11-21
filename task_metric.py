@@ -65,6 +65,8 @@ def get_BIO_entities_v2(batch_tag_ids_list, max_lens, min_count, batch_inputs):
     # for tag_ids, max_len in zip(batch_tag_ids, max_lens):
     for i, max_len in enumerate(max_lens):
         inputs = batch_inputs[i]
+        dun_hao = inputs.count('、')
+        status = 0
         tag_ids = []
         for j in range(max_len):
             counter = Counter()
@@ -74,11 +76,21 @@ def get_BIO_entities_v2(batch_tag_ids_list, max_lens, min_count, batch_inputs):
                 print(char, end=' ')
                 counter[char] += 1
             # value = counter.most_common(1)[0]
-            values = [v for v in counter if v[1] >= min_count]  # (tag, count)
-            values.sort(key=lambda v: (v[1], -v[0]), reverse=True)  # 先按照出现次数降序，然后按照OBI升序
-            if values:
-                tag_ids.append(values[0][1])
+            # values = [v for v in counter.most_common() if v[1] >= min_count]  # (tag, count)
+            # values.sort(key=lambda v: (v[1], -v[0]), reverse=True)  # 先按照出现次数降序，然后按照OBI升序
+            if status == 0 and dun_hao > 5 and inputs[j-1] == '、' and '、' in inputs[j+1:j+12] and tag_ids[j-2] == BIO_INTER_TAG_ID:
+                status = 1
+                tag_ids.append(BIO_BEGIN_TAG_ID)
+            elif status == 1 and inputs[j] != '、':
+                tag_ids.append(BIO_INTER_TAG_ID)
+            elif counter[BIO_BEGIN_TAG_ID] >= min_count:
+                tag_ids.append(BIO_BEGIN_TAG_ID)
+                status = 0
+            elif counter[BIO_INTER_TAG_ID] >= min_count:
+                tag_ids.append(BIO_INTER_TAG_ID)
+                status = 0
             else:
+                status = 0
                 tag_ids.append(0)
             print('=>', tag_ids[-1])
 

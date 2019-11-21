@@ -1,23 +1,23 @@
 {
     "optimizer": {
-        "name": "AdamW",
+        "name": "Adam",
         "lr": 1e-5
     },
-    "scheduler": {
-        "name": "WarmupLinearSchedule",
-        "warmup_steps": 0
-    },
     "model": {
+        "num_tag": 3,
         "name": "BERT_Pretrained",
-        "drop_rate": 0.2,
+        "drop_rate": 0.1,
         "max_seq_len": 512,
-        "pretrained_model_path": "bert_wwm_ext",
+        "pretrained_model_path": "roberta_finetune_ab2",
         "bert_dim": 768,
         "freeze": false,
-        "need_flags": true,
-        "need_bounds": true,
+        "need_flags": false,
+        "need_bounds": false,
         "need_birnn": true,
         "rnn": "LSTM",
-        "rnn_dim": 256
+        "rnn_dim": 384,
+        "need_extra": true,
+        "num_extra": 8,
+        "lm_task": true
     }
 }
