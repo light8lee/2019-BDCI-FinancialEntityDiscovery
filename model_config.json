@@ -1,7 +1,8 @@
 {
     "optimizer": {
-        "name": "Adam",
-        "lr": 1e-5
+        "name": "SGD",
+        "lr": 8e-6,
+        "momentum": 0.5
     },
     "model": {
         "num_tag": 3,

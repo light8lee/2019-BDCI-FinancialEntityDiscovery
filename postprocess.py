@@ -38,7 +38,9 @@ BAD_CASES = {
     '韩国', '美国', '京东金融', '5g', '5G',
     'IMG', 'admin', 'QQ', 'VIP', '保险',
     'IP', 'font-family', 'font', 'family', 'font-size',
-    'wifi'
+    'wifi', '24x7', '小视频', '51天', '上证个股期权', 'ind',
+    'VP', '财富', '云交易', '流浪汉', '实干家', '空想家', '梦想家',
+    '高汇高汇', '稀万acy', 'pnk跑', 'freedigitalbankingservicesGKBank'
 }
 
 BAD_HEADS = {
@@ -66,15 +68,15 @@ BAD_WORDS = {
     '首个', '发挥', '从业', '目前', '制度', '一个', '一位', '一名', '一件', '一部分', '邀请', '实现',
     '排行榜', '相关', '方便', '指数', '关心', '回报', '技术', '项目', '开发', '--', '超级', '指标',
     '倡导', '保护', '账号', '根据', '计划', '发行', '投资', '营销', '服务', '货币', '保证金', '咨询',
-    '股票', '期权', '牛人', '成功', '指数', '一键', '优质', '红包', '浏览器', '融资', '有风险', '打款', 
+    '股票', '期权', '牛人', '成功', '指数', '一键', '优质', '红包', '浏览器', '融资', '有风险', '打款',
     '一站式', '大额', '查看', '汇集', '挖矿', '炒外汇', '大数据', '搞投资', '投资理财', '外汇金融', 
     '首席', '手机云交易', '秒卖币', '秒收款', '日赚', '格林威治', '涉案', '外汇理财', '韭菜', '金块',
     '抢单', '再讲', '量化基金', '有把握', '一滴酒', '持股', '分红', '受骗', '向所有', '链接', '茶水钱',
-    '人命币', '轻松', '秒赚'
+    '人命币', '轻松', '秒赚', '银行', '维权'
 }
-BAD_WORDS.update('.总报许多无于与喝的没就抢长今说像寻以万亿及导航找派趋势出樊维权在也还只金是借每等亏损雷棋牌石炒'
-                 '你我行动得付款奖积去励联盟给什么买划算他抄才人它和而酒如但且起不了到拿吧吗呢哪请至最死更过又让想'
-                 '怎这可为或用倍增雨赌宣布竞家城能赚合')
+# BAD_WORDS.update('.总报许多无于与喝的没就抢长今说像寻以万亿及导航找派趋势出樊维权在也还只金是借每等亏损雷棋牌石炒'
+#                  '你我行动得付款奖积去励联盟给什么买划算他抄才人它和而酒如但且起不了到拿吧吗呢哪请至最死更过又让想'
+#                  '怎这可为或用倍增雨赌宣布竞家城能赚合')
 
 REPLACE = re.compile(r'[*“,/#?]')
 ONLY_NUM = re.compile(r'^\d+$')
@@ -137,6 +139,12 @@ def filter(entities, invalid_entities=None):
         if INVALID.search(entity):
             print(f"包含不正常符号：{entity}")
             continue
+        for bad_word in BAD_WORDS:
+            if bad_word in entity:
+                is_bad = True
+                break
+        if is_bad:
+            continue
         if invalid_entities:
             if entity in invalid_entities:
                 continue
@@ -184,6 +192,8 @@ def filter(entities, invalid_entities=None):
                 is_bad = True
                 break
         if is_bad:
+            continue
+        if ENGLISH.match(entity) and len(entity) >= 20:
             continue
         new_entites.append(entity)
     # entities = new_entites
