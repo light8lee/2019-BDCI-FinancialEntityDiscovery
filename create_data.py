@@ -127,15 +127,21 @@ def create_data(data, output_filename, important_chars, is_evaluate, tag_type, k
 
             segment = text
             while len(segment) > MAX_SEQ_LEN:
-                right_bound = segment[:MAX_SEQ_LEN].rfind('，', MAX_SEQ_LEN*4//5)
-                if right_bound == -1:
-                    right_bound = MAX_SEQ_LEN
-                sub_texts.append(segment[:right_bound])
-                left_bound = segment.find('，', right_bound*4//5, right_bound)
-                if left_bound == -1:
-                    left_bound = right_bound*4//5
-                segment = segment[left_bound:]
-                offsets.append(left_bound)
+                # right_bound = segment[:MAX_SEQ_LEN].rfind('，', MAX_SEQ_LEN*4//5)
+                # if right_bound == -1:
+                #     right_bound = MAX_SEQ_LEN
+                # sub_texts.append(segment[:right_bound])
+                # left_bound = segment.find('，', right_bound*4//5, right_bound)
+                # if left_bound == -1:
+                #     left_bound = right_bound*4//5
+                # segment = segment[left_bound:]
+                # offsets.append(left_bound)
+                sub_texts.append(segment[:MAX_SEQ_LEN])
+                comma_pos = segment.find('，', MAX_SEQ_LEN*4//5)
+                if comma_pos == -1:
+                    comma_pos = MAX_SEQ_LEN*4//5
+                segment = segment[comma_pos:]
+                offsets.append(comma_pos)
             else:
                 sub_texts.append(segment)
             print(sub_texts)
