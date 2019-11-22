@@ -30,13 +30,13 @@ def infer(data, model, args):
     print(idxs)
 
     if args.cuda:
-        batch_ids_t = batch_ids.cuda()
-        batch_masks_t = batch_masks.cuda()
+        batch_ids = batch_ids.cuda()
+        batch_masks = batch_masks.cuda()
         batch_flags = batch_flags.cuda()
         batch_bounds = batch_bounds.cuda()
         batch_extra = batch_extra.cuda()
-    batch_lens = batch_masks_t.sum(-1).tolist()
-    pred_tags = model.predict(batch_ids_t, batch_masks_t,
+    batch_lens = batch_masks.sum(-1).tolist()
+    pred_tags = model.predict(batch_ids, batch_masks,
                               flags=batch_flags, bounds=batch_bounds,
                               extra=batch_extra)
     results = defaultdict(set)

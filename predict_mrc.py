@@ -30,16 +30,16 @@ def infer(data, model, args):
     print(idxs)
 
     if args.cuda:
-        batch_ids_t = batch_ids.cuda()
-        batch_masks_t = batch_masks.cuda()
+        batch_ids = batch_ids.cuda()
+        batch_masks = batch_masks.cuda()
         batch_begin_ids = batch_begin_ids.cuda()
         batch_end_ids = batch_end_ids.cuda()
         batch_spans = batch_spans.cuda()
         # batch_flags = batch_flags.cuda()
         # batch_bounds = batch_bounds.cuda()
         # batch_extra = batch_extra.cuda()
-    batch_lens = batch_masks_t.sum(-1).tolist()
-    pred_pairs = model.predict(batch_ids_t, batch_masks_t)
+    batch_lens = batch_masks.sum(-1).tolist()
+    pred_pairs = model.predict(batch_ids, batch_masks, threshold=0.98)
     results = defaultdict(set)
     for idx, entities, inputs in zip(idxs, pred_pairs, batch_inputs):
         results[idx].add('')

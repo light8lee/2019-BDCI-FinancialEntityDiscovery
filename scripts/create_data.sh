@@ -8,7 +8,7 @@ python create_data.py \
     --tag_type=BIO
 
 python preprocess_task.py ${data_dir} ${data_dir} \
-    roberta_zh_ext/vocab.txt \
+    ../roberta_zh_ext/vocab.txt \
     --max_seq_length=${max_seq_len} \
     --need_dev \
     --duplicate=2 \

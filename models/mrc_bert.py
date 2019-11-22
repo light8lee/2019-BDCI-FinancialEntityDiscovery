@@ -101,7 +101,7 @@ class MRCBERT_Pretrained(nn.Module):
         loss = loss + span_loss_fct(span_emissions, target_span_ids).sum(-1).mean()
         return loss
 
-    def decode(self, emissions, input_masks):
+    def decode(self, emissions, input_masks, threshold=0.5):
         begin_emissions, end_emissions, span_emissions = emissions
         possible_begins = torch.argmax(begin_emissions.detach(), dim=-1).cpu().numpy()  # [b, t]
         possible_ends = torch.argmax(end_emissions.detach(), dim=-1).cpu().numpy()  # [b, t]
@@ -122,7 +122,7 @@ class MRCBERT_Pretrained(nn.Module):
                     # entities.append((j, i))
                     # break
 
-                    if span[j][i] > 0.5:
+                    if span[j][i] > threshold:
                         print('yes:', i, j, span[j][i], file=sys.stderr)
                         entities.append((j, i))
                         break
@@ -131,7 +131,7 @@ class MRCBERT_Pretrained(nn.Module):
             batch_entities.append(entities)
         return batch_entities
 
-    def predict(self, input_ids, input_masks, flags=None, bounds=None, extra=None):
+    def predict(self, input_ids, input_masks, flags=None, bounds=None, extra=None, threshold=0.5):
         *emissions, _ = self.tag_outputs(input_ids, input_masks, flags=flags, bounds=bounds, extra=extra)
-        return self.decode(emissions, input_masks)
+        return self.decode(emissions, input_masks, threshold=threshold)
 

@@ -2,28 +2,8 @@ import os
 import pandas as pd
 import argparse
 from collections import Counter
-
-
-REMOVE = {
-    '3点钟XMX', '51天', 'ABC123Group', 'APP有鱼股票',
-    'ATM取款机', 'BENZ', 'EXPASSETLtd', 'IXX.com',
-    'Miss摩', 'NOSPPT', 'NOSProjectPPTNOS', 'NOSZ',
-    'One', 'PLUS', 'Python', 'TPU',
-    'Token', 'TrustWalletdApps', 'ZG.comCEO', 'bangquan1',
-    'coinsupercoinsuper', 'fengxian', 'hyb华赢宝', 'pandorasdefi',
-    'tvb', 'wai汇', 'weixin', '中国环球币',
-    '云联惠心未来', '仟易商城微交易微交易平台微交易', '以太猴模式',
-    '信广', '刷脸支付', '加密投资银行', '加密货币投资银行',
-    '卓逸集', '博安杰', '哪划算苏州哪划算网络公司', '外汇110网',
-    '外汇期货', '大众创业万众创新', '大众创业商机', '天乐购',
-    '小闪贷鄞州银行小闪贷', '山东再担', '张誉发', '微众银行',
-    '微信贷款', '我投资', '晋坤农畜交易50ETFbritrading元银汇宝', '晋江农商银行浙江金华金融服务上门行', '本体',
-    '泉州华美整形医院', '炒wai汇', '牛汇BFS牛汇', 
-    '祥泰彩印包装', '积分兑换', '立诚贷', '维quan', '贝尔您',
-    '贵金属伦敦金伦敦银', '超级富豪', '钻石', '铜柚子', '银柚子',
-    '黄金0', '黄金wai汇'
-}
-
+with open('data/bad_cases.txt', encoding='utf-8') as f:
+    REMOVE = set(line.strip() for line in f)
 
 def vote_v1():
     # parser = argparse.ArgumentParser()

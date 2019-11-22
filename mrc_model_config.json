@@ -1,7 +1,7 @@
 {
     "optimizer": {
         "name": "Adam",
-        "lr": 1e-4
+        "lr": 8e-5
     },
     "model": {
         "name": "MRCBERT_Pretrained",

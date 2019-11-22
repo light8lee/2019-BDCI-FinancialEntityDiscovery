@@ -15,11 +15,11 @@ config=mrc_model_config.json
 cp ${config} outputs/${name}
 CUDA_VISIBLE_DEVICES=0 python train_mrc.py \
     --cuda \
-    --data=round2_inputs/nerk_mrc_L128_F5_NoLM \
+    --data=round2_inputs/ner_mrc_L256_F5_NoLM2 \
     --save_dir=outputs/${name} \
-    --batch_size=12 \
-    --scale_rate=5 \
-    --epoch=10 \
+    --batch_size=8 \
+    --scale_rate=10 \
+    --epoch=2 \
     --do_eval \
     --config=outputs/${name}/${config} \
     2> outputs/${name}/${name}.log >> outputs/${name}/${name}.info &
