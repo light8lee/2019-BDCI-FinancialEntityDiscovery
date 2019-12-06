@@ -6,7 +6,7 @@ import argparse
 import os
 import pickle
 import re
-from textrank4zh import TextRank4Keyword
+# from textrank4zh import TextRank4Keyword
 import create_data
 
 DOMAINS = set()
@@ -63,7 +63,7 @@ for entities in train_data['unknownEntities']:
     entities = entities.split(';')
     train_entities.update(entities)
 train_entities.remove('')
-TR4K = TextRank4Keyword()
+# TR4K = TextRank4Keyword()
 ENGLISH = re.compile(r'^[a-zA-Z0-9]+$')
 
 def clean_samples(samples):
