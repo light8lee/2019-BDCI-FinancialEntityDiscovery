@@ -12,9 +12,12 @@
 本代码采用了基于序列标注的实体识别和基于机器阅读理解的实体识别相结合的方式。
 
 - 基于序列标注的实体识别，基本结构是`RoBERTa-wwm-ext(finetuned) + BiLSTM + CRF`，同时拼接字特征
-![](./resources/tagger.png)
+
+![1](./resources/tagger.PNG)
+
 - 基于机器阅读理解的实体识别，参考的是香侬科技的《A Unified MRC Framework for Named Entity Recognition》论文，并自己实现的，同时根据实际情况做了相应的改进。
-![](./resources/mrc.png)
+
+![2](./resources/mrc.PNG)
 
 具体细节可以参考我们的论文[迎难而上-金融实体-说明论文](./resources/paper.pdf)
 
